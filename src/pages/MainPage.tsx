@@ -1,9 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket } from 'lucide-react';
+import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, LogOut, User, Settings } from 'lucide-react';
 import Button from '../components/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 const MainPage: React.FC = () => {
+  const { currentUser, signOut, isLoading } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50 via-purple-50 to-pink-50">
       <header className="py-8 px-4 text-center relative overflow-hidden">
@@ -15,10 +22,35 @@ const MainPage: React.FC = () => {
         </div>
         
         <div className="relative">
+          <div className="absolute top-0 right-4 sm:right-10">
+            {!isLoading && currentUser ? (
+              <div className="flex items-center gap-3">
+                <Link to="/profile" className="bg-purple-100 rounded-full px-3 py-1 text-sm text-purple-700 flex items-center hover:bg-purple-200 transition-colors">
+                  <User size={16} className="mr-1" />
+                  {currentUser.isAnonymous ? '익명 사용자' : (currentUser.displayName || currentUser.email || '사용자')}
+                  <Settings size={16} className="ml-1" />
+                </Link>
+                <button 
+                  onClick={handleSignOut}
+                  className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full p-2 transition-colors"
+                  title="로그아웃"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : !isLoading && (
+              <Link to="/login">
+                <Button variant="secondary" size="small">
+                  로그인
+                </Button>
+              </Link>
+            )}
+          </div>
+          
           <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center gap-3">
-            <Sparkles size={32} className="text-yellow-400 animate-pulse" />
+            <Sparkles size={32} className="text-yellow-400" />
             퀴즈 위자드
-            <Star size={32} className="text-yellow-400 animate-ping-slow" />
+            <Star size={32} className="text-yellow-400" />
           </h1>
           <p className="text-xl text-purple-800 font-medium">인터랙티브 퀴즈로 즐겁게 배우는 마법 같은 경험!</p>
         </div>
@@ -68,15 +100,29 @@ const MainPage: React.FC = () => {
               </div>
               
               <div className="mt-auto">
-                <Link to="/host/create">
-                  <Button 
-                    variant="primary" 
-                    size="large"
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
-                  >
-                    <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
-                  </Button>
-                </Link>
+                {!isLoading && (
+                  currentUser ? (
+                    <Link to="/host/create">
+                      <Button 
+                        variant="primary" 
+                        size="large"
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                      >
+                        <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link to="/login">
+                      <Button 
+                        variant="primary" 
+                        size="large"
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                      >
+                        <User size={20} className="mr-2" /> 퀴즈 만들기 시작하기
+                      </Button>
+                    </Link>
+                  )
+                )}
               </div>
             </div>
           </div>
@@ -104,7 +150,7 @@ const MainPage: React.FC = () => {
                   <Button 
                     variant="secondary" 
                     fullWidth 
-                    size="medium"
+                    size="large"
                     className="bg-gradient-to-r from-teal-400 to-cyan-400 text-sm"
                   >
                     코드 입력하기

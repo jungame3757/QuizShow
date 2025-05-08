@@ -1,0 +1,94 @@
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, UserCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import Button from '../components/Button';
+
+const Login: React.FC = () => {
+  const { currentUser, signInWithGoogle, signInAnonymous, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // 이미 로그인한 경우 홈으로 리다이렉트
+    if (currentUser && !isLoading) {
+      navigate('/');
+    }
+  }, [currentUser, isLoading, navigate]);
+
+  const handleGoogleLogin = async () => {
+    await signInWithGoogle();
+    navigate('/');
+  };
+
+  const handleAnonymousLogin = async () => {
+    await signInAnonymous();
+    navigate('/');
+  };
+
+  if (isLoading) {
+    return <div className="p-8 text-center">로딩 중...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+      <div className="max-w-md mx-auto">
+        <button 
+          onClick={() => navigate('/')}
+          className="flex items-center text-purple-700 mb-6 hover:text-purple-900 transition-colors"
+        >
+          <ArrowLeft size={20} className="mr-2" /> 홈으로 돌아가기
+        </button>
+
+        <div className="bg-white rounded-2xl shadow-md p-8">
+          <h1 className="text-3xl font-bold text-purple-700 mb-8 text-center">로그인</h1>
+          
+          <p className="text-gray-600 mb-8 text-center">
+            퀴즈 쇼를 생성하려면 로그인이 필요합니다.
+          </p>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={handleGoogleLogin}
+              className="bg-white border border-blue-300 text-blue-600 px-4 py-3 rounded-md hover:bg-blue-50 transition-colors w-full flex items-center justify-center"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M21.8,12.1c0-0.7-0.1-1.3-0.2-2H12v3.8h5.5c-0.2,1.2-0.9,2.2-2,2.9v2.4h3.2C20.6,17.1,21.8,14.9,21.8,12.1z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12,22c2.7,0,5-0.9,6.6-2.4l-3.2-2.4c-0.9,0.6-2,1-3.3,1c-2.6,0-4.8-1.7-5.5-4.1H3.3v2.5C5,19.5,8.3,22,12,22z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M6.5,14.1c-0.2-0.6-0.3-1.3-0.3-2.1s0.1-1.4,0.3-2.1V7.4H3.3C2.5,9,2,10.9,2,13s0.5,4,1.3,5.6L6.5,14.1z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12,5.8c1.5,0,2.8,0.5,3.8,1.5l2.8-2.8C16.9,2.9,14.6,2,12,2C8.3,2,5,4.5,3.3,8.1l3.2,2.5C7.2,7.5,9.4,5.8,12,5.8z"
+                />
+              </svg>
+              Google로 로그인
+            </button>
+            
+            <Button 
+              onClick={handleAnonymousLogin}
+              variant="secondary"
+              className="w-full py-3 justify-center"
+            >
+              <UserCircle size={20} className="mr-2" /> 익명으로 로그인
+            </Button>
+            
+            <p className="text-sm text-gray-500 text-center mt-6">
+              로그인은 퀴즈 쇼 생성에만 필요합니다.<br />
+              이미 생성된 퀴즈에 참여하는 것은 로그인 없이 가능합니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login; 
