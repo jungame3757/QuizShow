@@ -15,15 +15,18 @@ const CreateQuiz: React.FC = () => {
   const [timeLimit, setTimeLimit] = useState(30); // seconds per question
   const [questions, setQuestions] = useState<any[]>([]);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
+  const [error, setError] = useState('');
   
   const handleCreateQuiz = () => {
+    setError('');
+    
     if (!title.trim()) {
-      alert('퀴즈 제목을 입력해주세요');
+      setError('퀴즈 제목을 입력해주세요');
       return;
     }
     
     if (questions.length === 0) {
-      alert('최소 한 개의 문제를 추가해주세요');
+      setError('최소 한 개의 문제를 추가해주세요');
       return;
     }
     
@@ -55,6 +58,7 @@ const CreateQuiz: React.FC = () => {
   const handleAddQuestion = (question: any) => {
     setQuestions(prev => [...prev, question]);
     setIsAddingQuestion(false);
+    setError('');
   };
   
   const handleRemoveQuestion = (index: number) => {
@@ -73,6 +77,12 @@ const CreateQuiz: React.FC = () => {
 
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-purple-700 mb-6">새 퀴즈 쇼 만들기</h1>
+          
+          {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
           
           <div className="space-y-6">
             <div>

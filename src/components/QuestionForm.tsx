@@ -12,6 +12,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
   const [text, setText] = useState('');
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number | null>(null);
+  const [error, setError] = useState('');
   
   const handleAddOption = () => {
     if (options.length < 5) {
@@ -62,18 +63,20 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
   
   const handleSubmit = () => {
     // Validate
+    setError('');
+    
     if (!text.trim()) {
-      alert('문제 내용을 입력해주세요');
+      setError('문제 내용을 입력해주세요');
       return;
     }
     
     if (options.some(option => !option.trim())) {
-      alert('모든 선택지를 입력해주세요');
+      setError('모든 선택지를 입력해주세요');
       return;
     }
     
     if (correctAnswerIndex === null) {
-      alert('정답을 선택해주세요');
+      setError('정답을 선택해주세요');
       return;
     }
     
@@ -87,6 +90,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
     setText('');
     setOptions(['', '', '', '']);
     setCorrectAnswerIndex(null);
+    setError('');
   };
 
   // 정답이 선택되어 있는지 확인
@@ -95,6 +99,12 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
   return (
     <div className="bg-purple-50 rounded-xl p-6 mb-8 animate-fade-in">
       <h3 className="text-xl font-bold text-purple-700 mb-4">새 문제 추가</h3>
+      
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
+          {error}
+        </div>
+      )}
       
       <div className="space-y-6">
         <div>
