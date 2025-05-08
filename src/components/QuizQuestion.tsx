@@ -25,17 +25,6 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
         {question.text}
       </h2>
       
-      {question.imageUrl && (
-        <div className="mb-6">
-          <img 
-            src={question.imageUrl} 
-            alt={question.text}
-            className="max-w-full h-auto rounded-lg mx-auto"
-            style={{ maxHeight: '200px' }}
-          />
-        </div>
-      )}
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         {question.options.map((option, index) => {
           const isSelected = selectedAnswer === option;
@@ -94,7 +83,7 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
           {isCorrect ? (
             <div className="flex items-center justify-center">
               <Check size={24} className="mr-2" />
-              정답입니다! +{question.points} 점
+              정답입니다!
             </div>
           ) : (
             <div className="flex items-center justify-center">

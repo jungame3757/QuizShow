@@ -5,7 +5,6 @@ export interface Quiz {
   inviteCode: string;
   status: 'waiting' | 'active' | 'completed';
   questions: Question[];
-  timeLimit?: number; // seconds per question
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
@@ -14,11 +13,8 @@ export interface Quiz {
 export interface Question {
   id: string;
   text: string;
-  imageUrl?: string;
   options: string[];
   correctAnswer: string;
-  points: number;
-  timeLimit?: number; // override quiz default
 }
 
 export interface Participant {

@@ -164,7 +164,7 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
     if (!question) return;
     
     const isCorrect = question.correctAnswer === answer;
-    const points = isCorrect ? question.points || 1 : 0;
+    const points = isCorrect ? 1 : 0;
     
     setParticipants(prev => 
       prev.map(p => {

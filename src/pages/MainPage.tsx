@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BrainCircuit, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket } from 'lucide-react';
+import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket } from 'lucide-react';
 import Button from '../components/Button';
 
 const MainPage: React.FC = () => {
@@ -34,7 +34,7 @@ const MainPage: React.FC = () => {
             <div className="relative flex-1 flex flex-col">
               <div className="flex items-center mb-6">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center transform -rotate-6 shadow-lg">
-                  <BrainCircuit size={40} className="text-white" />
+                  <Wand size={40} className="text-white" />
                 </div>
                 <div className="ml-6">
                   <div className="text-sm text-purple-500 font-semibold">함께 배워요</div>

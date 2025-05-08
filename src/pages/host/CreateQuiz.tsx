@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Check, X, Edit } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -12,9 +12,9 @@ const CreateQuiz: React.FC = () => {
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [timeLimit, setTimeLimit] = useState(30); // seconds per question
   const [questions, setQuestions] = useState<any[]>([]);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
   
   const handleCreateQuiz = () => {
@@ -33,7 +33,6 @@ const CreateQuiz: React.FC = () => {
     const quizId = createQuiz({
       title: title.trim(),
       description: description.trim(),
-      timeLimit,
       inviteCode: '', // Will be generated
       status: 'waiting',
       questions: [],
@@ -44,11 +43,8 @@ const CreateQuiz: React.FC = () => {
     questions.forEach(q => {
       addQuestion(quizId, {
         text: q.text,
-        imageUrl: q.imageUrl,
         options: q.options,
         correctAnswer: q.correctAnswer,
-        points: q.points,
-        timeLimit: q.timeLimit
       });
     });
     
@@ -61,8 +57,21 @@ const CreateQuiz: React.FC = () => {
     setError('');
   };
   
+  const handleUpdateQuestion = (question: any) => {
+    if (editingQuestionIndex !== null) {
+      setQuestions(prev => 
+        prev.map((q, i) => i === editingQuestionIndex ? question : q)
+      );
+      setEditingQuestionIndex(null);
+    }
+  };
+  
   const handleRemoveQuestion = (index: number) => {
     setQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditQuestion = (index: number) => {
+    setEditingQuestionIndex(index);
   };
 
   return (
@@ -110,27 +119,13 @@ const CreateQuiz: React.FC = () => {
                 className="w-full"
               />
             </div>
-            
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-2">
-                문제당 제한 시간 (초)
-              </label>
-              <Input
-                type="number"
-                min={5}
-                max={120}
-                value={timeLimit}
-                onChange={(e) => setTimeLimit(Number(e.target.value))}
-                className="w-32"
-              />
-            </div>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-purple-700 mb-6">문제</h2>
           
-          {questions.length === 0 && !isAddingQuestion && (
+          {questions.length === 0 && !isAddingQuestion && editingQuestionIndex === null && (
             <div className="text-center py-8 bg-purple-50 rounded-xl">
               <p className="text-gray-600 mb-4">아직 추가된 문제가 없습니다</p>
               <Button 
@@ -142,7 +137,7 @@ const CreateQuiz: React.FC = () => {
             </div>
           )}
           
-          {questions.length > 0 && (
+          {questions.length > 0 && editingQuestionIndex === null && (
             <div className="space-y-4 mb-6">
               {questions.map((question, index) => (
                 <div 
@@ -153,24 +148,31 @@ const CreateQuiz: React.FC = () => {
                     <div className="font-medium text-purple-800">문제 {index + 1}</div>
                     <div className="text-gray-700">{question.text}</div>
                     <div className="mt-2 flex items-center">
-                      <span className="text-green-600 flex items-center mr-4">
+                      <span className="text-green-600 flex items-center">
                         <Check size={16} className="mr-1" /> {question.correctAnswer}
                       </span>
-                      <span className="text-yellow-600">{question.points} 점</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleRemoveQuestion(index)}
-                    className="text-red-500 hover:text-red-700 p-1"
-                  >
-                    <X size={20} />
-                  </button>
+                  <div className="flex">
+                    <button 
+                      onClick={() => handleEditQuestion(index)}
+                      className="text-blue-500 hover:text-blue-700 p-1 mr-1"
+                    >
+                      <Edit size={20} />
+                    </button>
+                    <button 
+                      onClick={() => handleRemoveQuestion(index)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
           
-          {!isAddingQuestion && questions.length > 0 && (
+          {!isAddingQuestion && editingQuestionIndex === null && questions.length > 0 && (
             <Button 
               onClick={() => setIsAddingQuestion(true)}
               variant="secondary"
@@ -185,6 +187,17 @@ const CreateQuiz: React.FC = () => {
               onSave={handleAddQuestion}
               onCancel={() => setIsAddingQuestion(false)}
             />
+          )}
+
+          {editingQuestionIndex !== null && (
+            <div>
+              <h3 className="text-xl font-medium text-purple-700 mb-4">문제 {editingQuestionIndex + 1} 수정하기</h3>
+              <QuestionForm 
+                initialData={questions[editingQuestionIndex]}
+                onSave={handleUpdateQuestion}
+                onCancel={() => setEditingQuestionIndex(null)}
+              />
+            </div>
           )}
         </div>
         

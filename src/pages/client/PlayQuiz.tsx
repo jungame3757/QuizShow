@@ -49,8 +49,7 @@ const PlayQuiz: React.FC = () => {
   useEffect(() => {
     if (!quiz || !quiz.questions || currentQuestionIndex >= quiz.questions.length) return;
     
-    const question = quiz.questions[currentQuestionIndex];
-    const questionTimeLimit = question.timeLimit || quiz.timeLimit || 30;
+    const questionTimeLimit = 30;
     
     setTimeLeft(questionTimeLimit);
     
@@ -169,7 +168,7 @@ const PlayQuiz: React.FC = () => {
           <div className="bg-gray-100 h-2 rounded-full mb-6">
             <div 
               className={`h-2 rounded-full ${timeLeft && timeLeft < 10 ? 'bg-red-500' : 'bg-purple-500'}`}
-              style={{ width: `${timeLeft !== null ? (timeLeft / (currentQuestion.timeLimit || quiz.timeLimit || 30)) * 100 : 0}%` }}
+              style={{ width: `${timeLeft !== null ? (timeLeft / 30) * 100 : 0}%` }}
             ></div>
           </div>
           

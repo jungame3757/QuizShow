@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Check } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
@@ -6,13 +6,30 @@ import Input from './Input';
 interface QuestionFormProps {
   onSave: (question: any) => void;
   onCancel: () => void;
+  initialData?: {
+    text: string;
+    options: string[];
+    correctAnswer: string;
+  };
 }
 
-const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
-  const [text, setText] = useState('');
-  const [options, setOptions] = useState(['', '', '', '']);
+const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialData }) => {
+  const [text, setText] = useState(initialData?.text || '');
+  const [options, setOptions] = useState(initialData?.options || ['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
+  
+  // 초기 데이터가 있는 경우 correctAnswerIndex 설정
+  useEffect(() => {
+    if (initialData?.correctAnswer) {
+      const index = initialData.options.findIndex(
+        option => option === initialData.correctAnswer
+      );
+      if (index !== -1) {
+        setCorrectAnswerIndex(index);
+      }
+    }
+  }, [initialData]);
   
   const handleAddOption = () => {
     if (options.length < 5) {
@@ -98,7 +115,9 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel }) => {
 
   return (
     <div className="bg-purple-50 rounded-xl p-6 mb-8 animate-fade-in">
-      <h3 className="text-xl font-bold text-purple-700 mb-4">새 문제 추가</h3>
+      <h3 className="text-xl font-bold text-purple-700 mb-4">
+        {initialData ? '문제 수정하기' : '새 문제 추가'}
+      </h3>
       
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
