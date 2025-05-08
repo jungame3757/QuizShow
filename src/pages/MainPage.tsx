@@ -1,15 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, LogOut, User, Settings } from 'lucide-react';
+import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, User, Settings } from 'lucide-react';
 import Button from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 
 const MainPage: React.FC = () => {
-  const { currentUser, signOut, isLoading } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
+  const { currentUser, isLoading } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50 via-purple-50 to-pink-50">
@@ -21,23 +17,28 @@ const MainPage: React.FC = () => {
           <div className="absolute left-1/4 bottom-4 w-16 h-16 bg-blue-200 rounded-full opacity-20"></div>
         </div>
         
-        <div className="relative">
-          <div className="absolute top-0 right-4 sm:right-10">
+        <div className="relative flex flex-col sm:flex-row items-center justify-center">
+          {/* 제목 섹션 */}
+          <div className="w-full mb-6 sm:mb-0">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center gap-3">
+              <Sparkles size={28} className="text-yellow-400" />
+              퀴즈 위자드
+              <Star size={28} className="text-yellow-400" />
+            </h1>
+            <p className="text-lg sm:text-xl text-purple-800 font-medium mt-2">인터랙티브 퀴즈로 즐겁게 배우는 마법 같은 경험!</p>
+          </div>
+          
+          {/* 프로필 섹션 - 모바일에서는 제목 아래에 표시 */}
+          <div className="flex justify-center w-full sm:w-auto sm:absolute sm:top-0 sm:right-4 md:right-10">
             {!isLoading && currentUser ? (
-              <div className="flex items-center gap-3">
-                <Link to="/profile" className="bg-purple-100 rounded-full px-3 py-1 text-sm text-purple-700 flex items-center hover:bg-purple-200 transition-colors">
-                  <User size={16} className="mr-1" />
-                  {currentUser.isAnonymous ? '익명 사용자' : (currentUser.displayName || currentUser.email || '사용자')}
-                  <Settings size={16} className="ml-1" />
-                </Link>
-                <button 
-                  onClick={handleSignOut}
-                  className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full p-2 transition-colors"
-                  title="로그아웃"
-                >
-                  <LogOut size={16} />
-                </button>
-              </div>
+              <Link 
+                to="/profile" 
+                className="bg-purple-600 text-white px-4 py-2 rounded-full shadow hover:bg-purple-700 transition-colors flex items-center gap-2"
+              >
+                <User size={18} className="text-white" />
+                {currentUser.isAnonymous ? '익명 사용자' : (currentUser.displayName || currentUser.email || '사용자')}
+                <Settings size={16} />
+              </Link>
             ) : !isLoading && (
               <Link to="/login">
                 <Button variant="secondary" size="small">
@@ -46,13 +47,6 @@ const MainPage: React.FC = () => {
               </Link>
             )}
           </div>
-          
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center gap-3">
-            <Sparkles size={32} className="text-yellow-400" />
-            퀴즈 위자드
-            <Star size={32} className="text-yellow-400" />
-          </h1>
-          <p className="text-xl text-purple-800 font-medium">인터랙티브 퀴즈로 즐겁게 배우는 마법 같은 경험!</p>
         </div>
       </header>
       
