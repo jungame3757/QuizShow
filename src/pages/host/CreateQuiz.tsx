@@ -8,7 +8,7 @@ import QuestionForm from '../../components/QuestionForm';
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();
-  const { createQuiz, addQuestion } = useQuiz();
+  const { createQuiz, addQuestion, error: quizError, loading } = useQuiz();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -16,39 +16,98 @@ const CreateQuiz: React.FC = () => {
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleCreateQuiz = () => {
-    setError('');
-    
-    if (!title.trim()) {
-      setError('퀴즈 제목을 입력해주세요');
-      return;
+  const handleCreateQuiz = async () => {
+    try {
+      setError('');
+      setIsSubmitting(true);
+      
+      if (!title.trim()) {
+        setError('퀴즈 제목을 입력해주세요');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (questions.length === 0) {
+        setError('최소 한 개의 문제를 추가해주세요');
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("퀴즈 생성 시작...");
+      console.log("제목:", title.trim());
+      console.log("설명:", description.trim());
+      console.log("문제 수:", questions.length);
+      
+      let quizId: string;
+      
+      try {
+        // 1. 먼저 퀴즈 생성 (비동기 처리)
+        quizId = await createQuiz({
+          title: title.trim(),
+          description: description.trim(),
+          inviteCode: '', // Will be generated
+          status: 'waiting',
+          questions: [], // 빈 배열로 시작
+          createdAt: new Date().toISOString()
+        });
+        
+        console.log("퀴즈 생성 완료, ID:", quizId);
+      } catch (createError) {
+        console.error("퀴즈 생성 실패:", createError);
+        setError(createError instanceof Error ? 
+          createError.message : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      console.log("문제 추가 시작, 총 문제 수:", questions.length);
+      let hasError = false;
+      
+      // 2. 모든 문제를 순차적으로 추가 (각 문제 추가 작업을 await로 기다림)
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        console.log(`문제 ${i+1} 추가 중...`, q);
+        
+        // 문제 데이터 유효성 검사
+        if (!q.text || !q.options || !q.correctAnswer) {
+          console.error(`문제 ${i+1} 데이터 유효성 검사 실패:`, q);
+          setError(`문제 ${i+1}의 내용이 올바르지 않습니다.`);
+          hasError = true;
+          break;
+        }
+        
+        try {
+          await addQuestion(quizId, {
+            text: q.text,
+            options: Array.isArray(q.options) ? q.options : [],
+            correctAnswer: q.correctAnswer,
+          });
+          console.log(`문제 ${i+1} 추가 완료`);
+        } catch (err) {
+          console.error(`문제 ${i+1} 추가 실패:`, err);
+          setError(`문제 ${i+1} 추가 중 오류가 발생했습니다.`);
+          hasError = true;
+          break;
+        }
+      }
+      
+      if (hasError) {
+        console.log("문제 추가 중 오류 발생, 퀴즈 관리 페이지로 이동합니다.");
+        // 문제가 있어도 생성된 퀴즈로 이동
+        navigate(`/host/manage/${quizId}`);
+        return;
+      }
+      
+      console.log("모든 문제 추가 완료, 퀴즈 관리 페이지로 이동");
+      navigate(`/host/manage/${quizId}`);
+    } catch (err) {
+      console.error("퀴즈 생성 중 오류:", err);
+      setError('퀴즈 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    if (questions.length === 0) {
-      setError('최소 한 개의 문제를 추가해주세요');
-      return;
-    }
-    
-    const quizId = createQuiz({
-      title: title.trim(),
-      description: description.trim(),
-      inviteCode: '', // Will be generated
-      status: 'waiting',
-      questions: [],
-      createdAt: ''
-    });
-    
-    // Add all questions to the quiz
-    questions.forEach(q => {
-      addQuestion(quizId, {
-        text: q.text,
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-      });
-    });
-    
-    navigate(`/host/manage/${quizId}`);
   };
   
   const handleAddQuestion = (question: any) => {
@@ -87,9 +146,9 @@ const CreateQuiz: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-purple-700 mb-6">새 퀴즈 쇼 만들기</h1>
           
-          {error && (
+          {(error || quizError) && (
             <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
-              {error}
+              {error || quizError}
             </div>
           )}
           
@@ -206,9 +265,9 @@ const CreateQuiz: React.FC = () => {
             onClick={handleCreateQuiz}
             variant="primary"
             size="large"
-            disabled={!title || questions.length === 0}
+            disabled={!title || questions.length === 0 || isSubmitting || loading}
           >
-            퀴즈 쇼 만들기
+            {isSubmitting || loading ? '처리 중...' : '퀴즈 쇼 만들기'}
           </Button>
         </div>
       </div>

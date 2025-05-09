@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import MainPage from './pages/MainPage';
 import CreateQuiz from './pages/host/CreateQuiz';
 import ManageQuiz from './pages/host/ManageQuiz';
+import MyQuizzes from './pages/host/MyQuizzes';
 import JoinQuiz from './pages/client/JoinQuiz';
 import WaitingRoom from './pages/client/WaitingRoom';
 import PlayQuiz from './pages/client/PlayQuiz';
@@ -44,6 +45,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ManageQuiz />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/host/my-quizzes" 
+                element={
+                  <ProtectedRoute>
+                    <MyQuizzes />
                   </ProtectedRoute>
                 } 
               />

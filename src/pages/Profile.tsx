@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { updateProfile, deleteUser } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
-import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle } from 'lucide-react';
+import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle, List } from 'lucide-react';
 
 const Profile = () => {
   const { currentUser, signInWithGoogle, signOut } = useAuth();
@@ -57,6 +57,12 @@ const Profile = () => {
         
         {/* 프로필 카드 */}
         <div className="bg-white shadow-lg rounded-xl p-6 mb-6 border border-purple-100">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-400 to-indigo-500 flex items-center justify-center shadow-md">
+              <User size={40} className="text-white" />
+            </div>
+          </div>
+          
           {currentUser && !currentUser.isAnonymous ? (
             <>
               <div className="mb-6">
@@ -141,6 +147,10 @@ const Profile = () => {
         
         {/* 계정 관리 영역 */}
         <div className="space-y-4">
+          <Link to="/host/my-quizzes" className="bg-indigo-600 text-white px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors w-full flex items-center justify-center">
+            <List size={18} className="mr-2" /> 내가 만든 퀴즈 보기
+          </Link>
+          
           <button
             onClick={handleLogout}
             className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 transition-colors w-full flex items-center justify-center"

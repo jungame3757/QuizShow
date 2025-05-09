@@ -12,25 +12,76 @@ import QuizProgress from '../../components/QuizProgress';
 const ManageQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
-  const { getQuiz, startQuiz, participants, updateQuiz } = useQuiz();
+  const { getQuiz, startQuiz, participants, updateQuiz, loading, error: quizError } = useQuiz();
   
   const [quiz, setQuiz] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'participants' | 'progress'>('participants');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   
+  // 퀴즈 정보 로드
   useEffect(() => {
-    if (quizId) {
-      const quizData = getQuiz(quizId);
-      if (quizData) {
-        setQuiz(quizData);
-      } else {
-        navigate('/');
+    const loadQuiz = async () => {
+      if (!quizId) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        console.log("퀴즈 정보 로드 중...", quizId);
+        
+        if (!quizId || typeof quizId !== 'string') {
+          throw new Error('유효하지 않은 퀴즈 ID입니다.');
+        }
+        
+        const quizData = await getQuiz(quizId);
+        
+        if (quizData) {
+          console.log("퀴즈 정보 로드 완료:", quizData);
+          
+          // 데이터 유효성 검사
+          if (!quizData.title) {
+            console.warn("퀴즈 제목이 없습니다:", quizData);
+          }
+          
+          // questions 배열 확인
+          if (!Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+            console.warn("퀴즈에 문제가 없습니다:", quizData);
+          }
+          
+          setQuiz(quizData);
+        } else {
+          console.error("퀴즈를 찾을 수 없음:", quizId);
+          setError('퀴즈를 찾을 수 없습니다.');
+          setTimeout(() => navigate('/'), 2000);
+        }
+      } catch (err) {
+        console.error("퀴즈 로드 오류:", err);
+        setError(err instanceof Error ? 
+          err.message : '퀴즈 정보를 불러오는 중 오류가 발생했습니다.');
+        
+        // 심각한 오류 시 홈으로 리다이렉트
+        setTimeout(() => navigate('/'), 3000);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+    
+    loadQuiz();
   }, [quizId, getQuiz, navigate]);
   
-  if (!quiz) {
+  // 퀴즈 정보 로딩 중이거나 오류 발생 시
+  if (isLoading || loading) {
     return <div className="p-8 text-center">퀴즈 로딩 중...</div>;
+  }
+  
+  if (error || quizError) {
+    return <div className="p-8 text-center text-red-600">{error || quizError}</div>;
+  }
+  
+  if (!quiz) {
+    return <div className="p-8 text-center">퀴즈 정보를 찾을 수 없습니다.</div>;
   }
   
   const quizParticipants = participants.filter(p => p.quizId === quiz.id);
@@ -41,21 +92,77 @@ const ManageQuiz: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
   
-  const handleStartQuiz = () => {
+  const handleStartQuiz = async () => {
     if (quizParticipants.length === 0) {
       alert('퀴즈를 시작하기 전에 참가자들이 입장할 때까지 기다려주세요');
       return;
     }
     
-    startQuiz(quiz.id);
-    setActiveTab('progress');
+    try {
+      setIsProcessing(true);
+      console.log("퀴즈 시작 중...", quiz.id);
+      
+      // 퀴즈 상태 확인
+      if (quiz.status !== 'waiting') {
+        throw new Error('이미 시작되었거나 완료된 퀴즈입니다.');
+      }
+      
+      // 문제 확인
+      if (!Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+        throw new Error('퀴즈에 문제가 없습니다. 먼저 문제를 추가해주세요.');
+      }
+      
+      await startQuiz(quiz.id);
+      console.log("퀴즈 시작 완료");
+      
+      // 로컬 상태 업데이트
+      setQuiz({
+        ...quiz,
+        status: 'active',
+        startedAt: new Date().toISOString()
+      });
+      
+      setActiveTab('progress');
+    } catch (err) {
+      console.error("퀴즈 시작 오류:", err);
+      alert(err instanceof Error ? 
+        err.message : '퀴즈를 시작하는데 문제가 발생했습니다.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
-  const handleEndQuiz = () => {
-    updateQuiz(quiz.id, { 
-      status: 'completed',
-      completedAt: new Date().toISOString()
-    });
+  const handleEndQuiz = async () => {
+    try {
+      setIsProcessing(true);
+      console.log("퀴즈 종료 중...", quiz.id);
+      
+      // 퀴즈 상태 확인
+      if (quiz.status !== 'active') {
+        throw new Error('활성 상태인 퀴즈만 종료할 수 있습니다.');
+      }
+      
+      const completedAt = new Date().toISOString();
+      
+      await updateQuiz(quiz.id, { 
+        status: 'completed',
+        completedAt
+      });
+      console.log("퀴즈 종료 완료");
+      
+      // 로컬 상태 업데이트
+      setQuiz({
+        ...quiz,
+        status: 'completed',
+        completedAt
+      });
+    } catch (err) {
+      console.error("퀴즈 종료 오류:", err);
+      alert(err instanceof Error ? 
+        err.message : '퀴즈를 종료하는데 문제가 발생했습니다.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -129,9 +236,13 @@ const ManageQuiz: React.FC = () => {
                 variant="primary"
                 size="large"
                 className="px-8"
-                disabled={quizParticipants.length === 0}
+                disabled={quizParticipants.length === 0 || isProcessing}
               >
-                <Play size={20} className="mr-2" /> 퀴즈 시작
+                {isProcessing ? '처리 중...' : (
+                  <>
+                    <Play size={20} className="mr-2" /> 퀴즈 시작
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -143,8 +254,9 @@ const ManageQuiz: React.FC = () => {
                 variant="warning"
                 size="large"
                 className="px-8"
+                disabled={isProcessing}
               >
-                퀴즈 종료
+                {isProcessing ? '처리 중...' : '퀴즈 종료'}
               </Button>
             </div>
           )}

@@ -93,18 +93,29 @@ const MainPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-auto">
+              <div className="mt-auto flex flex-col space-y-3">
                 {!isLoading && (
                   currentUser ? (
-                    <Link to="/host/create">
-                      <Button 
-                        variant="primary" 
-                        size="large"
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
-                      >
-                        <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
-                      </Button>
-                    </Link>
+                    <>
+                      <Link to="/host/create">
+                        <Button 
+                          variant="primary" 
+                          size="large"
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                        >
+                          <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
+                        </Button>
+                      </Link>
+                      <Link to="/host/my-quizzes">
+                        <Button 
+                          variant="secondary" 
+                          size="medium"
+                          className="w-full rounded-xl"
+                        >
+                          내가 만든 퀴즈 보기
+                        </Button>
+                      </Link>
+                    </>
                   ) : (
                     <Link to="/login">
                       <Button 
