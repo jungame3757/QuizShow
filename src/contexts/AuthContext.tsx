@@ -16,6 +16,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInAnonymous: () => Promise<void>;
   signOut: () => Promise<void>;
+  auth: Auth;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -72,6 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signInWithGoogle,
     signInAnonymous,
     signOut,
+    auth,
   };
 
   return (

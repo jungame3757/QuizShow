@@ -2,19 +2,19 @@ export interface Quiz {
   id: string;
   title: string;
   description?: string;
-  inviteCode: string;
-  status: 'waiting' | 'active' | 'completed';
   questions: Question[];
   createdAt: string;
+  updatedAt?: string;
+  status?: 'waiting' | 'active' | 'completed';
+  inviteCode?: string;
   startedAt?: string;
   completedAt?: string;
 }
 
 export interface Question {
-  id: string;
   text: string;
   options: string[];
-  correctAnswer: string;
+  correctAnswer: number;
 }
 
 export interface Participant {
@@ -27,7 +27,7 @@ export interface Participant {
 }
 
 export interface Answer {
-  questionId: string;
+  questionIndex: number;
   answer: string;
   isCorrect: boolean;
   points: number;

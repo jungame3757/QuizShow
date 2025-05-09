@@ -1,11 +1,44 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, User, Settings } from 'lucide-react';
 import Button from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuiz } from '../contexts/QuizContext';
 
 const MainPage: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
+  const { quizzes, loadUserQuizzes } = useQuiz();
+  const [checkingQuizzes, setCheckingQuizzes] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (currentUser && !isLoading) {
+      loadUserQuizzes();
+    }
+  }, [currentUser, isLoading, loadUserQuizzes]);
+
+  const handleStartQuizCreation = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    setCheckingQuizzes(true);
+    
+    try {
+      // 사용자가 이미 퀴즈를 가지고 있는지 확인
+      if (quizzes.length > 0) {
+        navigate('/host/my-quizzes');
+      } else {
+        navigate('/host/create');
+      }
+    } catch (error) {
+      console.error("퀴즈 확인 중 오류:", error);
+      navigate('/host/create');
+    } finally {
+      setCheckingQuizzes(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50 via-purple-50 to-pink-50">
@@ -28,8 +61,8 @@ const MainPage: React.FC = () => {
             <p className="text-lg sm:text-xl text-purple-800 font-medium mt-2">인터랙티브 퀴즈로 즐겁게 배우는 마법 같은 경험!</p>
           </div>
           
-          {/* 프로필 섹션 - 모바일에서는 제목 아래에 표시 */}
-          <div className="flex justify-center w-full sm:w-auto sm:absolute sm:top-0 sm:right-4 md:right-10">
+          {/* 프로필 섹션 - 모든 화면 크기에서 우측 상단에 표시 */}
+          <div className="absolute top-0 right-4 md:right-10">
             {!isLoading && currentUser ? (
               <Link 
                 to="/profile" 
@@ -64,7 +97,7 @@ const MainPage: React.FC = () => {
                 </div>
                 <div className="ml-6">
                   <div className="text-sm text-purple-500 font-semibold">함께 배워요</div>
-                  <h2 className="text-3xl font-extrabold text-purple-800">퀴즈 쇼 만들기</h2>
+                  <h2 className="text-3xl font-extrabold text-purple-800">퀴즈 만들기</h2>
                 </div>
               </div>
               
@@ -93,35 +126,36 @@ const MainPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-auto flex flex-col space-y-3">
+              <div className="mt-auto">
                 {!isLoading && (
                   currentUser ? (
-                    <>
-                      <Link to="/host/create">
-                        <Button 
-                          variant="primary" 
-                          size="large"
-                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
-                        >
+                    <Button 
+                      variant="primary" 
+                      size="large"
+                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                      onClick={handleStartQuizCreation}
+                      disabled={checkingQuizzes}
+                    >
+                      {checkingQuizzes ? (
+                        <span className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          로딩중...
+                        </span>
+                      ) : (
+                        <>
                           <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
-                        </Button>
-                      </Link>
-                      <Link to="/host/my-quizzes">
-                        <Button 
-                          variant="secondary" 
-                          size="medium"
-                          className="w-full rounded-xl"
-                        >
-                          내가 만든 퀴즈 보기
-                        </Button>
-                      </Link>
-                    </>
+                        </>
+                      )}
+                    </Button>
                   ) : (
                     <Link to="/login">
                       <Button 
                         variant="primary" 
                         size="large"
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
                       >
                         <User size={20} className="mr-2" /> 퀴즈 만들기 시작하기
                       </Button>

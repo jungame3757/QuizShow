@@ -9,9 +9,9 @@ interface QuizProgressProps {
 
 const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
   // Calculate total answers per question
-  const answersByQuestion = quiz.questions.map(question => {
+  const answersByQuestion = quiz.questions.map((question, questionIndex) => {
     const answers = participants.flatMap(p => 
-      p.answers.filter(a => a.questionId === question.id)
+      p.answers.filter(a => a.questionIndex === questionIndex)
     );
     
     // Count by answer
@@ -26,7 +26,7 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
       answer,
       count,
       percentage: totalAnswers > 0 ? Math.round((count / totalAnswers) * 100) : 0,
-      isCorrect: answer === question.correctAnswer
+      isCorrect: question.options.indexOf(answer) === question.correctAnswer
     }));
     
     return {
@@ -75,7 +75,7 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
                     answer: option,
                     count: 0,
                     percentage: 0,
-                    isCorrect: option === item.question.correctAnswer
+                    isCorrect: optionIndex === item.question.correctAnswer
                   };
                   
                   return (

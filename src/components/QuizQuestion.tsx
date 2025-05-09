@@ -17,7 +17,7 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
   showResult,
   disabled
 }) => {
-  const isCorrect = selectedAnswer === question.correctAnswer;
+  const isCorrect = selectedAnswer === question.options[question.correctAnswer];
 
   return (
     <div className="animate-fade-in">
@@ -28,7 +28,7 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         {question.options.map((option, index) => {
           const isSelected = selectedAnswer === option;
-          const isCorrectAnswer = option === question.correctAnswer;
+          const isCorrectAnswer = index === question.correctAnswer;
           
           let optionClass = 'bg-white border-2 border-gray-200 hover:border-purple-300';
           

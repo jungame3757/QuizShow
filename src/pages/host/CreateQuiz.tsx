@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, X, Edit } from 'lucide-react';
+import { ArrowLeft, Plus, Check, X, Edit, Loader } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import QuestionForm from '../../components/QuestionForm';
+import HostNavBar from '../../components/HostNavBar';
+import HostPageHeader from '../../components/HostPageHeader';
+
+// 로딩 애니메이션 컴포넌트 추가
+const LoadingOverlay = () => (
+  <div className="fixed inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-50 backdrop-blur-sm">
+    <div className="bg-white p-6 rounded-xl shadow-md">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+        <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+        <div className="w-4 h-4 bg-pink-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+        <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '450ms'}}></div>
+        <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '600ms'}}></div>
+      </div>
+      <p className="text-purple-700 font-medium text-center">퀴즈를 생성하는 중...</p>
+    </div>
+  </div>
+);
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();
-  const { createQuiz, addQuestion, error: quizError, loading } = useQuiz();
+  const { createQuiz, error: quizError, loading: quizLoading } = useQuiz();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -17,6 +35,33 @@ const CreateQuiz: React.FC = () => {
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  
+  // 폼 데이터가 변경될 때마다 isFormDirty 상태 업데이트
+  useEffect(() => {
+    if (title.trim() !== '' || description.trim() !== '' || questions.length > 0) {
+      setIsFormDirty(true);
+    }
+  }, [title, description, questions]);
+  
+  // 페이지를 떠날 때 경고 메시지 처리
+  useEffect(() => {
+    // beforeunload 이벤트 핸들러 등록
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isFormDirty && !isSubmitting) {
+        // 표준 메시지 (브라우저마다 다를 수 있음)
+        const message = '작성 중인 내용이 있습니다. 정말로 페이지를 떠나시겠습니까?';
+        e.returnValue = message;
+        return message;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isFormDirty, isSubmitting]);
   
   const handleCreateQuiz = async () => {
     try {
@@ -40,73 +85,45 @@ const CreateQuiz: React.FC = () => {
       console.log("설명:", description.trim());
       console.log("문제 수:", questions.length);
       
-      let quizId: string;
-      
+      // 퀴즈를 생성할 때 모든 문제를 포함하여 한 번에 저장
       try {
-        // 1. 먼저 퀴즈 생성 (비동기 처리)
-        quizId = await createQuiz({
+        const quizId = await createQuiz({
           title: title.trim(),
           description: description.trim(),
-          inviteCode: '', // Will be generated
-          status: 'waiting',
-          questions: [], // 빈 배열로 시작
+          questions: questions.map(q => ({
+            id: Math.random().toString(36).substring(2, 9),
+            text: q.text,
+            options: Array.isArray(q.options) ? q.options : [],
+            correctAnswer: q.correctAnswer,
+          })),
           createdAt: new Date().toISOString()
         });
         
         console.log("퀴즈 생성 완료, ID:", quizId);
+        setIsFormDirty(false); // 폼 저장 시 더티 상태 초기화
+        navigate(`/host/manage/${quizId}`);
       } catch (createError) {
         console.error("퀴즈 생성 실패:", createError);
         setError(createError instanceof Error ? 
           createError.message : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
         setIsSubmitting(false);
-        return;
       }
-      
-      console.log("문제 추가 시작, 총 문제 수:", questions.length);
-      let hasError = false;
-      
-      // 2. 모든 문제를 순차적으로 추가 (각 문제 추가 작업을 await로 기다림)
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
-        console.log(`문제 ${i+1} 추가 중...`, q);
-        
-        // 문제 데이터 유효성 검사
-        if (!q.text || !q.options || !q.correctAnswer) {
-          console.error(`문제 ${i+1} 데이터 유효성 검사 실패:`, q);
-          setError(`문제 ${i+1}의 내용이 올바르지 않습니다.`);
-          hasError = true;
-          break;
-        }
-        
-        try {
-          await addQuestion(quizId, {
-            text: q.text,
-            options: Array.isArray(q.options) ? q.options : [],
-            correctAnswer: q.correctAnswer,
-          });
-          console.log(`문제 ${i+1} 추가 완료`);
-        } catch (err) {
-          console.error(`문제 ${i+1} 추가 실패:`, err);
-          setError(`문제 ${i+1} 추가 중 오류가 발생했습니다.`);
-          hasError = true;
-          break;
-        }
-      }
-      
-      if (hasError) {
-        console.log("문제 추가 중 오류 발생, 퀴즈 관리 페이지로 이동합니다.");
-        // 문제가 있어도 생성된 퀴즈로 이동
-        navigate(`/host/manage/${quizId}`);
-        return;
-      }
-      
-      console.log("모든 문제 추가 완료, 퀴즈 관리 페이지로 이동");
-      navigate(`/host/manage/${quizId}`);
     } catch (err) {
       console.error("퀴즈 생성 중 오류:", err);
       setError('퀴즈 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+  
+  // 다른 페이지로 이동하기 전에 확인 메시지 표시
+  const handleNavigation = (path: string) => {
+    if (isFormDirty && !isSubmitting) {
+      if (window.confirm('작성 중인 내용이 있습니다. 정말로 페이지를 떠나시겠습니까?')) {
+        navigate(path);
+      }
+    } else {
+      navigate(path);
     }
   };
   
@@ -135,16 +152,19 @@ const CreateQuiz: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+      {/* 로딩 오버레이는 실제 폼 제출(퀴즈 생성) 중일 때만 표시 */}
+      {isSubmitting && <LoadingOverlay />}
+      
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={() => navigate('/')}
-          className="flex items-center text-purple-700 mb-6 hover:text-purple-900 transition-colors"
-        >
-          <ArrowLeft size={20} className="mr-2" /> 홈으로 돌아가기
-        </button>
+        <HostPageHeader 
+          title="새 퀴즈 만들기" 
+          handleNavigation={handleNavigation}
+        />
+
+        <HostNavBar handleNavigation={handleNavigation} />
 
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-          <h1 className="text-3xl font-bold text-purple-700 mb-6">새 퀴즈 쇼 만들기</h1>
+          <h1 className="text-3xl font-bold text-purple-700 mb-6">새 퀴즈 만들기</h1>
           
           {(error || quizError) && (
             <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
@@ -265,9 +285,17 @@ const CreateQuiz: React.FC = () => {
             onClick={handleCreateQuiz}
             variant="primary"
             size="large"
-            disabled={!title || questions.length === 0 || isSubmitting || loading}
+            disabled={!title || questions.length === 0 || isSubmitting || quizLoading}
+            className="flex items-center"
           >
-            {isSubmitting || loading ? '처리 중...' : '퀴즈 쇼 만들기'}
+            {isSubmitting ? (
+              <>
+                <Loader size={18} className="animate-spin mr-2" />
+                처리 중...
+              </>
+            ) : (
+              '퀴즈 만들기'
+            )}
           </Button>
         </div>
       </div>

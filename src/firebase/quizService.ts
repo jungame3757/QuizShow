@@ -10,20 +10,24 @@ import {
   orderBy, 
   deleteDoc, 
   serverTimestamp, 
-  Timestamp 
+  Timestamp,
+  collectionGroup 
 } from 'firebase/firestore';
 import { db } from './config';
 import { User } from 'firebase/auth';
 import { Quiz, Question } from '../types';
 
-const QUIZZES_COLLECTION = 'quizzes';
+// 변경된 컬렉션 경로
+const getUsersCollectionPath = () => 'users';
+const getUserQuizzesCollectionPath = (userId: string) => `users/${userId}/quizzes`;
+const getQuizDocPath = (userId: string, quizId: string) => `users/${userId}/quizzes/${quizId}`;
 
 // 타입스크립트를 위한 Firestore Quiz 타입 정의
-interface FirestoreQuiz extends Omit<Quiz, 'createdAt' | 'startedAt' | 'completedAt'> {
-  userId: string;
+interface FirestoreQuiz {
+  title: string;
+  description?: string;
+  questions: Question[];
   createdAt: Timestamp;
-  startedAt?: Timestamp;
-  completedAt?: Timestamp;
   updatedAt: Timestamp;
 }
 
@@ -66,12 +70,28 @@ const convertFirestoreQuizToQuiz = (firestoreQuiz: FirestoreQuiz & { id: string 
 
   // 질문 배열이 없는 경우 빈 배열로 초기화
   const questions = Array.isArray(firestoreQuiz.questions) 
-    ? firestoreQuiz.questions.map(q => ({
-        id: q.id || generateId(),
-        text: q.text || '문제',
-        options: Array.isArray(q.options) ? q.options : [],
-        correctAnswer: q.correctAnswer || '',
-      }))
+    ? firestoreQuiz.questions.map(q => {
+        const options = Array.isArray(q.options) ? q.options : [];
+        let correctAnswerIndex = 0;
+        
+        if (typeof q.correctAnswer === 'number') {
+          // 이미 숫자 형태라면 그대로 사용
+          correctAnswerIndex = q.correctAnswer;
+        } else if (q.correctAnswer !== undefined && options.length > 0) {
+          // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
+          const correctAnswerStr = String(q.correctAnswer);
+          const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+          if (index !== -1) {
+            correctAnswerIndex = index;
+          }
+        }
+        
+        return {
+          text: q.text || '문제',
+          options: options,
+          correctAnswer: correctAnswerIndex,
+        };
+      })
     : [];
 
   // ID가 없는 경우를 대비한 안전 처리
@@ -81,12 +101,9 @@ const convertFirestoreQuizToQuiz = (firestoreQuiz: FirestoreQuiz & { id: string 
     id,
     title: firestoreQuiz.title || '제목 없음',
     description: firestoreQuiz.description || '',
-    inviteCode: firestoreQuiz.inviteCode || '',
-    status: firestoreQuiz.status || 'waiting',
     questions,
     createdAt: safelyConvertTimestamp(firestoreQuiz.createdAt) || new Date().toISOString(),
-    startedAt: safelyConvertTimestamp(firestoreQuiz.startedAt),
-    completedAt: safelyConvertTimestamp(firestoreQuiz.completedAt),
+    updatedAt: safelyConvertTimestamp(firestoreQuiz.updatedAt),
   };
 };
 
@@ -94,7 +111,7 @@ const convertFirestoreQuizToQuiz = (firestoreQuiz: FirestoreQuiz & { id: string 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // Quiz를 Firestore에 저장하기 위한 변환
-const convertQuizToFirestoreQuiz = (quiz: Omit<Quiz, 'id'>, user: User): Omit<FirestoreQuiz, 'id'> => {
+const convertQuizToFirestoreQuiz = (quiz: Omit<Quiz, 'id'>): Omit<FirestoreQuiz, 'id'> => {
   // 날짜를 안전하게 Timestamp로 변환
   const safelyConvertToTimestamp = (dateString: string | undefined) => {
     if (!dateString) return null;
@@ -115,185 +132,52 @@ const convertQuizToFirestoreQuiz = (quiz: Omit<Quiz, 'id'>, user: User): Omit<Fi
 
   // 질문 데이터 유효성 검사
   const validQuestions = Array.isArray(quiz.questions) 
-    ? quiz.questions.map(q => ({
-        id: q.id || generateId(),
-        text: q.text || '문제',
-        options: Array.isArray(q.options) ? q.options : [],
-        correctAnswer: q.correctAnswer || ''
-      }))
+    ? quiz.questions.map(q => {
+        const options = Array.isArray(q.options) ? q.options : [];
+        let correctAnswerIndex = 0;
+        
+        if (typeof q.correctAnswer === 'number') {
+          // 이미 숫자 형태라면 그대로 사용
+          correctAnswerIndex = q.correctAnswer;
+        } else if (q.correctAnswer !== undefined && options.length > 0) {
+          // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
+          const correctAnswerStr = String(q.correctAnswer);
+          const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+          if (index !== -1) {
+            correctAnswerIndex = index;
+          }
+        }
+        
+        return {
+          text: q.text || '문제',
+          options: options,
+          correctAnswer: correctAnswerIndex,
+        };
+      })
     : [];
 
   // 기본 객체 생성
   const firestoreQuiz: any = {
     title: quiz.title || '제목 없음',
     description: quiz.description || '',
-    inviteCode: quiz.inviteCode || '',
-    status: quiz.status || 'waiting',
     questions: validQuestions,
-    userId: user.uid,
     createdAt: safelyConvertToTimestamp(quiz.createdAt) || Timestamp.fromDate(new Date()),
     updatedAt: serverTimestamp(),
   };
   
-  // startedAt이 존재하고 유효한 경우에만 추가
-  if (quiz.startedAt) {
-    const startedAtTimestamp = safelyConvertToTimestamp(quiz.startedAt);
-    if (startedAtTimestamp) {
-      firestoreQuiz.startedAt = startedAtTimestamp;
-    }
-  }
-  
-  // completedAt이 존재하고 유효한 경우에만 추가
-  if (quiz.completedAt) {
-    const completedAtTimestamp = safelyConvertToTimestamp(quiz.completedAt);
-    if (completedAtTimestamp) {
-      firestoreQuiz.completedAt = completedAtTimestamp;
-    }
-  }
-  
   return firestoreQuiz;
 };
 
-// 새 퀴즈 저장
-export const saveQuiz = async (quiz: Omit<Quiz, 'id'>, user: User): Promise<string> => {
-  try {
-    const firestoreQuiz = convertQuizToFirestoreQuiz(quiz, user);
-    const docRef = await addDoc(collection(db, QUIZZES_COLLECTION), firestoreQuiz);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error saving quiz:', error);
-    throw error;
-  }
-};
-
-// 퀴즈 업데이트
-export const updateQuiz = async (quizId: string, updates: Partial<Quiz>, user: User): Promise<void> => {
-  try {
-    const quizRef = doc(db, QUIZZES_COLLECTION, quizId);
-    const quizDoc = await getDoc(quizRef);
-    
-    if (!quizDoc.exists()) {
-      throw new Error('Quiz not found');
-    }
-    
-    const quizData = quizDoc.data() as FirestoreQuiz;
-    
-    // 권한 확인 - 자신의 퀴즈만 수정 가능
-    if (quizData.userId !== user.uid) {
-      throw new Error('Permission denied');
-    }
-    
-    // Firestore에 저장할 수 있는 형태로 업데이트 데이터 변환
-    const updateData: any = {
-      updatedAt: serverTimestamp(),
-    };
-    
-    // 업데이트할 필드들 처리
-    if (updates.title !== undefined) updateData.title = updates.title || '제목 없음';
-    if (updates.description !== undefined) updateData.description = updates.description || '';
-    if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.inviteCode !== undefined) updateData.inviteCode = updates.inviteCode;
-    
-    // questions 필드 처리 - 항상 배열 형태로 저장
-    if (updates.questions !== undefined) {
-      updateData.questions = Array.isArray(updates.questions) ? updates.questions : [];
-    }
-    
-    // 날짜 필드 안전하게 변환
-    const safelyConvertToTimestamp = (dateString: string | undefined) => {
-      if (!dateString) return null;
-      
-      try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-          console.warn('Invalid date string in update:', dateString);
-          return null;
-        }
-        return Timestamp.fromDate(date);
-      } catch (error) {
-        console.error('Error converting date in update:', error);
-        return null;
-      }
-    };
-    
-    // 날짜 필드 변환 - undefined거나 변환 실패시 추가하지 않음
-    if (updates.startedAt) {
-      const startedAtTimestamp = safelyConvertToTimestamp(updates.startedAt);
-      if (startedAtTimestamp) {
-        updateData.startedAt = startedAtTimestamp;
-      }
-    }
-    
-    if (updates.completedAt) {
-      const completedAtTimestamp = safelyConvertToTimestamp(updates.completedAt);
-      if (completedAtTimestamp) {
-        updateData.completedAt = completedAtTimestamp;
-      }
-    }
-    
-    await updateDoc(quizRef, updateData);
-  } catch (error) {
-    console.error('Error updating quiz:', error);
-    throw error;
-  }
-};
-
-// 퀴즈 ID로 퀴즈 가져오기
-export const getQuizById = async (quizId: string): Promise<Quiz | null> => {
-  try {
-    const quizRef = doc(db, QUIZZES_COLLECTION, quizId);
-    const quizDoc = await getDoc(quizRef);
-    
-    if (!quizDoc.exists()) {
-      return null;
-    }
-    
-    const quizData = quizDoc.data() as FirestoreQuiz;
-    return convertFirestoreQuizToQuiz({ ...quizData, id: quizDoc.id });
-  } catch (error) {
-    console.error('Error getting quiz:', error);
-    throw error;
-  }
-};
-
-// 초대 코드로 퀴즈 가져오기
-export const getQuizByInviteCode = async (inviteCode: string): Promise<Quiz | null> => {
-  try {
-    const q = query(
-      collection(db, QUIZZES_COLLECTION),
-      where('inviteCode', '==', inviteCode)
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      return null;
-    }
-    
-    const quizDoc = querySnapshot.docs[0];
-    const quizData = quizDoc.data() as FirestoreQuiz;
-    
-    return convertFirestoreQuizToQuiz({ ...quizData, id: quizDoc.id });
-  } catch (error) {
-    console.error('Error getting quiz by invite code:', error);
-    throw error;
-  }
-};
-
 // 사용자의 모든 퀴즈 가져오기
-export const getUserQuizzes = async (user: User): Promise<Quiz[]> => {
+export const getUserQuizzes = async (userId: string): Promise<Quiz[]> => {
   try {
-    if (!user || !user.uid) {
-      throw new Error('사용자 인증 정보가 없습니다.');
+    if (!userId) {
+      throw new Error('사용자 ID가 없습니다.');
     }
     
-    // 단순 쿼리로 변경 - 인덱스 필요 없도록
-    const q = query(
-      collection(db, QUIZZES_COLLECTION),
-      where('userId', '==', user.uid)
-    );
-    
-    const querySnapshot = await getDocs(q);
+    // 변경: 사용자 하위 컬렉션에서 퀴즈 가져오기
+    const quizzesCollection = collection(db, getUserQuizzesCollectionPath(userId));
+    const querySnapshot = await getDocs(quizzesCollection);
     const quizzes: Quiz[] = [];
     
     querySnapshot.forEach((doc) => {
@@ -306,9 +190,8 @@ export const getUserQuizzes = async (user: User): Promise<Quiz[]> => {
       }
     });
     
-    // 클라이언트 측에서 정렬하도록 변경
+    // 생성일 기준 내림차순 정렬
     return quizzes.sort((a, b) => {
-      // null, undefined 체크
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
@@ -320,25 +203,118 @@ export const getUserQuizzes = async (user: User): Promise<Quiz[]> => {
 };
 
 // 퀴즈 삭제
-export const deleteQuiz = async (quizId: string, user: User): Promise<void> => {
+export const deleteQuiz = async (quizId: string, userId: string): Promise<void> => {
   try {
-    const quizRef = doc(db, QUIZZES_COLLECTION, quizId);
+    // 변경: 사용자 하위 컬렉션에서 퀴즈 삭제
+    const quizRef = doc(db, getQuizDocPath(userId, quizId));
     const quizDoc = await getDoc(quizRef);
     
     if (!quizDoc.exists()) {
       throw new Error('Quiz not found');
     }
     
-    const quizData = quizDoc.data() as FirestoreQuiz;
-    
-    // 권한 확인 - 자신의 퀴즈만 삭제 가능
-    if (quizData.userId !== user.uid) {
-      throw new Error('Permission denied');
-    }
-    
     await deleteDoc(quizRef);
   } catch (error) {
     console.error('Error deleting quiz:', error);
+    throw error;
+  }
+};
+
+// 퀴즈 생성 (모든 문제를 한번에 저장)
+export const createQuiz = async (quiz: Omit<Quiz, 'id'>, userId: string): Promise<string> => {
+  try {
+    // Firestore 저장용 객체 생성
+    const firestoreQuiz = {
+      title: quiz.title || '제목 없음',
+      description: quiz.description || '',
+      questions: Array.isArray(quiz.questions) 
+        ? quiz.questions.map(q => {
+            const options = Array.isArray(q.options) ? q.options : [];
+            let correctAnswerIndex = 0;
+
+            if (typeof q.correctAnswer === 'number') {
+              // 이미 숫자 형태라면 그대로 사용
+              correctAnswerIndex = q.correctAnswer;
+            } else if (q.correctAnswer !== undefined && options.length > 0) {
+              // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
+              const correctAnswerStr = String(q.correctAnswer);
+              const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+              if (index !== -1) {
+                correctAnswerIndex = index;
+              }
+            }
+            
+            return {
+              text: q.text || '문제',
+              options: options,
+              correctAnswer: correctAnswerIndex,
+            };
+          })
+        : [],
+      createdAt: Timestamp.fromDate(new Date(quiz.createdAt || new Date())),
+      updatedAt: serverTimestamp(),
+    };
+    
+    // 변경: 사용자 하위 컬렉션에 퀴즈 저장
+    const quizzesCollection = collection(db, getUserQuizzesCollectionPath(userId));
+    const docRef = await addDoc(quizzesCollection, firestoreQuiz);
+    return docRef.id;
+  } catch (error) {
+    console.error('퀴즈 생성 오류:', error);
+    throw error;
+  }
+};
+
+// 퀴즈 ID로 퀴즈 가져오기
+export const getQuizById = async (quizId: string): Promise<Quiz | null> => {
+  try {
+    // 모든 사용자의 모든 퀴즈 컬렉션 그룹에서 검색
+    const quizzesGroup = collectionGroup(db, 'quizzes');
+    const querySnapshot = await getDocs(query(quizzesGroup));
+    
+    // 일치하는 ID 찾기
+    const matchingDoc = querySnapshot.docs.find(doc => doc.id === quizId);
+    
+    if (!matchingDoc) {
+      return null;
+    }
+    
+    const quizData = matchingDoc.data() as FirestoreQuiz;
+    return convertFirestoreQuizToQuiz({ ...quizData, id: matchingDoc.id });
+  } catch (error) {
+    console.error('Error getting quiz:', error);
+    throw error;
+  }
+};
+
+// 퀴즈 업데이트
+export const updateQuiz = async (quizId: string, updates: Partial<Quiz>, userId: string): Promise<void> => {
+  try {
+    // 변경: 사용자 하위 컬렉션에서 퀴즈 업데이트
+    const quizRef = doc(db, getQuizDocPath(userId, quizId));
+    const quizDoc = await getDoc(quizRef);
+    
+    if (!quizDoc.exists()) {
+      throw new Error('Quiz not found');
+    }
+    
+    // Firestore에 저장할 수 있는 형태로 업데이트 데이터 변환
+    const updateData: any = {
+      updatedAt: serverTimestamp(),
+    };
+    
+    // 업데이트할 필드들 처리
+    if (updates.title !== undefined) updateData.title = updates.title || '제목 없음';
+    if (updates.description !== undefined) updateData.description = updates.description || '';
+    
+    // questions 필드 처리 - 항상 배열 형태로 저장
+    if (updates.questions !== undefined) {
+      updateData.questions = Array.isArray(updates.questions) ? updates.questions : [];
+    }
+    
+    await updateDoc(quizRef, updateData);
+  } catch (error) {
+    console.error('Error updating quiz:', error);
     throw error;
   }
 }; 

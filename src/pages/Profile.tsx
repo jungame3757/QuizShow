@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { updateProfile, deleteUser } from 'firebase/auth';
+import { updateProfile, deleteUser, reauthenticateWithCredential, GoogleAuthProvider, signInWithPopup, getAuth, EmailAuthProvider } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle, List } from 'lucide-react';
 
 const Profile = () => {
-  const { currentUser, signInWithGoogle, signOut } = useAuth();
+  const { currentUser, signInWithGoogle, signOut, auth } = useAuth();
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -30,9 +30,46 @@ const Profile = () => {
     try {
       await deleteUser(currentUser);
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('계정 삭제 오류:', error);
-      alert('계정 삭제 중 오류가 발생했습니다. 재로그인 후 다시 시도해주세요.');
+      
+      // 재인증이 필요한 경우
+      if (error.code === 'auth/requires-recent-login') {
+        const confirmReauth = window.confirm('보안상의 이유로 재로그인이 필요합니다. 계속하시겠습니까?');
+        
+        if (confirmReauth) {
+          try {
+            // Google 로그인으로 재인증
+            if (currentUser.providerData[0]?.providerId === 'google.com') {
+              const provider = new GoogleAuthProvider();
+              // 팝업으로 Google 로그인
+              const result = await signInWithPopup(auth, provider);
+              
+              // 크레덴셜 가져오기
+              const credential = GoogleAuthProvider.credentialFromResult(result);
+              
+              if (credential) {
+                // 재인증 수행
+                await reauthenticateWithCredential(currentUser, credential);
+                // 재인증 성공 후 다시 계정 삭제 시도
+                await deleteUser(currentUser);
+                navigate('/');
+              } else {
+                throw new Error('인증 정보를 가져오지 못했습니다.');
+              }
+            } else {
+              alert('재로그인 후 다시 시도해 주세요.');
+              await signOut();
+              navigate('/login');
+            }
+          } catch (reauthError) {
+            console.error('재인증 오류:', reauthError);
+            alert('재인증에 실패했습니다. 다시 로그인 후 시도해 주세요.');
+          }
+        }
+      } else {
+        alert('계정 삭제 중 오류가 발생했습니다. 재로그인 후 다시 시도해주세요.');
+      }
     }
   };
 
@@ -147,10 +184,6 @@ const Profile = () => {
         
         {/* 계정 관리 영역 */}
         <div className="space-y-4">
-          <Link to="/host/my-quizzes" className="bg-indigo-600 text-white px-4 py-3 rounded-md hover:bg-indigo-700 transition-colors w-full flex items-center justify-center">
-            <List size={18} className="mr-2" /> 내가 만든 퀴즈 보기
-          </Link>
-          
           <button
             onClick={handleLogout}
             className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 transition-colors w-full flex items-center justify-center"

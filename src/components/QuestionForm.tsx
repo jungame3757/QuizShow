@@ -154,50 +154,53 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
           
           <div className="space-y-3">
             {options.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleCorrectAnswer(index)}
-                  disabled={!option.trim()}
-                  className={`
-                    px-4 h-12 rounded-lg flex items-center justify-center transition-colors duration-200
-                    ${correctAnswerIndex === index 
-                      ? 'bg-green-500 text-white font-medium' 
-                      : option.trim() 
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium' 
-                        : 'bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed font-medium'}
-                  `}
-                  title={correctAnswerIndex === index ? "정답 취소하기" : "정답으로 설정하기"}
-                >
-                  {correctAnswerIndex === index ? (
-                    <div className="flex items-center whitespace-nowrap">
-                      <Check size={16} className="mr-1" />
-                      <span>정답</span>
-                    </div>
-                  ) : option.trim() ? (
-                    <span className="whitespace-nowrap">정답 선택</span>
-                  ) : (
-                    <span className="whitespace-nowrap">선택지 입력</span>
-                  )}
-                </button>
-                
+              <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
                 <Input
                   type="text"
                   value={option}
                   onChange={(e) => handleOptionChange(index, e.target.value)}
                   placeholder={`선택지 ${index + 1} 내용`}
-                  className={`flex-1 ${correctAnswerIndex === index ? 'border-green-500 bg-green-50' : ''}`}
+                  className={`flex-1 w-full mb-2 sm:mb-0 ${correctAnswerIndex === index ? 'border-green-500 bg-green-50' : ''}`}
                 />
                 
-                <button
-                  type="button"
-                  onClick={() => handleRemoveOption(index)}
-                  disabled={options.length <= 2}
-                  className="bg-red-100 p-2 rounded-lg text-red-600 hover:bg-red-200 disabled:opacity-50"
-                  title="선택지 삭제"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex w-full sm:w-auto gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => toggleCorrectAnswer(index)}
+                    disabled={!option.trim()}
+                    className={`
+                      px-4 h-12 rounded-lg flex items-center justify-center transition-colors duration-200
+                      flex-1 sm:flex-none
+                      ${correctAnswerIndex === index 
+                        ? 'bg-green-600 text-white font-medium' 
+                        : option.trim() 
+                          ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-medium border border-indigo-300' 
+                          : 'bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed font-medium'}
+                    `}
+                    title={correctAnswerIndex === index ? "정답 취소하기" : "정답으로 설정하기"}
+                  >
+                    {correctAnswerIndex === index ? (
+                      <div className="flex items-center whitespace-nowrap">
+                        <Check size={16} className="mr-1" />
+                        <span>정답</span>
+                      </div>
+                    ) : option.trim() ? (
+                      <span className="whitespace-nowrap">정답 선택</span>
+                    ) : (
+                      <span className="whitespace-nowrap">선택지 입력</span>
+                    )}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveOption(index)}
+                    disabled={options.length <= 2}
+                    className="bg-red-100 p-2 rounded-lg text-red-600 hover:bg-red-200 disabled:opacity-50 flex-none"
+                    title="선택지 삭제"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -215,11 +218,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
         
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-500">
-            {!hasCorrectAnswer && (
-              <div className="flex items-center text-amber-600">
-                <span>저장하기 전 정답을 선택해주세요</span>
-              </div>
-            )}
+            {/* 정답 선택 안내 텍스트 제거 */}
           </div>
           <div className="flex space-x-3">
             <Button onClick={onCancel} variant="danger">

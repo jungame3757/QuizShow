@@ -8,11 +8,13 @@ import { useQuiz } from '../../contexts/QuizContext';
 import Button from '../../components/Button';
 import ParticipantList from '../../components/ParticipantList';
 import QuizProgress from '../../components/QuizProgress';
+import HostNavBar from '../../components/HostNavBar';
+import HostPageHeader from '../../components/HostPageHeader';
 
 const ManageQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
-  const { getQuiz, startQuiz, participants, updateQuiz, loading, error: quizError } = useQuiz();
+  const { getQuiz, participants, updateQuiz, loading, error: quizError } = useQuiz();
   
   const [quiz, setQuiz] = useState<any>(null);
   const [copied, setCopied] = useState(false);
@@ -20,6 +22,7 @@ const ManageQuiz: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDataChanged, setIsDataChanged] = useState(false);
   
   // 퀴즈 정보 로드
   useEffect(() => {
@@ -71,6 +74,17 @@ const ManageQuiz: React.FC = () => {
     loadQuiz();
   }, [quizId, getQuiz, navigate]);
   
+  // 다른 페이지로 이동하기 전에 확인 메시지 표시
+  const handleNavigation = (path: string) => {
+    if (isDataChanged && !isProcessing) {
+      if (window.confirm('진행 중인 작업이 있습니다. 정말로 페이지를 떠나시겠습니까?')) {
+        navigate(path);
+      }
+    } else {
+      navigate(path);
+    }
+  };
+
   // 퀴즈 정보 로딩 중이거나 오류 발생 시
   if (isLoading || loading) {
     return <div className="p-8 text-center">퀴즈 로딩 중...</div>;
@@ -100,6 +114,7 @@ const ManageQuiz: React.FC = () => {
     
     try {
       setIsProcessing(true);
+      setIsDataChanged(true);
       console.log("퀴즈 시작 중...", quiz.id);
       
       // 퀴즈 상태 확인
@@ -112,7 +127,11 @@ const ManageQuiz: React.FC = () => {
         throw new Error('퀴즈에 문제가 없습니다. 먼저 문제를 추가해주세요.');
       }
       
-      await startQuiz(quiz.id);
+      await updateQuiz(quiz.id, {
+        status: 'active',
+        startedAt: new Date().toISOString()
+      } as any);
+      
       console.log("퀴즈 시작 완료");
       
       // 로컬 상태 업데이트
@@ -123,6 +142,7 @@ const ManageQuiz: React.FC = () => {
       });
       
       setActiveTab('progress');
+      setIsDataChanged(false);
     } catch (err) {
       console.error("퀴즈 시작 오류:", err);
       alert(err instanceof Error ? 
@@ -135,6 +155,7 @@ const ManageQuiz: React.FC = () => {
   const handleEndQuiz = async () => {
     try {
       setIsProcessing(true);
+      setIsDataChanged(true);
       console.log("퀴즈 종료 중...", quiz.id);
       
       // 퀴즈 상태 확인
@@ -147,7 +168,7 @@ const ManageQuiz: React.FC = () => {
       await updateQuiz(quiz.id, { 
         status: 'completed',
         completedAt
-      });
+      } as any);
       console.log("퀴즈 종료 완료");
       
       // 로컬 상태 업데이트
@@ -156,6 +177,7 @@ const ManageQuiz: React.FC = () => {
         status: 'completed',
         completedAt
       });
+      setIsDataChanged(false);
     } catch (err) {
       console.error("퀴즈 종료 오류:", err);
       alert(err instanceof Error ? 
@@ -168,12 +190,12 @@ const ManageQuiz: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={() => navigate('/')}
-          className="flex items-center text-purple-700 mb-6 hover:text-purple-900 transition-colors"
-        >
-          <ArrowLeft size={20} className="mr-2" /> 홈으로 돌아가기
-        </button>
+        <HostPageHeader 
+          title={quiz.title || '퀴즈 관리'} 
+          handleNavigation={handleNavigation}
+        />
+
+        <HostNavBar handleNavigation={handleNavigation} />
 
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <div className="flex justify-between items-start mb-6">
