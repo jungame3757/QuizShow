@@ -8,7 +8,7 @@ interface HostPageHeaderProps {
 }
 
 const HostPageHeader: React.FC<HostPageHeaderProps> = ({ 
-  handleNavigation 
+  handleNavigation
 }) => {
   const { currentUser, isLoading } = useAuth();
 

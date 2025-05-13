@@ -1,32 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, X, Edit, Loader } from 'lucide-react';
+import { Plus, Check, X, Edit} from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
+import { useSession } from '../../contexts/SessionContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import QuestionForm from '../../components/QuestionForm';
 import HostNavBar from '../../components/HostNavBar';
 import HostPageHeader from '../../components/HostPageHeader';
-
-// 로딩 애니메이션 컴포넌트 추가
-const LoadingOverlay = () => (
-  <div className="fixed inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-50 backdrop-blur-sm">
-    <div className="bg-white p-6 rounded-xl shadow-md">
-      <div className="flex items-center space-x-3 mb-4">
-        <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-        <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-        <div className="w-4 h-4 bg-pink-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-        <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '450ms'}}></div>
-        <div className="w-4 h-4 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '600ms'}}></div>
-      </div>
-      <p className="text-purple-700 font-medium text-center">퀴즈를 생성하는 중...</p>
-    </div>
-  </div>
-);
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();
   const { createQuiz, error: quizError, loading: quizLoading } = useQuiz();
+  const { createSessionForQuiz, loading: sessionLoading, error: sessionError } = useSession();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -79,11 +66,6 @@ const CreateQuiz: React.FC = () => {
         setIsSubmitting(false);
         return;
       }
-
-      console.log("퀴즈 생성 시작...");
-      console.log("제목:", title.trim());
-      console.log("설명:", description.trim());
-      console.log("문제 수:", questions.length);
       
       // 퀴즈를 생성할 때 모든 문제를 포함하여 한 번에 저장
       try {
@@ -100,10 +82,17 @@ const CreateQuiz: React.FC = () => {
         });
         
         console.log("퀴즈 생성 완료, ID:", quizId);
+        
+        // 퀴즈 생성 후 즉시 세션 생성
+        const sessionId = await createSessionForQuiz(quizId);
+        console.log("세션 생성 완료, ID:", sessionId);
+        
         setIsFormDirty(false); // 폼 저장 시 더티 상태 초기화
-        navigate(`/host/manage/${quizId}`);
+        
+        // 세션 페이지로 이동
+        navigate(`/host/session/${quizId}`);
       } catch (createError) {
-        console.error("퀴즈 생성 실패:", createError);
+        console.error("퀴즈/세션 생성 실패:", createError);
         setError(createError instanceof Error ? 
           createError.message : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
         setIsSubmitting(false);
@@ -152,12 +141,11 @@ const CreateQuiz: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
-      {/* 로딩 오버레이는 실제 폼 제출(퀴즈 생성) 중일 때만 표시 */}
-      {isSubmitting && <LoadingOverlay />}
+      {/* 로딩 오버레이 컴포넌트 사용 */}
+      {isSubmitting && <LoadingOverlay message="퀴즈와 세션을 생성하는 중..." />}
       
       <div className="max-w-4xl mx-auto">
         <HostPageHeader 
-          title="새 퀴즈 만들기" 
           handleNavigation={handleNavigation}
         />
 
@@ -166,9 +154,9 @@ const CreateQuiz: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-purple-700 mb-6">새 퀴즈 만들기</h1>
           
-          {(error || quizError) && (
+          {(error || quizError || sessionError) && (
             <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
-              {error || quizError}
+              {error || quizError || sessionError}
             </div>
           )}
           
@@ -285,14 +273,11 @@ const CreateQuiz: React.FC = () => {
             onClick={handleCreateQuiz}
             variant="primary"
             size="large"
-            disabled={!title || questions.length === 0 || isSubmitting || quizLoading}
+            disabled={!title || questions.length === 0 || isSubmitting || quizLoading || sessionLoading}
             className="flex items-center"
           >
             {isSubmitting ? (
-              <>
-                <Loader size={18} className="animate-spin mr-2" />
-                처리 중...
-              </>
+              <span>처리 중...</span>
             ) : (
               '퀴즈 만들기'
             )}

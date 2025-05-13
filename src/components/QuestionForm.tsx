@@ -115,10 +115,6 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
 
   return (
     <div className="bg-purple-50 rounded-xl p-6 mb-8 animate-fade-in">
-      <h3 className="text-xl font-bold text-purple-700 mb-4">
-        {initialData ? '문제 수정하기' : '새 문제 추가'}
-      </h3>
-      
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
           {error}

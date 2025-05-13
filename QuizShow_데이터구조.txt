@@ -1,0 +1,169 @@
+# QuizShow 애플리케이션 데이터 구조 및 세션 관리
+
+## 데이터베이스 구조
+
+### 1. Firebase 구성
+- **Firestore**: 정적 퀴즈 콘텐츠 저장 (퀴즈, 문제, 사용자 정보 등)
+- **Realtime Database**: 세션, 참가자, 실시간 응답 데이터 관리
+- **인증**: Firebase 인증 서비스 사용
+
+### 2. Realtime Database 경로
+- `/sessions/{sessionId}` - 세션 정보
+- `/sessionCodes/{code}` - 세션 코드와 세션 ID 매핑
+- `/userSessions/{userId}/active/{sessionId}` - 사용자별 활성 세션
+- `/participants/{sessionId}/{userId}` - 세션 참가자 목록
+- `/sessionQuestions/{sessionId}/{questionIndex}` - 세션별 문제 상태
+- `/sessionAnswers/{sessionId}_question_{questionIndex}/{userId}` - 참가자 응답 데이터
+
+### 3. Firestore 콜렉션
+- `users` - 사용자 정보
+- `quizzes` - 퀴즈 정보
+- `questions` - 퀴즈 문제 정보
+
+## 주요 타입 정의
+
+### 세션 관련 타입
+```typescript
+interface Session {
+  id: string;
+  quizId: string;
+  hostId: string;
+  code: string;
+  status: 'waiting' | 'active' | 'completed';
+  currentQuestion: number;
+  createdAt: number;
+  startedAt: number | null;
+  endedAt: number | null;
+  participantCount: number;
+}
+
+interface Participant {
+  id: string;
+  name: string;
+  joinedAt: number;
+  isActive: boolean;
+  score: number;
+}
+
+interface QuestionStatus {
+  revealed: boolean;
+  startedAt: number | null;
+  endedAt: number | null;
+}
+
+interface Answer {
+  answer: string;
+  answeredAt: number;
+  isCorrect: boolean;
+  score: number;
+}
+```
+
+### 퀴즈 관련 타입
+```typescript
+interface Quiz {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+  hostId: string;
+  questions: Question[];
+}
+
+interface Question {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+interface EnhancedQuiz extends Quiz {
+  hasActiveSession?: boolean;
+  sessionId?: string;
+}
+```
+
+## 주요 서비스 및 컨텍스트
+
+### 1. SessionService (sessionService.ts)
+- 세션 CRUD 기능 구현
+- 실시간 리스너 설정 (세션, 참가자, 문제 상태, 응답)
+- 주요 함수:
+  - `createSession` - 새 세션 생성
+  - `getSession` - 세션 정보 조회
+  - `updateSessionStatus` - 세션 상태 변경
+  - `addParticipant` - 참가자 추가
+  - `submitAnswer` - 응답 제출
+  - `getSessionsByHostId` - 호스트의 모든 세션 조회
+  - `subscribeToSession` - 세션 실시간 구독
+
+### 2. SessionContext (SessionContext.tsx)
+- 세션 상태 관리 컨텍스트
+- 주요 기능:
+  - 세션 생성 및 관리
+  - 참가자 관리
+  - 문제 진행 관리
+  - 세션 구독 설정 및 정리
+  - 중복 세션 생성 방지 로직
+
+### 3. QuizContext
+- 퀴즈 정보 관리
+- 퀴즈 CRUD 작업
+
+### 4. AuthContext
+- 사용자 인증 상태 관리
+
+## 페이지 구성 및 기능
+
+### 1. CreateQuiz.tsx
+- 새 퀴즈 생성 페이지
+- 퀴즈 생성 후 세션 생성 및 SessionQuiz 페이지로 리다이렉트
+- 중복 세션 생성 방지를 위해 sessionId를 URL 파라미터로 전달
+
+### 2. MyQuizzes.tsx
+- 사용자의 퀴즈 목록 표시
+- 퀴즈 시작/계속 기능
+- 세션 상태 표시 (활성/비활성)
+- 퀴즈 삭제 기능
+
+### 3. SessionQuiz.tsx
+- 퀴즈 세션 관리 페이지
+- 참가자 목록 표시
+- 세션 코드 및 QR 코드 생성
+- 세션 상태 토글 (활성화/비활성화)
+
+### 4. 참가자 페이지
+- 세션 코드 입력
+- 퀴즈 참여 및 답변 제출
+- 결과 확인
+
+## 최근 개선 사항
+
+### 1. 세션 중복 생성 방지
+- CreateQuiz.tsx, MyQuizzes.tsx에서 세션 생성 시 URL에 sessionId 파라미터 추가
+- SessionQuiz.tsx에서 URL 파라미터 확인하여 추가 세션 생성 방지
+- SessionContext에서 같은 퀴즈에 대한 활성 세션 이미 존재하는지 확인하는 로직 추가
+
+### 2. 세션 코드 시스템
+- 6자리 고유 코드 생성
+- 코드 인덱싱으로 빠른 세션 조회
+
+### 3. 세션 상태 관리 최적화
+- 세션 상태 변경 시 적절한 UI 업데이트
+- 활성/비활성 토글 기능
+
+## Firebase 설정
+
+### 1. Realtime Database 설정
+- 아시아 리전 데이터베이스 URL 사용
+- 보안 규칙: 인증된 사용자만 세션 생성 가능, 참가자는 해당 세션 데이터만 접근 가능
+
+### 2. Firestore 설정
+- 적절한 인덱싱 설정
+- 보안 규칙: 퀴즈 생성자만 편집 가능
+
+## 개발 작업 흐름
+
+1. 퀴즈 생성 → 세션 생성 → 참가자 초대 → 퀴즈 진행 → 결과 확인
+2. 세션 관리 최적화: 필요 시에만 세션 생성하여 리소스 절약
+3. 데이터 구독 관리: 컴포넌트 언마운트 시 구독 정리하여 메모리 누수 방지 

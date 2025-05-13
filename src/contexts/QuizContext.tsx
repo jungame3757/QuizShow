@@ -21,6 +21,7 @@ interface QuizContextType {
   removeQuestion: (quizId: string, questionIndex: number) => Promise<void>;
   loadUserQuizzes: () => Promise<void>;
   deleteQuiz: (quizId: string) => Promise<void>;
+  clearQuizData: () => void;
   loading: boolean;
   error: string | null;
 }
@@ -36,6 +37,7 @@ const initialQuizContext: QuizContextType = {
   removeQuestion: async () => {},
   loadUserQuizzes: async () => {},
   deleteQuiz: async () => {},
+  clearQuizData: () => {},
   loading: false,
   error: null,
 };
@@ -52,6 +54,21 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
 
+  // 현재 사용자가 변경될 때마다 퀴즈 데이터 초기화
+  useEffect(() => {
+    if (!currentUser) {
+      clearQuizData();
+    }
+  }, [currentUser]);
+
+  // 퀴즈 데이터 초기화 함수
+  const clearQuizData = () => {
+    setQuizzes([]);
+    setCurrentQuiz(null);
+    setParticipants([]);
+    setError(null);
+  };
+
   // 현재 로그인한 사용자의 퀴즈 불러오기
   useEffect(() => {
     if (currentUser) {
@@ -66,6 +83,10 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // 기존 데이터 초기화 (다른 사용자의 데이터가 남아있지 않도록)
+      setQuizzes([]);
+      
       const userQuizzes = await getUserQuizzesFromFirebase(currentUser.uid);
       setQuizzes(userQuizzes);
     } catch (error) {
@@ -404,6 +425,7 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
     removeQuestion,
     loadUserQuizzes,
     deleteQuiz,
+    clearQuizData,
     loading,
     error,
   };

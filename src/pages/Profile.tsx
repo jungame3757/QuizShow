@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { updateProfile, deleteUser, reauthenticateWithCredential, GoogleAuthProvider, signInWithPopup, getAuth, EmailAuthProvider } from 'firebase/auth';
+import { updateProfile, deleteUser, reauthenticateWithCredential, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
-import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle, List } from 'lucide-react';
+import { useQuiz } from '../contexts/QuizContext';
+import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 
 const Profile = () => {
   const { currentUser, signInWithGoogle, signOut, auth } = useAuth();
+  const { clearQuizData } = useQuiz();
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -29,6 +31,7 @@ const Profile = () => {
     
     try {
       await deleteUser(currentUser);
+      clearQuizData();
       navigate('/');
     } catch (error: any) {
       console.error('계정 삭제 오류:', error);
@@ -53,12 +56,14 @@ const Profile = () => {
                 await reauthenticateWithCredential(currentUser, credential);
                 // 재인증 성공 후 다시 계정 삭제 시도
                 await deleteUser(currentUser);
+                clearQuizData();
                 navigate('/');
               } else {
                 throw new Error('인증 정보를 가져오지 못했습니다.');
               }
             } else {
               alert('재로그인 후 다시 시도해 주세요.');
+              clearQuizData();
               await signOut();
               navigate('/login');
             }
@@ -75,6 +80,8 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
+      // 로그아웃 전에 퀴즈 데이터 명시적으로 초기화
+      clearQuizData();
       await signOut();
       navigate('/');
     } catch (error) {

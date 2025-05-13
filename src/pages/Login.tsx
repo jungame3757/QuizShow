@@ -1,31 +1,74 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuiz } from '../contexts/QuizContext';
 import Button from '../components/Button';
 
 const Login: React.FC = () => {
   const { currentUser, signInWithGoogle, signInAnonymous, isLoading } = useAuth();
+  const { quizzes, loadUserQuizzes, loading: quizLoading } = useQuiz();
   const navigate = useNavigate();
+  const isInitialMount = useRef(true);
+  const [reloadQuizData, setReloadQuizData] = useState(true);
+  const previousUser = useRef<string | null>(null);
 
+  // 사용자 변경 감지 및 퀴즈 데이터 로드 상태 초기화
   useEffect(() => {
-    // 이미 로그인한 경우 홈으로 리다이렉트
-    if (currentUser && !isLoading) {
-      navigate('/');
+    if (currentUser) {
+      // 이전 사용자와 현재 사용자가 다르면 재로드 표시
+      if (previousUser.current !== currentUser.uid) {
+        setReloadQuizData(true);
+        previousUser.current = currentUser.uid;
+      }
+    } else {
+      // 로그아웃 상태면 이전 사용자 정보 초기화
+      previousUser.current = null;
     }
-  }, [currentUser, isLoading, navigate]);
+  }, [currentUser]);
+
+  // 로그인 시 퀴즈 데이터 로드
+  useEffect(() => {
+    if (currentUser && !isLoading && reloadQuizData) {
+      // 로컬 스토리지 캐시 초기화 (sessionStorage나 localStorage에 캐싱된 데이터가 있다면)
+      localStorage.removeItem('quizzes');
+      sessionStorage.removeItem('quizzes');
+      
+      // 퀴즈 데이터 새로 로드
+      loadUserQuizzes();
+      setReloadQuizData(false);
+    }
+  }, [currentUser, isLoading, loadUserQuizzes, reloadQuizData]);
+
+  // 퀴즈 데이터 로드 후 페이지 이동
+  useEffect(() => {
+    // 첫 마운트 시에는 실행하지 않음
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // 로그인된 상태에서 퀴즈 데이터 로드가 완료된 경우
+    if (currentUser && !isLoading && !quizLoading && !reloadQuizData) {
+      if (quizzes.length === 0) {
+        navigate('/host/create');
+      } else {
+        navigate('/host/my-quizzes');
+      }
+    }
+  }, [currentUser, isLoading, quizLoading, quizzes, navigate, reloadQuizData]);
 
   const handleGoogleLogin = async () => {
     await signInWithGoogle();
-    navigate('/');
+    // 로그인 후 리다이렉트는 useEffect에서 처리
   };
 
   const handleAnonymousLogin = async () => {
     await signInAnonymous();
-    navigate('/');
+    // 로그인 후 리다이렉트는 useEffect에서 처리
   };
 
-  if (isLoading) {
+  if (isLoading || quizLoading) {
     return <div className="p-8 text-center">로딩 중...</div>;
   }
 

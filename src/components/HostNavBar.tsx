@@ -11,7 +11,7 @@ const HostNavBar: React.FC<HostNavBarProps> = ({ handleNavigation }) => {
   const navigate = useNavigate();
   const path = location.pathname;
   
-  const isMyQuizzes = path === '/host/my-quizzes' || path.includes('/host/manage');
+  const isMyQuizzes = path === '/host/my-quizzes' || path.includes('/host/session') || path.includes('/host/edit');
   const isCreateQuiz = path === '/host/create';
 
   // 네비게이션 핸들러

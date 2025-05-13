@@ -8,7 +8,6 @@ import { useQuiz } from '../contexts/QuizContext';
 const MainPage: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
   const { quizzes, loadUserQuizzes } = useQuiz();
-  const [checkingQuizzes, setCheckingQuizzes] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,27 +16,14 @@ const MainPage: React.FC = () => {
     }
   }, [currentUser, isLoading, loadUserQuizzes]);
 
-  const handleStartQuizCreation = async () => {
+  const handleStartQuizCreation = () => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-
-    setCheckingQuizzes(true);
     
-    try {
-      // 사용자가 이미 퀴즈를 가지고 있는지 확인
-      if (quizzes.length > 0) {
-        navigate('/host/my-quizzes');
-      } else {
-        navigate('/host/create');
-      }
-    } catch (error) {
-      console.error("퀴즈 확인 중 오류:", error);
-      navigate('/host/create');
-    } finally {
-      setCheckingQuizzes(false);
-    }
+    // 로그인 상태라면 항상 내 퀴즈 목록으로 이동
+    navigate('/host/my-quizzes');
   };
 
   return (
@@ -128,39 +114,14 @@ const MainPage: React.FC = () => {
               
               <div className="mt-auto">
                 {!isLoading && (
-                  currentUser ? (
-                    <Button 
-                      variant="primary" 
-                      size="large"
-                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
-                      onClick={handleStartQuizCreation}
-                      disabled={checkingQuizzes}
-                    >
-                      {checkingQuizzes ? (
-                        <span className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          로딩중...
-                        </span>
-                      ) : (
-                        <>
-                          <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Link to="/login">
-                      <Button 
-                        variant="primary" 
-                        size="large"
-                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
-                      >
-                        <User size={20} className="mr-2" /> 퀴즈 만들기 시작하기
-                      </Button>
-                    </Link>
-                  )
+                  <Button 
+                    variant="primary" 
+                    size="large"
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg hover:shadow-purple-300/50 transition-all"
+                    onClick={handleStartQuizCreation}
+                  >
+                    <Sparkles size={20} className="mr-2" /> 퀴즈 만들기 시작하기
+                  </Button>
                 )}
               </div>
             </div>

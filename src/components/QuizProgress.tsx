@@ -69,7 +69,7 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {item.question.options.map((option, optionIndex) => {
                   const stats = item.percentages.find(p => p.answer === option) || {
                     answer: option,
@@ -82,24 +82,26 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
                     <div key={optionIndex} className="relative">
                       <div className="flex items-center mb-1">
                         <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center mr-2 text-xs font-bold text-gray-700">
-                          {String.fromCharCode(65 + optionIndex)}
+                          {optionIndex + 1}
                         </div>
                         <span className="text-sm flex-1">{option}</span>
-                        <div className="font-bold text-gray-700">
+                        {stats.isCorrect && (
+                          <div className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
+                            정답
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center">
+                        <div className="h-6 bg-gray-200 rounded-full overflow-hidden flex-grow mr-3" style={{ width: 'calc(100% - 50px)' }}>
+                          <div 
+                            className={`h-full ${stats.isCorrect ? 'bg-green-500' : 'bg-red-500'}`}
+                            style={{ width: `${stats.percentage}%` }}
+                          ></div>
+                        </div>
+                        <div className="font-bold text-gray-700 w-[50px] text-right">
                           {stats.percentage}%
                         </div>
                       </div>
-                      <div className="h-6 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${stats.isCorrect ? 'bg-green-500' : 'bg-purple-500'}`}
-                          style={{ width: `${stats.percentage}%` }}
-                        ></div>
-                      </div>
-                      {stats.isCorrect && (
-                        <div className="absolute right-0 -top-1 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
-                          정답
-                        </div>
-                      )}
                     </div>
                   );
                 })}
