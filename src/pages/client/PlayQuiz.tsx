@@ -54,6 +54,10 @@ interface Session {
   createdAt: number;
   participantCount: number;
   currentQuestion: number;
+  randomizeQuestions: boolean;
+  singleAttempt: boolean;
+  questionTimeLimit: number;
+  expiresAt: number;
 }
 
 interface RankingParticipant {
@@ -80,7 +84,7 @@ const PlayQuiz: React.FC = () => {
   const [showQuizEnd, setShowQuizEnd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedAttemptIndex, setSelectedAttemptIndex] = useState<number | -1>(-1); // -1은 현재 시도
+  const [selectedAttemptIndex] = useState<number | -1>(-1); // -1은 현재 시도
   
   // 새로운 상태 추가 - 퀴즈 시작 여부
   const [quizStarted, setQuizStarted] = useState(false);
@@ -93,6 +97,12 @@ const PlayQuiz: React.FC = () => {
   
   // 문제 컴포넌트 강제 재렌더링을 위한 키 추가
   const [questionKey, setQuestionKey] = useState(0);
+  
+  // 무작위 출제를 위한 문제 순서 상태 추가
+  const [questionOrder, setQuestionOrder] = useState<number[]>([]);
+  
+  // 각 문제의 보기 문항을 무작위로 섞기 위한 상태 추가
+  const [shuffledOptions, setShuffledOptions] = useState<Record<number, { options: string[], mapping: number[] }>>({});
   
   // 로컬 스토리지에서 참가자 정보 확인
   useEffect(() => {
@@ -141,6 +151,13 @@ const PlayQuiz: React.FC = () => {
         sessionData.id = quizId; // ID 추가
         setSession(sessionData);
         
+        // 세션 만료 확인
+        if (sessionData.expiresAt && sessionData.expiresAt < Date.now()) {
+          setError('세션이 만료되었습니다');
+          setLoading(false);
+          return;
+        }
+        
         // 2. 참가자 정보 가져오기
         const participantRef = ref(rtdb, `participants/${quizId}/${userId}`);
         const participantSnapshot = await get(participantRef);
@@ -168,6 +185,23 @@ const PlayQuiz: React.FC = () => {
           setQuiz(quizData);
           console.log('퀴즈 데이터 로드 성공:', quizData);
           
+          // 문제 순서 설정 - 무작위 출제 옵션에 따라 다르게 설정
+          if (sessionData.randomizeQuestions) {
+            const indices = Array.from({ length: quizData.questions.length }, (_, i) => i);
+            // Fisher-Yates 셔플 알고리즘으로 문제 순서 섞기
+            for (let i = indices.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            setQuestionOrder(indices);
+          } else {
+            // 순차 출제의 경우 순서대로 인덱스 설정
+            setQuestionOrder(Array.from({ length: quizData.questions.length }, (_, i) => i));
+          }
+          
+          // 각 문제의 보기 문항을 무작위로 섞는 함수 호출
+          shuffleAllQuestionOptions(quizData.questions);
+          
           // 4. 참가자 답변과 퀴즈 데이터가 모두 로드된 후 현재 문제 인덱스 설정
           if (participantData.answers && Object.keys(participantData.answers).length > 0) {
             const answers = Object.values(participantData.answers);
@@ -183,6 +217,13 @@ const PlayQuiz: React.FC = () => {
           } else {
             // 답변이 없는 경우 첫 번째 문제부터 시작
             setCurrentQuestionIndex(0);
+          }
+          
+          // 5. 한 번만 참가 가능 설정 확인
+          if (sessionData.singleAttempt && participantData.attempts && participantData.attempts.length > 0) {
+            // 이미 완료한 경우 퀴즈 결과로 이동
+            setShowQuizEnd(true);
+            setError('이미 퀴즈를 완료했습니다. 결과를 확인해주세요.');
           }
           
         } catch (quizError) {
@@ -212,6 +253,12 @@ const PlayQuiz: React.FC = () => {
         const sessionData = snapshot.val();
         sessionData.id = quizId;
         setSession(sessionData);
+        
+        // 세션 만료 확인
+        if (sessionData.expiresAt && sessionData.expiresAt < Date.now()) {
+          setError('세션이 만료되었습니다');
+          setTimeout(() => navigate('/join'), 3000);
+        }
       } else {
         setError('세션이 종료되었습니다');
         setTimeout(() => navigate('/join'), 3000);
@@ -247,9 +294,10 @@ const PlayQuiz: React.FC = () => {
   useEffect(() => {
     // 퀴즈가 시작되지 않았거나 showQuizEnd가 true인 경우 타이머를 설정하지 않음
     // showResult가 true일 때도 타이머를 중지
-    if (!quiz || !quiz.questions || !quizStarted || currentQuestionIndex >= quiz.questions.length || showQuizEnd || showResult) return;
+    if (!quiz || !quiz.questions || !quizStarted || currentQuestionIndex >= quiz.questions.length || showQuizEnd || showResult || !session) return;
     
-    const questionTimeLimit = 30; // 문제당 30초
+    // 세션에서 설정된 문제 시간 제한 사용
+    const questionTimeLimit = session.questionTimeLimit || 30; // 기본값 30초
     setTimeLeft(questionTimeLimit);
     setTimerPercentage(100); // 타이머 초기화
     
@@ -279,13 +327,63 @@ const PlayQuiz: React.FC = () => {
     }, updateInterval);
     
     return () => clearInterval(timer);
-  }, [quiz, currentQuestionIndex, selectedAnswer, showResult, showQuizEnd, quizStarted]);
+  }, [quiz, currentQuestionIndex, selectedAnswer, showResult, showQuizEnd, quizStarted, session]);
   
-  // 점수 애니메이션 효과 제거 (관련 코드 삭제)
+  // 문제의 모든 보기 문항을 섞는 함수
+  const shuffleAllQuestionOptions = (questions: Question[]) => {
+    const shuffledOptionsData: Record<number, { options: string[], mapping: number[] }> = {};
+    
+    // 각 문제의 보기 문항을 개별적으로 섞음
+    questions.forEach((question, questionIndex) => {
+      // 원본 옵션 복사
+      const originalOptions = [...question.options];
+      const shuffledOptions = [...originalOptions];
+      // 배열 정보 준비 (인덱스 매핑 배열)
+      // 각 인덱스가 새로운 위치를 가리키는 배열: mapping[원래인덱스] = 섞인후인덱스
+      const mapping: number[] = Array(originalOptions.length).fill(-1);
+      
+      // Fisher-Yates 셔플 알고리즘으로 옵션 배열만 섞기
+      for (let i = shuffledOptions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        // 옵션만 섞기
+        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+      }
+      
+      // 섞인 후 인덱스를 기록
+      // 원래 옵션 배열에서 각 옵션이 섞인 배열의 어느 위치로 이동했는지 기록
+      originalOptions.forEach((option, origIndex) => {
+        const shuffledIndex = shuffledOptions.indexOf(option);
+        mapping[origIndex] = shuffledIndex;
+      });
+      
+      // 섞인 결과 저장
+      shuffledOptionsData[questionIndex] = {
+        options: shuffledOptions,
+        mapping: mapping
+      };
+      
+      // 로그로 디버깅 확인
+      console.log(`문제 ${questionIndex} 섞기 결과:`, {
+        originalOptions,
+        shuffledOptions,
+        mapping,
+        correctAnswer: question.correctAnswer,
+        mappedCorrectAnswer: mapping[question.correctAnswer]
+      });
+    });
+    
+    setShuffledOptions(shuffledOptionsData);
+  };
   
   // 퀴즈 다시 풀기 기능
   const resetQuiz = async () => {
-    if (!quizId || !userId) return;
+    if (!quizId || !userId || !session) return;
+    
+    // 한 번만 참가 가능 설정 확인
+    if (session.singleAttempt) {
+      setError('이 퀴즈는 한 번만 참여할 수 있습니다.');
+      return;
+    }
     
     try {
       setLoading(true);
@@ -322,6 +420,20 @@ const PlayQuiz: React.FC = () => {
         return;
       }
       
+      // 무작위 출제 옵션이 활성화된 경우 문제 순서 다시 섞기
+      if (session.randomizeQuestions && quiz) {
+        const indices = Array.from({ length: quiz.questions.length }, (_, i) => i);
+        // Fisher-Yates 셔플 알고리즘으로 문제 순서 섞기
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        setQuestionOrder(indices);
+        
+        // 각 문제의 보기 문항도 다시 섞기
+        shuffleAllQuestionOptions(quiz.questions);
+      }
+      
       // 상태 초기화
       setCurrentQuestionIndex(0);
       setSelectedAnswer(null);
@@ -354,13 +466,18 @@ const PlayQuiz: React.FC = () => {
     
     try {
       const pointsForCorrect = 100; // 정답 시 기본 점수
-      const timeBonus = timeLeft ? Math.round((timeLeft / 30) * 50) : 0; // 시간 보너스 (최대 50점)
+      const timeBonus = timeLeft ? Math.round((timeLeft / (session?.questionTimeLimit || 30)) * 50) : 0; // 시간 보너스 (최대 50점)
       
       const points = isCorrect ? pointsForCorrect + timeBonus : 0;
       const newScore = (participant.score || 0) + points;
       
+      // 무작위 출제를 위한 실제 문제 인덱스 변환
+      const realQuestionIndex = questionOrder[currentQuestionIndex] !== undefined 
+        ? questionOrder[currentQuestionIndex] 
+        : currentQuestionIndex;
+      
       const answerData = {
-        questionIndex: currentQuestionIndex,
+        questionIndex: realQuestionIndex, // 실제 문제 인덱스 저장
         answerIndex: answerIndex,
         isCorrect: isCorrect,
         points: points,
@@ -369,7 +486,7 @@ const PlayQuiz: React.FC = () => {
       
       // Realtime Database에 답변 및 점수 업데이트
       const participantRef = ref(rtdb, `participants/${quizId}/${userId}`);
-      const answersRef = ref(rtdb, `participants/${quizId}/${userId}/answers/${currentQuestionIndex}`);
+      const answersRef = ref(rtdb, `participants/${quizId}/${userId}/answers/${realQuestionIndex}`);
       
       // 답변 및 점수 업데이트
       await update(participantRef, {
@@ -386,7 +503,7 @@ const PlayQuiz: React.FC = () => {
         // 기존 answers가 없으면 빈 객체로 초기화
         const updatedAnswers = prev.answers || {};
         // 인덱스를 문자열로 사용하여 추가
-        updatedAnswers[currentQuestionIndex.toString()] = answerData;
+        updatedAnswers[realQuestionIndex.toString()] = answerData;
         
         return {
           ...prev,
@@ -405,11 +522,35 @@ const PlayQuiz: React.FC = () => {
     setSelectedAnswer(answer);
     setSelectedAnswerIndex(index);
     
-    const currentQuestion = quiz?.questions[currentQuestionIndex];
+    // 무작위 출제를 위한 실제 문제 인덱스 변환
+    const realQuestionIndex = questionOrder[currentQuestionIndex] !== undefined 
+      ? questionOrder[currentQuestionIndex] 
+      : currentQuestionIndex;
+      
+    const currentQuestion = quiz?.questions[realQuestionIndex];
     if (!currentQuestion) return;
     
-    // 수정: 인덱스 기반으로 정답 판별
-    const isCorrect = index === currentQuestion.correctAnswer;
+    // 보기 문항이 섞여 있는 경우, 실제 정답 인덱스와 비교
+    let isCorrect = false;
+    
+    if (shuffledOptions[realQuestionIndex]) {
+      // 답안 확인 로직 수정: 원본 정답 인덱스가 어느 UI 인덱스로 이동했는지 확인
+      const correctUIIndex = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
+      isCorrect = index === correctUIIndex;
+      
+      // 디버깅 로그
+      console.log('답안 선택 확인:', {
+        선택한UI인덱스: index,
+        원본정답인덱스: currentQuestion.correctAnswer,
+        변환된정답UI인덱스: correctUIIndex,
+        정답여부: isCorrect,
+        선택한답안: answer,
+        정답텍스트: shuffledOptions[realQuestionIndex].options[correctUIIndex]
+      });
+    } else {
+      // 섞이지 않은 경우 직접 비교
+      isCorrect = index === currentQuestion.correctAnswer;
+    }
     
     // 답변 제출
     submitAnswer(index, isCorrect);
@@ -589,6 +730,7 @@ const PlayQuiz: React.FC = () => {
             isLoadingRankings={isLoadingRankings}
             onResetQuiz={resetQuiz}
             inviteCode={session?.code}
+            canRetry={session?.singleAttempt === false} // 한 번만 참가 가능이 아닐 때만 재시도 버튼 활성화
           />
         </div>
       </div>
@@ -625,12 +767,13 @@ const PlayQuiz: React.FC = () => {
         currentQuestionIndex={currentQuestionIndex}
         sessionId={quizId || ''}
         onStartQuiz={handleStartQuiz}
+        timeLimit={session?.questionTimeLimit || 30} // 시간 제한 표시
       />
     );
   }
   
   // 현재 인덱스가 범위를 벗어나는 경우 첫 문제로 리셋
-  if (currentQuestionIndex < 0 || !quiz.questions[currentQuestionIndex]) {
+  if (currentQuestionIndex < 0 || currentQuestionIndex >= quiz.questions.length) {
     setCurrentQuestionIndex(0);
     return (
       <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-4 flex items-center justify-center">
@@ -641,7 +784,29 @@ const PlayQuiz: React.FC = () => {
     );
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
+  // 무작위 출제를 위한 실제 문제 인덱스 변환
+  const realQuestionIndex = questionOrder[currentQuestionIndex] !== undefined 
+    ? questionOrder[currentQuestionIndex] 
+    : currentQuestionIndex;
+    
+  const currentQuestion = quiz.questions[realQuestionIndex];
+
+  // 현재 문제의 보기 문항 준비 - 섞인 옵션이 있으면 사용
+  const currentQuestionOptions = shuffledOptions[realQuestionIndex]?.options || currentQuestion.options;
+  
+  // 현재 문제의 정답 인덱스 준비 - 섞인 경우 매핑 적용
+  let currentQuestionCorrectAnswer = currentQuestion.correctAnswer;
+  if (shuffledOptions[realQuestionIndex]) {
+    // 원본 정답 인덱스를 UI에 표시될 인덱스로 변환
+    currentQuestionCorrectAnswer = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
+    
+    // 디버깅 로그
+    console.log('렌더링 정답 인덱스 변환:', {
+      원본정답인덱스: currentQuestion.correctAnswer,
+      UI표시정답인덱스: currentQuestionCorrectAnswer,
+      문제인덱스: realQuestionIndex
+    });
+  }
 
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-b from-teal-50 to-blue-50 p-4 flex flex-col">
@@ -672,7 +837,11 @@ const PlayQuiz: React.FC = () => {
           <div className="flex-1 overflow-auto">
             <QuizQuestion 
               key={questionKey}
-              question={currentQuestion}
+              question={{
+                ...currentQuestion,
+                options: currentQuestionOptions,
+                correctAnswer: currentQuestionCorrectAnswer
+              }}
               selectedAnswer={selectedAnswer}
               selectedAnswerIndex={selectedAnswerIndex}
               onSelectAnswer={(answer, index) => handleSelectAnswer(answer, index)} 

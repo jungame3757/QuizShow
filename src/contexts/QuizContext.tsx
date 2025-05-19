@@ -87,6 +87,7 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
       // 기존 데이터 초기화 (다른 사용자의 데이터가 남아있지 않도록)
       setQuizzes([]);
       
+      // getUserQuizzesFromFirebase는 항상 Quiz[] 배열을 반환
       const userQuizzes = await getUserQuizzesFromFirebase(currentUser.uid);
       setQuizzes(userQuizzes);
     } catch (error) {

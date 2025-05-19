@@ -31,6 +31,7 @@ interface QuizStartPageProps {
   currentQuestionIndex: number;
   sessionId: string;
   onStartQuiz: () => void;
+  timeLimit?: number; // 문제 시간 제한 (초)
 }
 
 const QuizStartPage: React.FC<QuizStartPageProps> = ({
@@ -38,7 +39,8 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
   participant,
   currentQuestionIndex,
   sessionId,
-  onStartQuiz
+  onStartQuiz,
+  timeLimit = 30 // 기본값 30초
 }) => {
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nickname, setNickname] = useState(participant.name);
@@ -221,7 +223,7 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
             </div>
             <div className="flex items-center text-gray-600">
               <div className="w-28 font-medium">시간 제한:</div>
-              <div className="font-bold text-teal-700">문제당 30초</div>
+              <div className="font-bold text-teal-700">문제당 {timeLimit}초</div>
             </div>
             {isResuming && (
               <div className="flex items-center text-gray-600">

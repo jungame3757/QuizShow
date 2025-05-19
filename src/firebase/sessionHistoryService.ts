@@ -56,6 +56,13 @@ export interface SessionHistory {
   participants?: Record<string, Participant>; // 선택적 필드로 변경
 }
 
+// 세션 기록의 전체 개수와 결과를 함께 반환하는 인터페이스
+export interface SessionHistoryResponse {
+  histories: SessionHistory[];
+  totalCount: number;
+  lastVisible?: QueryDocumentSnapshot<DocumentData>;
+}
+
 // 유저별 세션 기록 컬렉션 경로
 const getUserSessionHistoriesPath = (userId: string) => `users/${userId}/sessionHistories`;
 
@@ -105,63 +112,119 @@ export const deleteSessionHistory = async (historyId: string, hostId: string): P
   }
 };
 
-// 호스트 ID로 세션 기록을 가져오는 함수 (페이지네이션 지원)
+// 호스트 ID로 세션 기록을 가져오는 함수 (확장된 페이지네이션 지원)
 export const getSessionHistoriesByHostId = async (
   hostId: string, 
   pageSize: number = 10, 
-  lastDoc?: QueryDocumentSnapshot<DocumentData>
-): Promise<SessionHistory[]> => {
+  lastDoc?: QueryDocumentSnapshot<DocumentData> | null,
+  offset: number = 0,
+  countOnly: boolean = false
+): Promise<SessionHistoryResponse | SessionHistory[]> => {
   try {
-    // 기본 쿼리: 호스트 ID로 필터링 및 종료 시간 기준 내림차순 정렬
+    const collectionPath = getUserSessionHistoriesPath(hostId);
+    const collectionRef = collection(db, collectionPath);
+
+    // 개수만 필요한 경우
+    if (countOnly) {
+      const countSnapshot = await getDocs(query(collectionRef));
+      return {
+        histories: [],
+        totalCount: countSnapshot.size
+      };
+    }
+
+    // 오프셋 기반 페이지네이션 (페이지 번호 기반)
+    if (offset > 0 && !lastDoc) {
+      // 전체 개수 조회와 함께 병렬 실행
+      const [countSnapshot, allDocsSnapshot] = await Promise.all([
+        getDocs(query(collectionRef)),
+        getDocs(query(
+          collectionRef,
+          orderBy('endedAt', 'desc'),
+          limit(offset + pageSize)
+        ))
+      ]);
+
+      const histories: SessionHistory[] = [];
+      
+      // offset부터 필요한 만큼의 문서만 처리
+      const docsSlice = allDocsSnapshot.docs.slice(offset, offset + pageSize);
+      
+      docsSlice.forEach((doc) => {
+        const data = doc.data();
+        let quizData = data.quiz || { id: 'unknown', title: '제목 없음' };
+        
+        histories.push({
+          id: doc.id,
+          ...data,
+          quiz: quizData
+        } as SessionHistory);
+      });
+      
+      // 응답 반환
+      const lastVisible = docsSlice.length > 0 ? docsSlice[docsSlice.length - 1] : undefined;
+      
+      // 이전 버전과의 호환성
+      if (lastVisible && histories.length > 0) {
+        (histories[histories.length - 1] as any)._lastVisible = lastVisible;
+      }
+      
+      return {
+        histories,
+        totalCount: countSnapshot.size,
+        lastVisible
+      };
+    }
+    
+    // 커서 기반 페이지네이션 (lastDoc 사용)
     let historyQuery = query(
-      collection(db, getUserSessionHistoriesPath(hostId)),
+      collectionRef,
       orderBy('endedAt', 'desc'),
       limit(pageSize)
     );
     
-    // 마지막 문서가 제공된 경우 (페이지네이션)
     if (lastDoc) {
       historyQuery = query(
-        collection(db, getUserSessionHistoriesPath(hostId)),
+        collectionRef,
         orderBy('endedAt', 'desc'),
         startAfter(lastDoc),
         limit(pageSize)
       );
     }
     
-    const querySnapshot = await getDocs(historyQuery);
-    const histories: SessionHistory[] = [];
-    let lastVisible = null;
+    // 데이터와 전체 개수 병렬로 조회
+    const [querySnapshot, countSnapshot] = await Promise.all([
+      getDocs(historyQuery),
+      getDocs(query(collectionRef))
+    ]);
     
-    // lastVisible을 별도로 추적
-    if (!querySnapshot.empty) {
-      lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
-    }
+    const histories: SessionHistory[] = [];
+    const lastVisible = querySnapshot.docs.length > 0 
+      ? querySnapshot.docs[querySnapshot.docs.length - 1] 
+      : undefined;
     
     querySnapshot.forEach((doc) => {
-      // 문서 데이터 읽기
       const data = doc.data();
-      
-      // 안전하게 quiz 필드 처리
-      let quizData = data.quiz;
-      if (!quizData) {
-        quizData = { id: 'unknown', title: '제목 없음' };
-      }
+      let quizData = data.quiz || { id: 'unknown', title: '제목 없음' };
       
       histories.push({
         id: doc.id,
         ...data,
-        // quiz 필드가 없거나 형식이 맞지 않는 경우 처리
         quiz: quizData
       } as SessionHistory);
     });
     
-    // 마지막 문서를 수동으로 설정
+    // 이전 버전과의 호환성
     if (lastVisible && histories.length > 0) {
       (histories[histories.length - 1] as any)._lastVisible = lastVisible;
     }
     
-    return histories;
+    // 응답 형식으로 반환
+    return {
+      histories,
+      totalCount: countSnapshot.size,
+      lastVisible
+    };
   } catch (error) {
     console.error('세션 기록 가져오기 오류:', error);
     throw error;

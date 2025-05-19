@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Wand, Calendar, Trash2, Edit, Plus, RefreshCw, Loader, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
-import { getUserQuizzes, deleteQuiz } from '../../firebase/quizService';
+import { getUserQuizzes, deleteQuiz, QuizListResponse } from '../../firebase/quizService';
 import { Quiz } from '../../types';
 import Button from '../../components/ui/Button';
 import HostNavBar from '../../components/host/HostNavBar';
@@ -54,7 +54,7 @@ const MyQuizzes: React.FC = () => {
       setError(null);
       
       // 병렬로 퀴즈와 세션 데이터 가져오기
-      const [userQuizzes, hostSessions] = await Promise.all([
+      const [quizzesResult, hostSessions] = await Promise.all([
         getUserQuizzes(currentUser.uid),
         loadSessionsForHost()
       ]);
@@ -70,8 +70,11 @@ const MyQuizzes: React.FC = () => {
         return acc;
       }, {});
       
+      // getUserQuizzes는 항상 배열을 반환하도록 수정됨
+      const userQuizzes: Quiz[] = quizzesResult;
+      
       // 퀴즈 정보와 세션 정보 병합
-      const enhancedQuizzes = userQuizzes.map(quiz => {
+      const enhancedQuizzes = userQuizzes.map((quiz: Quiz) => {
         const quizSessions = sessionsByQuizId[quiz.id] || [];
         const activeSession = quizSessions.length > 0 ? quizSessions[0] : null;
         
@@ -106,23 +109,6 @@ const MyQuizzes: React.FC = () => {
     }
     loadQuizzes();
   }, [currentUser, navigate, loadQuizzes]);
-
-  // 페이지 포커스 획득 시 갱신 (다른 탭에서 돌아올 때)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (document.visibilityState === 'visible') {
-        loadQuizzes();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleFocus);
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleFocus);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [loadQuizzes]);
 
   // location.key가 변경될 때(다른 페이지에서 돌아올 때) 로드
   useEffect(() => {

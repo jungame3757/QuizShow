@@ -6,8 +6,7 @@ import {
   update, 
   remove, 
   onValue, 
-  off, 
-  serverTimestamp 
+  off
 } from 'firebase/database';
 import { rtdb } from './config';
 import { generateSessionCode } from '../utils/helpers';
@@ -24,6 +23,9 @@ export interface Session {
   endedAt: number | null;
   participantCount: number;
   expiresAt: number;
+  randomizeQuestions: boolean;
+  singleAttempt: boolean;
+  questionTimeLimit: number;
 }
 
 export interface Participant {
@@ -50,6 +52,9 @@ export interface Answer {
 // 세션 옵션 인터페이스 정의
 export interface SessionOptions {
   expiresIn?: number; // 밀리초 단위의 세션 유효 기간
+  randomizeQuestions?: boolean; // 문제 무작위 출제 여부
+  singleAttempt?: boolean; // 참가자 시도 횟수 제한 (true: 한 번만, false: 여러 번 가능)
+  questionTimeLimit?: number; // 문제 풀이 제한 시간 (초 단위)
 }
 
 // 세션 생성 함수
@@ -82,7 +87,10 @@ export const createSession = async (quizId: string, hostId: string, options?: Se
       startedAt: null,
       endedAt: null,
       participantCount: 0,
-      expiresAt
+      expiresAt,
+      randomizeQuestions: options?.randomizeQuestions || false,
+      singleAttempt: options?.singleAttempt !== undefined ? options.singleAttempt : true,
+      questionTimeLimit: options?.questionTimeLimit || 30
     };
     
     // 세션 데이터 저장

@@ -51,6 +51,7 @@ interface QuizResultsProps {
   isLoadingRankings?: boolean; // 랭킹 로딩 상태 추가
   onResetQuiz?: () => void; // 퀴즈 다시 시작 함수 추가
   inviteCode?: string; // 초대 코드 추가
+  canRetry?: boolean; // 퀴즈 재시도 가능 여부
 }
 
 const QuizResults: React.FC<QuizResultsProps> = ({ 
@@ -59,7 +60,8 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   rankings = [], 
   isLoadingRankings = false,
   onResetQuiz,
-  inviteCode
+  inviteCode,
+  canRetry = true
 }) => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -596,6 +598,14 @@ const QuizResults: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // 리셋 버튼 클릭 핸들러 - 확인 대화상자 표시
+  const handleResetClick = () => {
+    if (!canRetry) {
+      return; // 퀴즈 재시도가 불가능하면 아무 동작 하지 않음
+    }
+    setShowResetConfirm(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-3 flex flex-col items-center pt-4">
       <div className="max-w-3xl w-full bg-white rounded-2xl shadow-lg p-4 animate-fade-in">
@@ -646,7 +656,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-teal-700 flex items-center text-sm">
                 <Trophy size={16} className="mr-1" /> 
-                {rankingViewMode === 'top5' ? '현재 랭킹 TOP 5' : '내 주변 랭킹'}
+                {rankingViewMode === 'top5' ? 'TOP 5' : '내 주변 랭킹'}
               </h3>
               <div className="flex items-center gap-2">
                 <div className="text-xs text-gray-500">총 {rankings.length}명 참가</div>
@@ -731,15 +741,23 @@ const QuizResults: React.FC<QuizResultsProps> = ({
             <Share2 className="mr-2" /> 결과 공유하기
           </Button>
           
-          {onResetQuiz && (
+          {/* 퀴즈 다시 풀기 버튼 */}
+          {onResetQuiz && canRetry && (
             <Button 
-              onClick={() => setShowResetConfirm(true)}
+              onClick={handleResetClick}
               variant="primary"
               size="large"
-              className="px-8 bg-gradient-to-r from-teal-500 to-cyan-500"
+              className="flex items-center mx-auto"
             >
-              <RefreshCw className="mr-2" /> 퀴즈 다시 풀기
+              <RefreshCw size={18} className="mr-2" />
+              퀴즈 다시 풀기
             </Button>
+          )}
+          {onResetQuiz && !canRetry && (
+            <div className="flex items-center justify-center mx-auto text-amber-600 bg-amber-50 py-2 px-4 rounded-lg text-sm">
+              <AlertTriangle size={16} className="mr-2" />
+              이 퀴즈는 한 번만 참여할 수 있습니다.
+            </div>
           )}
           
           {/* 공유 성공 메시지 */}

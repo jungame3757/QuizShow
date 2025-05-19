@@ -164,22 +164,41 @@ const convertQuizToFirestoreQuiz = (quiz: Omit<Quiz, 'id'>): Omit<FirestoreQuiz,
   return firestoreQuiz;
 };
 
-// 사용자의 모든 퀴즈 가져오기
-export const getUserQuizzes = async (userId: string): Promise<Quiz[]> => {
+// 페이지네이션과 함께 퀴즈 결과를 반환하는 인터페이스
+export interface QuizListResponse {
+  quizzes: Quiz[];
+  totalCount: number;
+}
+
+// 사용자의 퀴즈 가져오기 (페이지네이션 지원)
+export const getUserQuizzes = async (
+  userId: string,
+  pageSize: number = 10,
+  offset: number = 0,
+  countOnly: boolean = false
+): Promise<Quiz[]> => {
   try {
     if (!userId) {
       throw new Error('사용자 ID가 없습니다.');
     }
     
-    // 변경: 사용자 하위 컬렉션에서 퀴즈 가져오기
+    // 사용자 하위 컬렉션에서 퀴즈 가져오기
     const quizzesCollection = collection(db, getUserQuizzesCollectionPath(userId));
-    const querySnapshot = await getDocs(quizzesCollection);
-    const quizzes: Quiz[] = [];
     
+    // 개수만 필요한 경우
+    if (countOnly) {
+      return [];
+    }
+    
+    // 모든 퀴즈 가져오기 (정렬 필요하므로, 페이지 크기와 상관없이 모든 데이터 가져옴)
+    const querySnapshot = await getDocs(quizzesCollection);
+    const allQuizzes: Quiz[] = [];
+    
+    // 모든 문서 데이터 가져오기
     querySnapshot.forEach((doc) => {
       try {
         const quizData = doc.data() as FirestoreQuiz;
-        quizzes.push(convertFirestoreQuizToQuiz({ ...quizData, id: doc.id }));
+        allQuizzes.push(convertFirestoreQuizToQuiz({ ...quizData, id: doc.id }));
       } catch (conversionError) {
         console.error('퀴즈 데이터 변환 오류:', conversionError, 'for document:', doc.id);
         // 오류가 있는 문서는 건너뛰고 계속 진행
@@ -187,11 +206,17 @@ export const getUserQuizzes = async (userId: string): Promise<Quiz[]> => {
     });
     
     // 생성일 기준 내림차순 정렬
-    return quizzes.sort((a, b) => {
+    const sortedQuizzes = allQuizzes.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
+    
+    // 요청한 페이지에 해당하는 부분만 잘라내기
+    const paginatedQuizzes = sortedQuizzes.slice(offset, offset + pageSize);
+    
+    // 항상 퀴즈 배열만 반환하도록 수정
+    return paginatedQuizzes;
   } catch (error) {
     console.error('사용자 퀴즈 가져오기 오류:', error);
     throw error;

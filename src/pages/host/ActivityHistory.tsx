@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, Clock, Users, ChevronRight, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Users, ChevronRight, ChevronLeft, ChevronRight as ChevronNext } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getSessionHistoriesByHostId, SessionHistory } from '../../firebase/sessionHistoryService';
+import { getSessionHistoriesByHostId, SessionHistory, SessionHistoryResponse } from '../../firebase/sessionHistoryService';
 import HostNavBar from '../../components/host/HostNavBar';
 import HostPageHeader from '../../components/host/HostPageHeader';
 import Breadcrumb from '../../components/ui/Breadcrumb';
@@ -121,7 +121,7 @@ const getColorByQuizId = (quizId: string) => {
   return BORDER_COLORS[hashValue];
 };
 
-// 한 번에 불러올 항목 수
+// 페이지 당 항목 수
 const PAGE_SIZE = 10;
 
 const ActivityHistory: React.FC = () => {
@@ -129,154 +129,110 @@ const ActivityHistory: React.FC = () => {
   const { currentUser } = useAuth();
   const [sessionHistories, setSessionHistories] = useState<SessionHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
-  // IntersectionObserver 설정
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastHistoryElementRef = useCallback((node: HTMLDivElement | null) => {
-    if (loading || loadingMore) return;
+  // 총 세션 기록 개수 조회 함수 (개선된 API 사용)
+  const getTotalSessionCount = useCallback(async () => {
+    if (!currentUser) return 0;
     
-    // 이전 옵저버 연결 해제
-    if (observer.current) observer.current.disconnect();
-    
-    // 새 옵저버 생성
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0]?.isIntersecting && hasMore) {
-        loadMoreData();
+    try {
+      // 백엔드에서 총 개수만 얻어오는 API 기능 사용
+      const result = await getSessionHistoriesByHostId(currentUser.uid, 0, null, 0, true);
+      
+      // 새 API 응답 형식 확인
+      if (typeof result === 'object' && 'totalCount' in result) {
+        return result.totalCount;
       }
-    }, { 
-      rootMargin: '200px', // 미리 로드 시작할 여유 공간 증가
-      threshold: 0.1
-    });
-    
-    // 새 노드 관찰 시작
-    if (node) observer.current.observe(node);
-  }, [loading, loadingMore, hasMore]);
-  
-  // 초기 데이터 로드
-  const loadInitialData = useCallback(async (showRefreshing = false) => {
+      
+      return 0;
+    } catch (err) {
+      console.error('전체 세션 개수 조회 오류:', err);
+      return 0;
+    }
+  }, [currentUser]);
+
+  // 페이지별 데이터 로드
+  const loadPageData = useCallback(async (page: number) => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
     
     try {
-      if (showRefreshing) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      
+      setLoading(true);
       setError(null);
       
-      // 초기 로드 시 기존 데이터와 상태를 명확히 초기화
-      if (!showRefreshing) {
-        setSessionHistories([]);
+      // 페이지 번호가 0보다 작으면 1로 설정
+      const validPage = Math.max(1, page);
+      setCurrentPage(validPage);
+      
+      // 먼저 총 세션 개수 조회
+      const totalCount = await getTotalSessionCount();
+      
+      // 총 페이지 수 계산
+      const calculatedTotalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+      setTotalPages(calculatedTotalPages);
+      
+      // 현재 페이지에 해당하는 데이터 로드 (offset 기반 페이지네이션 사용)
+      const offset = (validPage - 1) * PAGE_SIZE;
+      
+      // 개선된 API 사용 - offset 파라미터로 페이지 처리
+      const result = await getSessionHistoriesByHostId(
+        currentUser.uid, 
+        PAGE_SIZE, 
+        null, 
+        offset
+      );
+      
+      // 새 API 응답 형식 확인
+      let histories: SessionHistory[] = [];
+      
+      if (typeof result === 'object' && 'histories' in result) {
+        // 새 API 응답 형식 (SessionHistoryResponse)
+        histories = result.histories;
+        
+        // 총 페이지 수 계산 (전체 개수 정보를 API에서 제공)
+        const calculatedTotalPages = Math.max(1, Math.ceil(result.totalCount / PAGE_SIZE));
+        setTotalPages(calculatedTotalPages);
+      } else if (Array.isArray(result)) {
+        // 이전 API 응답 형식 호환성 (배열)
+        histories = result;
       }
       
-      setLastDoc(null);
-      setHasMore(true);
-      
-      const histories = await getSessionHistoriesByHostId(currentUser.uid, PAGE_SIZE);
-      
-      if (histories.length > 0) {
-        // 마지막 문서 저장
-        setLastDoc(histories[histories.length - 1]);
-        
-        // 세션 기록 저장
+      if (histories && histories.length > 0) {
         setSessionHistories(histories);
-        
-        // 더 불러올 데이터가 있는지 확인
-        setHasMore(histories.length >= PAGE_SIZE);
       } else {
-        setHasMore(false);
         setSessionHistories([]);
+        // 데이터가 없는데 페이지가 1보다 크면 첫 페이지로 이동
+        if (validPage > 1 && Number(totalCount) === 0) {
+          setCurrentPage(1);
+        }
       }
     } catch (err) {
       console.error('세션 기록 로드 오류:', err);
       setError('활동 기록을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, getTotalSessionCount]);
   
-  // 추가 데이터 로드
-  const loadMoreData = useCallback(async () => {
-    // 로드할 수 있는 데이터가 더 없거나 이미 로딩 중이거나 마지막 문서가 없으면 리턴
-    if (!hasMore || loadingMore || loading || !lastDoc || !currentUser) return;
-    
-    try {
-      setLoadingMore(true);
-      
-      // 마지막 문서 참조 사용 - _lastVisible 속성이 있으면 사용
-      const lastDocRef = (lastDoc as any)._lastVisible || lastDoc;
-      
-      // 마지막 문서 이후부터 추가 데이터 로드
-      const additionalHistories = await getSessionHistoriesByHostId(
-        currentUser.uid, 
-        PAGE_SIZE, 
-        lastDocRef
-      );
-      
-      if (additionalHistories.length > 0) {
-        // 이전 데이터와 새 데이터 병합 (중복 제거)
-        setSessionHistories(prev => {
-          // 이미 존재하는 ID 필터링
-          const existingIds = new Set(prev.map(h => h.id));
-          const newHistories = additionalHistories.filter(h => !existingIds.has(h.id!));
-          return [...prev, ...newHistories];
-        });
-        
-        // 마지막 문서 업데이트
-        setLastDoc(additionalHistories[additionalHistories.length - 1]);
-        
-        // 더 불러올 데이터가 있는지 확인
-        setHasMore(additionalHistories.length >= PAGE_SIZE);
-      } else {
-        setHasMore(false);
-      }
-    } catch (err) {
-      console.error('추가 데이터 로드 오류:', err);
-      setError('추가 활동 기록을 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setLoadingMore(false);
+  // 페이지 변경 함수
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) {
+      return; // 유효하지 않은 페이지 번호 무시
     }
-  }, [currentUser, lastDoc, hasMore, loadingMore, loading]);
+    loadPageData(newPage);
+  }, [currentPage, loadPageData, totalPages]);
   
   // 초기 데이터 로드
   useEffect(() => {
-    loadInitialData();
-    
-    // 컴포넌트 언마운트 시 정리
-    return () => {
-      if (observer.current) observer.current.disconnect();
-    };
-  }, [loadInitialData]);
+    // 첫 페이지 데이터 로드
+    loadPageData(1);
+  }, [loadPageData]);
   
-  // 페이지 포커스 획득 시 갱신 (다른 탭에서 돌아올 때)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadInitialData(true); // 조용히 새로고침
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [loadInitialData]);
-  
-  // 새로고침 핸들러
-  const handleRefresh = () => {
-    loadInitialData(true);
-  };
+
   
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -305,7 +261,7 @@ const ActivityHistory: React.FC = () => {
     </div>
   ), []);
   
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
         <div className="max-w-4xl mx-auto">
@@ -334,26 +290,15 @@ const ActivityHistory: React.FC = () => {
         <Breadcrumb items={[{ label: '결과 보고서' }]} />
         
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <h1 className="text-2xl font-bold text-purple-700">결과 보고서</h1>
-            {sessionHistories.length > 0 && (
-              <button 
-                onClick={handleRefresh} 
-                disabled={refreshing}
-                className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
-                title="새로고침"
-              >
-                <RefreshCw size={18} className={`mr-1 ${refreshing ? 'animate-spin' : ''}`} />
-                <span className="text-sm">새로고침</span>
-              </button>
-            )}
           </div>
           
           {error && (
             <div className="bg-red-50 text-red-600 p-4 mb-4 rounded-md flex justify-between items-center">
               <span>{error}</span>
               <button 
-                onClick={handleRefresh}
+                onClick={() => loadPageData(currentPage)}
                 className="text-red-700 hover:text-red-900 text-sm font-medium"
               >
                 다시 시도
@@ -361,64 +306,164 @@ const ActivityHistory: React.FC = () => {
             </div>
           )}
           
-          {refreshing && (
-            <div className="mb-4 flex justify-center items-center py-2 bg-purple-50 rounded-md">
-              <LoadingAnimation message="최신 데이터를 불러오는 중" />
-            </div>
-          )}
+
           
           {!loading && sessionHistories.length === 0 ? (
             emptyStateMessage
           ) : (
             <div className="space-y-2">
-              {sessionHistories.map((history, index) => {
-                // 마지막 항목인지 확인
-                const isLastItem = index === sessionHistories.length - 1;
-                
-                return (
-                  <div 
-                    key={history.id}
-                    ref={isLastItem ? lastHistoryElementRef : null}
-                    className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer border-l-8 ${getColorByQuizId(history.quiz?.id || 'unknown')}`}
-                    onClick={() => navigateToHistoryDetail(history.id!)}
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white">
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-1">{history.title}</h3>
-                        <p className="text-sm text-gray-500">
-                          <span className="inline-flex items-center">
-                            <Clock size={14} className="mr-1" />
-                            {formatRelativeTime(history.endedAt)}
-                          </span>
-                        </p>
+              {sessionHistories.map((history) => (
+                <div 
+                  key={history.id}
+                  className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer border-l-8 ${getColorByQuizId(history.quiz?.id || 'unknown')}`}
+                  onClick={() => navigateToHistoryDetail(history.id!)}
+                >
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">{history.title}</h3>
+                      <p className="text-sm text-gray-500">
+                        <span className="inline-flex items-center">
+                          <Clock size={14} className="mr-1" />
+                          {formatRelativeTime(history.endedAt)}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mt-2 sm:mt-0 flex items-center">
+                      <div className="flex flex-wrap gap-2 mr-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <Users size={12} className="mr-1" />
+                          참가자 {history.participantCount}명
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <Clock size={12} className="mr-1" />
+                          진행 시간: {calculateDuration(history.startedAt, history.endedAt)}
+                        </span>
                       </div>
-                      <div className="mt-2 sm:mt-0 flex items-center">
-                        <div className="flex flex-wrap gap-2 mr-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            <Users size={12} className="mr-1" />
-                            참가자 {history.participantCount}명
-                          </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <Clock size={12} className="mr-1" />
-                            진행 시간: {calculateDuration(history.startedAt, history.endedAt)}
-                          </span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-400" />
-                      </div>
+                      <ChevronRight size={18} className="text-gray-400" />
                     </div>
                   </div>
-                );
-              })}
-              
-              {loadingMore && (
-                <div className="pt-4 flex justify-center">
-                  <LoadingAnimation message="추가 데이터 불러오는 중" />
                 </div>
-              )}
+              ))}
               
-              {!hasMore && sessionHistories.length > 0 && (
-                <div className="pt-4 text-center text-gray-500 text-sm">
-                  모든 활동 기록을 불러왔습니다
+              {/* 페이지네이션 UI */}
+              {sessionHistories.length > 0 && (
+                <div className="flex justify-center items-center mt-4 space-x-2">
+                  {/* 이전 페이지 버튼 */}
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                    className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                      currentPage === 1 || loading
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                    }`}
+                    aria-label="이전 페이지"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  
+                  {/* 페이지 번호 버튼들 */}
+                  {(() => {
+                    // 표시할 페이지 번호 범위 계산
+                    const pageNumbers = [];
+                    const maxVisiblePages = 5; // 한 번에 보여줄 최대 페이지 번호 개수
+                    
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                    
+                    // 끝 페이지가 최대 페이지를 초과하지 않도록 조정
+                    if (endPage - startPage + 1 < maxVisiblePages && startPage > 1) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+                    
+                    // 첫 페이지 버튼 (시작 페이지가 1이 아닌 경우)
+                    if (startPage > 1) {
+                      pageNumbers.push(
+                        <button
+                          key="page-1"
+                          onClick={() => handlePageChange(1)}
+                          disabled={loading}
+                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                            1 === currentPage
+                              ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
+                              : 'border-purple-200 text-purple-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          1
+                        </button>
+                      );
+                      
+                      // 줄임표 (1과 시작 페이지 사이에 페이지가 있는 경우)
+                      if (startPage > 2) {
+                        pageNumbers.push(
+                          <span key="ellipsis-1" className="px-2 text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                    }
+                    
+                    // 페이지 번호 버튼들
+                    for (let i = startPage; i <= endPage; i++) {
+                      pageNumbers.push(
+                        <button
+                          key={`page-${i}`}
+                          onClick={() => handlePageChange(i)}
+                          disabled={loading}
+                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                            i === currentPage
+                              ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
+                              : 'border-purple-200 text-purple-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    // 마지막 페이지 버튼 (끝 페이지가 totalPages가 아닌 경우)
+                    if (endPage < totalPages) {
+                      // 줄임표 (끝 페이지와 totalPages 사이에 페이지가 있는 경우)
+                      if (endPage < totalPages - 1) {
+                        pageNumbers.push(
+                          <span key="ellipsis-2" className="px-2 text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                      
+                      pageNumbers.push(
+                        <button
+                          key={`page-${totalPages}`}
+                          onClick={() => handlePageChange(totalPages)}
+                          disabled={loading}
+                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                            totalPages === currentPage
+                              ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
+                              : 'border-purple-200 text-purple-700 hover:bg-purple-50'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    }
+                    
+                    return pageNumbers;
+                  })()}
+                  
+                  {/* 다음 페이지 버튼 */}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || loading}
+                    className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                      currentPage === totalPages || loading
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                    }`}
+                    aria-label="다음 페이지"
+                  >
+                    <ChevronNext size={18} />
+                  </button>
                 </div>
               )}
             </div>

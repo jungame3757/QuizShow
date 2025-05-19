@@ -442,8 +442,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 세션에 대한 퀴즈 정보 가져오기
-      const quiz = await getQuizById(session.quizId);
+      // 세션에 대한 퀴즈 정보 가져오기 (호스트 ID로 검색 시도)
+      const quiz = await getQuizById(session.quizId, session.hostId);
       if (!quiz) {
         throw new Error('퀴즈 정보를 찾을 수 없습니다.');
       }
