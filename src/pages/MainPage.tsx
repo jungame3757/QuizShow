@@ -1,13 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, User, Settings } from 'lucide-react';
 import Button from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
 
+const ProfileSkeleton = () => (
+  <div className="bg-purple-200 animate-pulse text-white px-4 py-2 rounded-full shadow flex items-center gap-2 w-32 h-10"></div>
+);
+
+const ButtonSkeleton = () => (
+  <div className="w-full h-12 bg-purple-200 animate-pulse rounded-xl shadow-lg"></div>
+);
+
 const MainPage: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
-  const { quizzes, loadUserQuizzes } = useQuiz();
+  const { loadUserQuizzes } = useQuiz();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,15 +37,38 @@ const MainPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50 via-purple-50 to-pink-50">
       <header className="py-8 px-4 text-center relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
+        {/* 배경 효과를 z-index를 낮게 설정 */}
+        <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 0 }}>
           <div className="absolute -top-6 -left-12 w-24 h-24 bg-yellow-200 rounded-full opacity-30"></div>
           <div className="absolute top-10 right-16 w-12 h-12 bg-pink-300 rounded-full opacity-20"></div>
           <div className="absolute -right-8 bottom-0 w-28 h-28 bg-purple-200 rounded-full opacity-30"></div>
           <div className="absolute left-1/4 bottom-4 w-16 h-16 bg-blue-200 rounded-full opacity-20"></div>
         </div>
         
-        <div className="relative flex flex-col sm:flex-row items-center justify-center">
-          {/* 제목 섹션 */}
+        {/* 프로필 섹션 - 헤더 상단에 별도로 배치하고 z-index를 높게 설정 */}
+        <div className="w-full flex justify-end mb-4 relative" style={{ zIndex: 10 }}>
+          {isLoading ? (
+            <ProfileSkeleton />
+          ) : currentUser ? (
+            <Link 
+              to="/profile" 
+              className="bg-purple-600 text-white px-4 py-2 rounded-full shadow hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <User size={18} className="text-white" />
+              <span>{currentUser.isAnonymous ? '익명 사용자' : (currentUser.displayName || currentUser.email || '사용자')}</span>
+              <Settings size={16} />
+            </Link>
+          ) : (
+            <Link to="/login">
+              <Button variant="secondary" size="small">
+                로그인
+              </Button>
+            </Link>
+          )}
+        </div>
+        
+        {/* 제목 섹션 - z-index를 설정하여 배경 위에 표시 */}
+        <div className="relative flex flex-col sm:flex-row items-center justify-center" style={{ zIndex: 5 }}>
           <div className="w-full mb-6 sm:mb-0">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center gap-3">
               <Sparkles size={28} className="text-yellow-400" />
@@ -45,26 +76,6 @@ const MainPage: React.FC = () => {
               <Star size={28} className="text-yellow-400" />
             </h1>
             <p className="text-lg sm:text-xl text-purple-800 font-medium mt-2">인터랙티브 퀴즈로 즐겁게 배우는 마법 같은 경험!</p>
-          </div>
-          
-          {/* 프로필 섹션 - 모든 화면 크기에서 우측 상단에 표시 */}
-          <div className="absolute top-0 right-4 md:right-10">
-            {!isLoading && currentUser ? (
-              <Link 
-                to="/profile" 
-                className="bg-purple-600 text-white px-4 py-2 rounded-full shadow hover:bg-purple-700 transition-colors flex items-center gap-2"
-              >
-                <User size={18} className="text-white" />
-                {currentUser.isAnonymous ? '익명 사용자' : (currentUser.displayName || currentUser.email || '사용자')}
-                <Settings size={16} />
-              </Link>
-            ) : !isLoading && (
-              <Link to="/login">
-                <Button variant="secondary" size="small">
-                  로그인
-                </Button>
-              </Link>
-            )}
           </div>
         </div>
       </header>
@@ -113,7 +124,9 @@ const MainPage: React.FC = () => {
               </div>
               
               <div className="mt-auto">
-                {!isLoading && (
+                {isLoading ? (
+                  <ButtonSkeleton />
+                ) : (
                   <Button 
                     variant="primary" 
                     size="large"
@@ -146,7 +159,7 @@ const MainPage: React.FC = () => {
               </div>
               
               <div className="mt-auto">
-                <Link to="/join">
+                <Link to="/join" target="_blank" rel="noopener noreferrer">
                   <Button 
                     variant="secondary" 
                     fullWidth 

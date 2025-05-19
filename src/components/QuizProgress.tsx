@@ -1,33 +1,62 @@
 import React from 'react';
-import { BarChart2, Clock } from 'lucide-react';
-import { Quiz, Participant } from '../types';
+import { BarChart2 } from 'lucide-react';
+import { Quiz } from '../types';
+
+// Realtime Database 참가자 타입 정의
+interface RealtimeParticipant {
+  id: string;
+  name: string;
+  score: number;
+  isActive: boolean;
+  joinedAt: number;
+  answers?: Record<string, {
+    questionIndex: number;
+    answerIndex: number;
+    isCorrect: boolean;
+    points: number;
+    answeredAt: number;
+  }>;
+}
 
 interface QuizProgressProps {
   quiz: Quiz;
-  participants: Participant[];
+  participants: Record<string, RealtimeParticipant>;
 }
 
 const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
+  // 참가자 배열로 변환
+  const participantsArray = Object.values(participants);
+
   // Calculate total answers per question
   const answersByQuestion = quiz.questions.map((question, questionIndex) => {
-    const answers = participants.flatMap(p => 
-      p.answers.filter(a => a.questionIndex === questionIndex)
-    );
+    // 모든 참가자의 해당 질문에 대한 답변 수집
+    const answers = participantsArray.flatMap(p => {
+      if (!p.answers) return [];
+      
+      return Object.values(p.answers)
+        .filter(a => a.questionIndex === questionIndex);
+    });
     
-    // Count by answer
-    const answerCounts: { [key: string]: number } = {};
+    // Count by answer index
+    const answerCounts: { [key: number]: number } = {};
     answers.forEach(answer => {
-      answerCounts[answer.answer] = (answerCounts[answer.answer] || 0) + 1;
+      answerCounts[answer.answerIndex] = (answerCounts[answer.answerIndex] || 0) + 1;
     });
     
     // Calculate percentages
     const totalAnswers = answers.length;
-    const percentages = Object.entries(answerCounts).map(([answer, count]) => ({
-      answer,
-      count,
-      percentage: totalAnswers > 0 ? Math.round((count / totalAnswers) * 100) : 0,
-      isCorrect: question.options.indexOf(answer) === question.correctAnswer
-    }));
+    const percentages = Object.entries(answerCounts).map(([answerIndexStr, count]) => {
+      const answerIndex = parseInt(answerIndexStr);
+      return {
+        answerIndex,
+        answerText: answerIndex >= 0 && answerIndex < question.options.length 
+          ? question.options[answerIndex] 
+          : '유효하지 않은 답변',
+        count,
+        percentage: totalAnswers > 0 ? Math.round((count / totalAnswers) * 100) : 0,
+        isCorrect: answerIndex === question.correctAnswer
+      };
+    });
     
     return {
       question,
@@ -71,8 +100,10 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
               
               <div className="space-y-4">
                 {item.question.options.map((option, optionIndex) => {
-                  const stats = item.percentages.find(p => p.answer === option) || {
-                    answer: option,
+                  // 해당 옵션 인덱스에 대한 통계 찾기
+                  const stats = item.percentages.find(p => p.answerIndex === optionIndex) || {
+                    answerIndex: optionIndex,
+                    answerText: option,
                     count: 0,
                     percentage: 0,
                     isCorrect: optionIndex === item.question.correctAnswer

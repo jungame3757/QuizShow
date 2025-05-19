@@ -21,6 +21,8 @@ import {
   Answer,
   SessionOptions
 } from '../firebase/sessionService';
+import { saveSessionHistory } from '../firebase/sessionHistoryService';
+import { getQuizById } from '../firebase/quizService';
 
 interface SessionContextType {
   // 세션 상태
@@ -250,23 +252,19 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  // 세션 데이터 구독 설정
+  // 세션 데이터 구독
   const subscribeToSessionData = (sessionId: string) => {
-    // 기존 구독 정리
-    if (unsubscribeSession) {
-      unsubscribeSession();
-    }
+    // 기존 구독 취소
+    if (unsubscribeSession) unsubscribeSession();
+    if (unsubscribeParticipants) unsubscribeParticipants();
     
-    if (unsubscribeParticipants) {
-      unsubscribeParticipants();
-    }
-    
-    // 세션 구독
-    const unsub1 = subscribeToSession(sessionId, (session) => {
+    // 세션 정보 구독
+    const unsubSession = subscribeToSession(sessionId, (session) => {
+      console.log('세션 업데이트:', session);
+      setCurrentSession(session);
+      
+      // 현재 문제 상태도 구독
       if (session) {
-        setCurrentSession(session);
-        
-        // 현재 문제 상태도 구독
         subscribeToQuestionStatusData(sessionId, session.currentQuestion);
         subscribeToAnswersData(sessionId, session.currentQuestion);
       } else {
@@ -274,13 +272,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     
-    // 참가자 구독
-    const unsub2 = subscribeToParticipants(sessionId, (participantsData) => {
-      setParticipants(participantsData);
+    // 참가자 정보 구독
+    const unsubParticipants = subscribeToParticipants(sessionId, (participantsData) => {
+      console.log('참가자 업데이트:', participantsData);
+      
+      // 참가자 데이터 가공 및 저장
+      if (participantsData) {
+        setParticipants(participantsData);
+      } else {
+        setParticipants({});
+      }
     });
     
-    setUnsubscribeSession(() => unsub1);
-    setUnsubscribeParticipants(() => unsub2);
+    // 구독 취소 함수 저장
+    setUnsubscribeSession(() => unsubSession);
+    setUnsubscribeParticipants(() => unsubParticipants);
   };
   
   // 문제 상태 구독
@@ -403,7 +409,62 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       
-      // 세션 삭제
+      // 현재 세션 정보가 없으면 서버에서 가져오기
+      const session = currentSession || await getSession(sessionId);
+      
+      if (!session) {
+        throw new Error('세션을 찾을 수 없습니다.');
+      }
+
+      // 참가자가 0명이면 기록을 저장하지 않고 바로 삭제
+      if (session.participantCount === 0 || Object.keys(participants).length === 0) {
+        console.log('참가자가 없는 세션입니다. 기록을 저장하지 않고 삭제합니다.');
+        // 세션 삭제 (Realtime Database)
+        await deleteSession(sessionId);
+        
+        // 로컬 상태 정리
+        setCurrentSession(null);
+        setParticipants({});
+        setQuestionStatus({});
+        setAnswers({});
+        
+        // 구독 취소
+        if (unsubscribeSession) {
+          unsubscribeSession();
+          setUnsubscribeSession(null);
+        }
+        
+        if (unsubscribeParticipants) {
+          unsubscribeParticipants();
+          setUnsubscribeParticipants(null);
+        }
+        
+        return;
+      }
+
+      // 세션에 대한 퀴즈 정보 가져오기
+      const quiz = await getQuizById(session.quizId);
+      if (!quiz) {
+        throw new Error('퀴즈 정보를 찾을 수 없습니다.');
+      }
+
+      // 세션에 종료 시간 설정
+      if (!session.endedAt) {
+        session.endedAt = Date.now();
+      }
+      
+      // 세션 기록 저장 (Firestore - 사용자 하위 컬렉션)
+      // 퀴즈 데이터 자체를 저장하고, 불필요한 answers 데이터는 전달하지 않음
+      await saveSessionHistory(
+        session,
+        quiz.title,
+        participants,
+        quiz
+      );
+      
+      console.log('세션 기록이 저장되었습니다.');
+      
+      // 세션 삭제 (Realtime Database)
       await deleteSession(sessionId);
       
       // 로컬 상태 정리

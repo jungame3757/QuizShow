@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, X, Check } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
 
@@ -10,10 +10,12 @@ interface QuestionFormProps {
     text: string;
     options: string[];
     correctAnswer: string;
+    correctAnswerIndex?: number;
   };
+  maxOptions?: number;
 }
 
-const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialData }) => {
+const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialData, maxOptions = 5 }) => {
   const [text, setText] = useState(initialData?.text || '');
   const [options, setOptions] = useState(initialData?.options || ['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number | null>(null);
@@ -21,7 +23,9 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
   
   // 초기 데이터가 있는 경우 correctAnswerIndex 설정
   useEffect(() => {
-    if (initialData?.correctAnswer) {
+    if (initialData?.correctAnswerIndex !== undefined) {
+      setCorrectAnswerIndex(initialData.correctAnswerIndex);
+    } else if (initialData?.correctAnswer) {
       const index = initialData.options.findIndex(
         option => option === initialData.correctAnswer
       );
@@ -32,7 +36,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
   }, [initialData]);
   
   const handleAddOption = () => {
-    if (options.length < 5) {
+    if (options.length < maxOptions) {
       setOptions([...options, '']);
     }
   };
@@ -101,6 +105,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
       text: text.trim(),
       options: options.map(o => o.trim()),
       correctAnswer: options[correctAnswerIndex].trim(),
+      correctAnswerIndex: correctAnswerIndex,
     });
     
     // Reset form
@@ -114,16 +119,10 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
   const hasCorrectAnswer = correctAnswerIndex !== null;
 
   return (
-    <div className="bg-purple-50 rounded-xl p-6 mb-8 animate-fade-in">
-      {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
-          {error}
-        </div>
-      )}
-      
-      <div className="space-y-6">
+    <div className="bg-purple-50 rounded-lg p-2 mb-2 animate-fade-in">
+      <div className="space-y-2">
         <div>
-          <label className="block text-lg font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             문제 내용
           </label>
           <Input
@@ -136,98 +135,90 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialDa
         </div>
         
         <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-lg font-medium text-gray-700">
+          <div className="flex justify-between items-center mb-1">
+            <label className="text-sm font-medium text-gray-700">
               선택지
             </label>
             
             {!hasCorrectAnswer && (
-              <div className="text-sm text-amber-600 bg-amber-50 px-2 py-1 rounded-md flex items-center">
-                <span>아직 정답이 선택되지 않았습니다</span>
+              <div className="text-xs text-amber-600 bg-amber-50 px-1 py-0.5 rounded-md flex items-center">
+                <span>정답 선택 필요</span>
               </div>
             )}
           </div>
           
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
             {options.map((option, index) => (
-              <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
-                <Input
-                  type="text"
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  placeholder={`선택지 ${index + 1} 내용`}
-                  className={`flex-1 w-full mb-2 sm:mb-0 ${correctAnswerIndex === index ? 'border-green-500 bg-green-50' : ''}`}
-                />
+              <div key={index} className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => toggleCorrectAnswer(index)}
+                  disabled={!option.trim()}
+                  className={`
+                    min-w-[28px] mr-1 w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center
+                    ${correctAnswerIndex === index 
+                      ? 'bg-green-600 text-white' 
+                      : option.trim() 
+                        ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' 
+                        : 'bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed'}
+                    transition-colors duration-150
+                  `}
+                  aria-label={correctAnswerIndex === index ? "정답 취소" : "정답으로 선택"}
+                >
+                  <Check size={14} className={correctAnswerIndex === index ? '' : 'opacity-70'} />
+                </button>
                 
-                <div className="flex w-full sm:w-auto gap-3 sm:gap-4">
-                  <button
-                    type="button"
-                    onClick={() => toggleCorrectAnswer(index)}
-                    disabled={!option.trim()}
-                    className={`
-                      px-4 h-12 rounded-lg flex items-center justify-center transition-colors duration-200
-                      flex-1 sm:flex-none
-                      ${correctAnswerIndex === index 
-                        ? 'bg-green-600 text-white font-medium' 
-                        : option.trim() 
-                          ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-medium border border-indigo-300' 
-                          : 'bg-gray-100 text-gray-400 opacity-60 cursor-not-allowed font-medium'}
-                    `}
-                    title={correctAnswerIndex === index ? "정답 취소하기" : "정답으로 설정하기"}
-                  >
-                    {correctAnswerIndex === index ? (
-                      <div className="flex items-center whitespace-nowrap">
-                        <Check size={16} className="mr-1" />
-                        <span>정답</span>
-                      </div>
-                    ) : option.trim() ? (
-                      <span className="whitespace-nowrap">정답 선택</span>
-                    ) : (
-                      <span className="whitespace-nowrap">선택지 입력</span>
-                    )}
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveOption(index)}
-                    disabled={options.length <= 2}
-                    className="bg-red-100 p-2 rounded-lg text-red-600 hover:bg-red-200 disabled:opacity-50 flex-none"
-                    title="선택지 삭제"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                <div className="flex-grow">
+                  <Input
+                    type="text"
+                    value={option}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                    placeholder={`선택지 ${index + 1}`}
+                    className={`w-full ${correctAnswerIndex === index ? 'border-green-500 bg-green-50' : ''}`}
+                  />
                 </div>
+                  
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOption(index)}
+                  disabled={options.length <= 2}
+                  className="ml-1 flex-shrink-0 text-red-500 hover:text-red-600 disabled:opacity-30 transition-colors duration-150"
+                  aria-label="선택지 삭제"
+                >
+                  <X size={16} />
+                </button>
               </div>
             ))}
           </div>
           
-          {options.length < 5 && (
-            <button
-              type="button"
-              onClick={handleAddOption}
-              className="flex items-center mt-3 text-purple-700 hover:text-purple-900"
-            >
-              <Plus size={20} className="mr-1" /> 선택지 추가
-            </button>
+          {options.length < maxOptions && (
+            <div className="flex justify-center mt-4">
+              <button
+                type="button"
+                onClick={handleAddOption}
+                className="flex items-center justify-center px-3 py-2 text-sm text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-md transition-colors duration-150"
+              >
+                <Plus size={16} className="mr-2" /> 선택지 추가
+              </button>
+            </div>
           )}
         </div>
         
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-500">
-            {/* 정답 선택 안내 텍스트 제거 */}
-          </div>
-          <div className="flex space-x-3">
-            <Button onClick={onCancel} variant="danger">
-              취소
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
-              variant="primary"
-              className={hasCorrectAnswer ? '' : 'opacity-70'}
-            >
-              문제 저장
-            </Button>
-          </div>
+        <div className="flex flex-col pt-1">
+          <Button 
+            onClick={handleSubmit} 
+            variant="primary"
+            size="small"
+            className={`w-full text-xs py-1 px-2 h-7 transform hover:scale-[1.02] active:scale-[0.98] transition-transform duration-100 ${hasCorrectAnswer ? '' : 'opacity-70'}`}
+          >
+            저장
+          </Button>
+          
+          {error && (
+            <div className="bg-red-100 text-red-700 p-1 rounded-md mt-2 text-xs text-center">
+              {error}
+            </div>
+          )}
         </div>
       </div>
     </div>

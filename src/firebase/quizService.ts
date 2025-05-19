@@ -6,19 +6,15 @@ import {
   getDoc, 
   getDocs, 
   query, 
-  where, 
-  orderBy, 
   deleteDoc, 
   serverTimestamp, 
   Timestamp,
   collectionGroup 
 } from 'firebase/firestore';
 import { db } from './config';
-import { User } from 'firebase/auth';
 import { Quiz, Question } from '../types';
 
 // 변경된 컬렉션 경로
-const getUsersCollectionPath = () => 'users';
 const getUserQuizzesCollectionPath = (userId: string) => `users/${userId}/quizzes`;
 const getQuizDocPath = (userId: string, quizId: string) => `users/${userId}/quizzes/${quizId}`;
 

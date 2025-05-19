@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Book, Plus } from 'lucide-react';
+import { Save, Book, Plus, X, Check, Edit } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -207,32 +207,21 @@ const EditQuiz: React.FC = () => {
     setError('');
   };
   
-  const handleUpdateQuestion = (question: any, index: number) => {
-    setQuestions(prev => 
-      prev.map((q, i) => i === index ? question : q)
-    );
-    setEditingQuestionIndex(null);
+  const handleUpdateQuestion = (question: any) => {
+    if (editingQuestionIndex !== null) {
+      setQuestions(prev => 
+        prev.map((q, i) => i === editingQuestionIndex ? question : q)
+      );
+      setEditingQuestionIndex(null);
+    }
   };
   
   const handleRemoveQuestion = (index: number) => {
-    // 삭제하는 문제가 현재 수정 중인 문제인 경우 수정 창 닫기
-    if (editingQuestionIndex === index) {
-      setEditingQuestionIndex(null);
-    } else if (editingQuestionIndex !== null && editingQuestionIndex > index) {
-      // 삭제하는 문제가 현재 수정 중인 문제보다 앞에 있는 경우 인덱스 조정
-      setEditingQuestionIndex(editingQuestionIndex - 1);
-    }
-    
     setQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleEditQuestion = (index: number) => {
-    // 이미 수정 중인 문제를 다시 클릭한 경우 수정 취소
-    if (editingQuestionIndex === index) {
-      setEditingQuestionIndex(null);
-    } else {
-      setEditingQuestionIndex(index);
-    }
+    setEditingQuestionIndex(index);
   };
   
   // 로딩 중이거나 오류 발생 시
@@ -259,7 +248,7 @@ const EditQuiz: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-2">
       {/* 로딩 오버레이 컴포넌트 사용 */}
       {isSubmitting && <LoadingOverlay message="변경사항을 저장하는 중..." />}
       
@@ -278,201 +267,184 @@ const EditQuiz: React.FC = () => {
           ]} 
         />
 
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h1 className="text-3xl font-bold text-purple-700 mb-6">퀴즈 편집하기</h1>
+        <div className="bg-white rounded-xl shadow-md p-4 mb-3">
+          <h1 className="text-2xl font-bold text-purple-700 mb-4">퀴즈 편집하기</h1>
           
-          {quizError && (
-            <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-              {quizError}
+          {(error || quizError) && (
+            <div className="bg-red-100 text-red-700 p-2 rounded-md mb-3 text-sm">
+              {error || quizError}
             </div>
           )}
           
-          {error && (
-            <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-          
-          <div className="mb-6">
-            <label htmlFor="title" className="block text-lg font-medium text-gray-700 mb-2">
-              퀴즈 제목
-            </label>
-            <Input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="퀴즈 제목을 입력하세요"
-              className="w-full"
-              required
-            />
-          </div>
-          
-          <div className="mb-6">
-            <label htmlFor="description" className="block text-lg font-medium text-gray-700 mb-2">
-              퀴즈 설명 (선택사항)
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="퀴즈에 대한 설명을 입력하세요"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none h-24"
-            />
-          </div>
-          
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-purple-700 flex items-center">
-                <Book size={24} className="mr-2" />
-                문제 목록 ({questions.length})
-              </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-lg font-medium text-gray-700 mb-2">
+                퀴즈 제목
+              </label>
+              <Input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="퀴즈를 위한 흥미로운 제목을 입력하세요"
+                className="w-full"
+              />
             </div>
             
-            {questions.length === 0 && !isAddingQuestion && (
-              <div className="bg-purple-50 rounded-lg p-6 text-center">
-                <p className="text-purple-700 mb-4">아직 추가된 문제가 없습니다.</p>
-                <Button 
-                  onClick={() => setIsAddingQuestion(true)} 
-                  variant="primary"
-                  className="mx-auto"
+            <div>
+              <label className="block text-lg font-medium text-gray-700 mb-2">
+                설명 (선택사항)
+              </label>
+              <Input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="이 퀴즈는 무엇에 관한 것인가요?"
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md p-3 mb-3">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-bold text-purple-700">문제</h2>
+          </div>
+          
+          {questions.length === 0 && !isAddingQuestion && (
+            <div className="text-center py-6 bg-purple-50 rounded-lg">
+              <p className="text-gray-600 mb-3 text-sm">아직 추가된 문제가 없습니다</p>
+              <Button 
+                onClick={() => setIsAddingQuestion(true)}
+                variant="primary"
+                size="medium"
+                className="py-2 px-4"
+              >
+                <Plus size={16} className="mr-2" /> 첫 문제 추가하기
+              </Button>
+            </div>
+          )}
+          
+          {questions.length > 0 && (
+            <div className="space-y-2 mb-2">
+              {questions.map((question, index) => (
+                <div 
+                  key={index} 
+                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-purple-100"
                 >
-                  첫 문제 추가하기
-                </Button>
-              </div>
-            )}
-            
-            {questions.length > 0 && (
-              <div className="space-y-4">
-                {questions.map((question, index) => (
-                  <div 
-                    key={index} 
-                    className="border border-gray-200 rounded-lg p-4 bg-white"
-                  >
-                    {editingQuestionIndex === index ? (
-                      // 문제 수정 폼 - 미리보기 대체
-                      <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <h3 className="text-xl font-medium text-purple-700 mb-4">문제 {index + 1} 수정하기</h3>
-                        <QuestionForm 
-                          initialData={question}
-                          onSave={(updatedQuestion) => handleUpdateQuestion(updatedQuestion, index)}
-                          onCancel={() => setEditingQuestionIndex(null)}
-                        />
+                  {editingQuestionIndex === index ? (
+                    <div className="border-l-4 border-blue-500 pl-3 p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-medium text-blue-700">문제 {index + 1} 수정</h3>
+                        <button 
+                          onClick={() => setEditingQuestionIndex(null)}
+                          className="text-gray-500 hover:text-gray-700"
+                          aria-label="수정 취소"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
-                    ) : (
-                      // 문제 미리보기
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-medium mb-3 break-words hyphens-auto overflow-hidden">
-                            문제 {index + 1}: {question.text}
-                          </h3>
-                          <div className="space-y-2 mb-2">
-                            {question.options.map((option: string, optionIndex: number) => (
-                              <div 
-                                key={optionIndex} 
-                                className={`
-                                  px-2 py-2 rounded-md border w-full 
-                                  ${optionIndex === question.correctAnswerIndex ? 
-                                    'border-green-500 bg-green-50' : 
-                                    'border-gray-200'}
-                                `}
-                              >
-                                <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-start">
-                                  <div className="font-bold text-sm sm:text-base inline-flex items-center justify-center w-6">
-                                    {optionIndex + 1}.
-                                  </div>
-                                  <div className="text-sm sm:text-base break-words hyphens-auto overflow-hidden">
-                                    {option}
-                                  </div>
-                                  {optionIndex === question.correctAnswerIndex && (
-                                    <div className="text-green-600 text-xs sm:text-sm whitespace-nowrap border-l border-green-200 pl-2 py-0.5">
-                                      (정답)
-                                    </div>
-                                  )}
-                                  {optionIndex !== question.correctAnswerIndex && <div></div>}
+                      <QuestionForm 
+                        initialData={question}
+                        onSave={handleUpdateQuestion}
+                        onCancel={() => setEditingQuestionIndex(null)}
+                        maxOptions={4}
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="inline-block px-2 py-0.5 bg-purple-200 rounded-md font-medium text-purple-800 text-xs">문제 {index + 1}</div>
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => handleEditQuestion(index)}
+                            className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-colors"
+                            aria-label="문제 수정"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleRemoveQuestion(index)}
+                            className="w-7 h-7 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
+                            aria-label="문제 삭제"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="text-gray-800 text-base font-medium line-clamp-1 mb-2">{question.text}</div>
+                      <div className="bg-purple-50 rounded-md p-3 w-full border border-purple-100">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {question.options.map((option: string, optIdx: number) => (
+                            <div key={optIdx} className="flex items-center">
+                              {question.correctAnswerIndex === optIdx ? (
+                                <div className="flex items-center px-2 py-1 bg-green-50 border border-green-200 rounded-md text-green-700 w-full">
+                                  <Check size={14} className="mr-1 flex-shrink-0" /> 
+                                  <span className="truncate">{option}</span>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex space-x-2 ml-3">
-                          <Button 
-                            onClick={() => handleEditQuestion(index)} 
-                            variant="secondary"
-                            className="flex items-center text-sm"
-                            size="small"
-                          >
-                            수정
-                          </Button>
-                          <Button 
-                            onClick={() => handleRemoveQuestion(index)} 
-                            variant="danger"
-                            className="text-sm"
-                            size="small"
-                          >
-                            삭제
-                          </Button>
+                              ) : (
+                                <div className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-600 ml-4 w-full truncate">
+                                  {option}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-                
-                {/* 문제 추가 버튼을 하단에 배치, 문제 생성 프레임이 보일 때는 숨김 */}
-                {!isAddingQuestion && (
-                  <div className="flex justify-center mt-6">
-                    <Button 
-                      onClick={() => {
-                        setIsAddingQuestion(true);
-                      }} 
-                      variant="secondary"
-                      className="flex items-center"
-                    >
-                      <Plus size={18} className="mr-1" /> 문제 추가
-                    </Button>
-                  </div>
-                )}
-                
-                {/* 새 문제 추가하기 프레임을 문제 목록 하단에 배치 */}
-                {isAddingQuestion && (
-                  <div className="bg-purple-50 rounded-xl p-6 mt-4 animate-fade-in border border-purple-200">
-                    <h3 className="text-xl font-medium text-purple-700 mb-4">새 문제 추가하기</h3>
-                    <QuestionForm 
-                      onSave={handleAddQuestion}
-                      onCancel={() => setIsAddingQuestion(false)}
-                    />
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {questions.length > 0 && !isAddingQuestion && !editingQuestionIndex && (
+            <div className="flex justify-center mt-3">
+              <Button 
+                onClick={() => setIsAddingQuestion(true)}
+                variant="secondary"
+                size="small"
+                className="text-xs py-1 px-3 h-7"
+              >
+                <Plus size={14} className="mr-1" /> 문제 추가
+              </Button>
+            </div>
+          )}
+          
+          {isAddingQuestion && (
+            <div className="bg-purple-50 rounded-lg overflow-hidden mb-2">
+              <div className="bg-purple-200 px-2 py-1 flex justify-between items-center">
+                <h3 className="text-sm font-medium text-purple-800">새 문제 추가</h3>
+                <button 
+                  onClick={() => setIsAddingQuestion(false)}
+                  className="text-purple-700 hover:text-purple-900"
+                  aria-label="추가 취소"
+                >
+                  <X size={14} />
+                </button>
               </div>
-            )}
-            
-            {/* 문제가 없을 때 추가하기 프레임은 아래에 표시 */}
-            {questions.length === 0 && isAddingQuestion && (
-              <div className="bg-purple-50 rounded-xl p-6 mb-4 animate-fade-in border border-purple-200">
-                <h3 className="text-xl font-medium text-purple-700 mb-4">새 문제 추가하기</h3>
+              <div className="p-2">
                 <QuestionForm 
                   onSave={handleAddQuestion}
                   onCancel={() => setIsAddingQuestion(false)}
+                  maxOptions={4}
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         
-        <div className="flex justify-end">
+        <div className="flex justify-center mt-6">
           <Button 
             onClick={handleUpdateQuiz}
             variant="primary"
-            size="large"
             disabled={!title || questions.length === 0 || isSubmitting || quizLoading}
-            className="flex items-center"
           >
             {isSubmitting ? (
               <span>저장 중...</span>
             ) : (
               <>
-                <Save size={18} className="mr-2" />
-                변경 사항 저장
+                <Save size={18} className="mr-2" /> 변경사항 저장
               </>
             )}
           </Button>

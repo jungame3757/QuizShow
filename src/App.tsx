@@ -11,8 +11,9 @@ import CreateQuiz from './pages/host/CreateQuiz';
 import MyQuizzes from './pages/host/MyQuizzes';
 import SessionQuiz from './pages/host/SessionQuiz';
 import EditQuiz from './pages/host/EditQuiz';
+import ActivityHistory from './pages/host/ActivityHistory';
+import SessionHistoryDetail from './pages/host/SessionHistory';
 import JoinQuiz from './pages/client/JoinQuiz';
-import WaitingRoom from './pages/client/WaitingRoom';
 import PlayQuiz from './pages/client/PlayQuiz';
 import './index.css';
 
@@ -32,10 +33,11 @@ function App() {
               <Route path="/host/my-quizzes" element={<ProtectedRoute><MyQuizzes /></ProtectedRoute>} />
               <Route path="/host/session/:quizId" element={<ProtectedRoute><SessionQuiz /></ProtectedRoute>} />
               <Route path="/host/edit/:quizId" element={<ProtectedRoute><EditQuiz /></ProtectedRoute>} />
+              <Route path="/host/history" element={<ProtectedRoute><ActivityHistory /></ProtectedRoute>} />
+              <Route path="/host/history/:historyId" element={<ProtectedRoute><SessionHistoryDetail /></ProtectedRoute>} />
               
               {/* 플레이어 라우트 */}
               <Route path="/join" element={<JoinQuiz />} />
-              <Route path="/waiting-room/:quizId" element={<WaitingRoom />} />
               <Route path="/play/:quizId" element={<PlayQuiz />} />
               
               <Route path="*" element={<Navigate to="/" />} />

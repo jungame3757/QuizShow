@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Wand, Calendar, Trash2, Edit, Plus, RefreshCw, Loader, Play, Check } from 'lucide-react';
+import { Wand, Calendar, Trash2, Edit, Plus, RefreshCw, Loader, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
 import { getUserQuizzes, deleteQuiz } from '../../firebase/quizService';
@@ -10,6 +10,14 @@ import HostNavBar from '../../components/HostNavBar';
 import HostPageHeader from '../../components/HostPageHeader';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import LoadingAnimation from '../../components/LoadingAnimation';
+import Breadcrumb from '../../components/Breadcrumb';
+
+// 모달 컴포넌트 임포트
+import { 
+  EditWarningModal, 
+  DeleteWarningModal, 
+  DeleteConfirmModal 
+} from '../../components/modals';
 
 interface EnhancedQuiz extends Quiz {
   hasActiveSession?: boolean;
@@ -22,11 +30,9 @@ const MyQuizzes: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
-  const [lastLoaded, setLastLoaded] = useState<number>(0);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
-  const [refreshCooldown, setRefreshCooldown] = useState(0);
   const [startingQuizId, setStartingQuizId] = useState<string | null>(null);
-  const [checkingSessions, setCheckingSessions] = useState(false);
+  const [showEditWarning, setShowEditWarning] = useState<string | null>(null);
+  const [showDeleteWarning, setShowDeleteWarning] = useState<string | null>(null);
   
   const { currentUser } = useAuth();
   const { 
@@ -39,41 +45,34 @@ const MyQuizzes: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 퀴즈 목록 로드 및 각 퀴즈의 활성 세션 상태 확인
-  const loadQuizzes = useCallback(async (force = false) => {
+  // 퀴즈 목록 로드 최적화 함수
+  const loadQuizzes = useCallback(async () => {
     if (!currentUser) return;
     
-    // 마지막 로드 후 30초가 지나지 않았고, 강제 새로고침이 아니라면 스킵
-    const now = Date.now();
-    if (!force && lastLoaded > 0 && now - lastLoaded < 30000 && initialLoadDone) {
-      console.log('최근에 이미 로드되었습니다. 캐시된 데이터를 사용합니다.');
-      setLoading(false);
-      setCheckingSessions(false);
-      return;
-    }
-
     try {
-      // 퀴즈 로딩 시작
       setLoading(true);
       setError(null);
       
-      // 퀴즈 목록 로드
-      const userQuizzes = await getUserQuizzes(currentUser.uid);
+      // 병렬로 퀴즈와 세션 데이터 가져오기
+      const [userQuizzes, hostSessions] = await Promise.all([
+        getUserQuizzes(currentUser.uid),
+        loadSessionsForHost()
+      ]);
       
-      // 세션 정보 로딩 시작
-      setCheckingSessions(true);
-      // 현재 로딩은 끝났지만 세션 체크는 계속 진행 중
-      setLoading(false); 
+      // 세션 데이터를 퀴즈 ID 기준으로 빠르게 조회할 수 있도록 매핑
+      const sessionsByQuizId = hostSessions.reduce((acc: Record<string, any>, session: any) => {
+        if (session.quizId) {
+          if (!acc[session.quizId]) {
+            acc[session.quizId] = [];
+          }
+          acc[session.quizId].push(session);
+        }
+        return acc;
+      }, {});
       
-      // 호스트의 모든 세션 로드
-      console.log('세션 정보 확인 중...');
-      const hostSessions = await loadSessionsForHost();
-      console.log('세션 정보 확인 완료');
-      
-      // 퀴즈와 세션 정보 결합
+      // 퀴즈 정보와 세션 정보 병합
       const enhancedQuizzes = userQuizzes.map(quiz => {
-        const quizSessions = hostSessions.filter(session => session.quizId === quiz.id);
-        // 첫 번째 세션만 활성 세션으로 간주
+        const quizSessions = sessionsByQuizId[quiz.id] || [];
         const activeSession = quizSessions.length > 0 ? quizSessions[0] : null;
         
         return {
@@ -83,27 +82,21 @@ const MyQuizzes: React.FC = () => {
         };
       });
       
-      // 활성화된 세션이 있는 퀴즈를 상단에 배치하기 위해 정렬
+      // 활성 세션 유무 및 생성일 기준으로 정렬
       const sortedQuizzes = [...enhancedQuizzes].sort((a, b) => {
-        // 활성 세션이 있는 퀴즈가 먼저 오도록 정렬
         if (a.hasActiveSession && !b.hasActiveSession) return -1;
         if (!a.hasActiveSession && b.hasActiveSession) return 1;
-        
-        // 둘 다 활성 세션이 있거나 없는 경우 생성일 기준 최신순으로 정렬
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       
       setQuizzes(sortedQuizzes);
-      setLastLoaded(now);
-      setInitialLoadDone(true);
     } catch (error) {
       console.error('퀴즈 목록 로드 실패:', error);
       setError('퀴즈 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
-      setCheckingSessions(false);
     }
-  }, [currentUser, initialLoadDone, lastLoaded, loadSessionsForHost]);
+  }, [currentUser, loadSessionsForHost]);
 
   // 첫 렌더링 또는 사용자 변경 시 로드
   useEffect(() => {
@@ -111,32 +104,30 @@ const MyQuizzes: React.FC = () => {
       navigate('/login');
       return;
     }
-
     loadQuizzes();
   }, [currentUser, navigate, loadQuizzes]);
 
-  // 페이지 포커스 획득 시 데이터가 오래된 경우만 다시 로드
+  // 페이지 포커스 획득 시 갱신 (다른 탭에서 돌아올 때)
   useEffect(() => {
     const handleFocus = () => {
-      const now = Date.now();
-      // 5분(300000ms) 이상 지났으면 다시 로드
-      if (lastLoaded > 0 && now - lastLoaded > 300000) {
-        loadQuizzes(true);
+      if (document.visibilityState === 'visible') {
+        loadQuizzes();
       }
     };
-
+    
+    document.addEventListener('visibilitychange', handleFocus);
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [lastLoaded, loadQuizzes]);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadQuizzes]);
 
-  // location.key가 변경될 때(다른 페이지에서 돌아올 때) 마지막 로드 시간 확인
+  // location.key가 변경될 때(다른 페이지에서 돌아올 때) 로드
   useEffect(() => {
-    const now = Date.now();
-    // 1분(60000ms) 이상 지났으면 다시 로드
-    if (lastLoaded > 0 && now - lastLoaded > 60000) {
-      loadQuizzes(true);
-    }
-  }, [location.key, loadQuizzes, lastLoaded]);
+    loadQuizzes();
+  }, [location.key, loadQuizzes]);
 
   // 세션 에러 처리
   useEffect(() => {
@@ -226,26 +217,6 @@ const MyQuizzes: React.FC = () => {
     });
   };
 
-  // 수동 새로고침 핸들러
-  const handleRefresh = () => {
-    loadQuizzes(true);
-    setRefreshCooldown(3);
-  };
-
-  // 쿨타임 카운트다운
-  useEffect(() => {
-    if (refreshCooldown <= 0) return;
-    
-    const timer = setInterval(() => {
-      setRefreshCooldown(prev => prev - 1);
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [refreshCooldown]);
-
-  // 로딩 상태 확인 함수 - 퀴즈 로딩 또는 세션 체크 중 하나라도 진행 중이면 true
-  const isLoading = loading || checkingSessions;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
       {/* 삭제 중이거나 세션 생성 중일 때 로딩 오버레이 표시 */}
@@ -263,26 +234,7 @@ const MyQuizzes: React.FC = () => {
         <HostPageHeader />
 
         <HostNavBar />
-
-        <div className="flex justify-end items-center mb-4">
-          {lastLoaded > 0 && (
-            <p className="text-xs text-gray-500 mr-2">
-              마지막 업데이트: {new Date(lastLoaded).toLocaleTimeString()}
-            </p>
-          )}
-          <button 
-            onClick={handleRefresh} 
-            disabled={isLoading || refreshCooldown > 0}
-            className={`p-2 rounded-full transition-colors relative ${
-              refreshCooldown > 0 
-                ? "text-gray-400 bg-gray-100 cursor-not-allowed" 
-                : "text-purple-600 hover:text-purple-800 hover:bg-purple-100"
-            }`}
-            aria-label="새로고침"
-          >
-            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-          </button>
-        </div>
+        <Breadcrumb items={[{ label: '내 퀴즈 목록' }]} />
 
         {error && (
           <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
@@ -291,11 +243,23 @@ const MyQuizzes: React.FC = () => {
         )}
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 relative">
-          <h1 className="text-3xl font-bold text-purple-700 p-6">내 퀴즈 목록</h1>
+          <div className="flex justify-between items-center p-6">
+            <h1 className="text-3xl font-bold text-purple-700">내 퀴즈 목록</h1>
+            {!loading && quizzes.length > 0 && (
+              <button 
+                onClick={loadQuizzes} 
+                className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
+                title="새로고침"
+              >
+                <RefreshCw size={18} className="mr-1" />
+                <span className="text-sm">새로고침</span>
+              </button>
+            )}
+          </div>
           
-          {isLoading ? (
+          {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <LoadingAnimation message={checkingSessions ? "세션 정보를 확인하는 중" : "퀴즈를 불러오는 중"} />
+              <LoadingAnimation message="퀴즈와 세션 정보를 불러오는 중" />
             </div>
           ) : quizzes.length === 0 ? (
             <div className="bg-white rounded-xl shadow-md p-8 text-center">
@@ -314,34 +278,13 @@ const MyQuizzes: React.FC = () => {
                     } relative`}
                   >
                     {deleteConfirm === quiz.id ? (
-                      <div className="bg-red-50 p-4 border-l-4 border-red-500">
-                        <p className="text-red-800 font-medium mb-3">
-                          정말로 이 퀴즈를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                        </p>
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => setDeleteConfirm(null)}
-                            className="px-3 py-1 bg-gray-200 rounded-md text-gray-800 hover:bg-gray-300 transition-colors"
-                            disabled={deletingQuizId === quiz.id}
-                          >
-                            취소
-                          </button>
-                          <button
-                            onClick={() => handleDeleteQuiz(quiz.id)}
-                            className="px-3 py-1 bg-red-600 rounded-md text-white hover:bg-red-700 transition-colors flex items-center"
-                            disabled={deletingQuizId === quiz.id}
-                          >
-                            {deletingQuizId === quiz.id ? (
-                              <>
-                                <Loader size={14} className="animate-spin mr-1" />
-                                삭제 중...
-                              </>
-                            ) : (
-                              '삭제 확인'
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                      <DeleteConfirmModal
+                        isOpen={true}
+                        onClose={() => setDeleteConfirm(null)}
+                        onConfirm={() => handleDeleteQuiz(quiz.id)}
+                        title={quiz.title}
+                        isProcessing={deletingQuizId === quiz.id}
+                      />
                     ) : (
                       <>
                         {quiz.hasActiveSession && (
@@ -372,15 +315,25 @@ const MyQuizzes: React.FC = () => {
                         
                         <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 flex justify-between">
                           <div className="flex gap-2">
-                            <Link 
-                              to={`/host/edit/${quiz.id}`}
-                              className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm"
-                            >
-                              <Edit size={14} className="mr-1" />
-                              편집
-                            </Link>
+                            {quiz.hasActiveSession ? (
+                              <button 
+                                onClick={() => setShowEditWarning(quiz.id)}
+                                className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm"
+                              >
+                                <Edit size={14} className="mr-1" />
+                                편집
+                              </button>
+                            ) : (
+                              <Link 
+                                to={`/host/edit/${quiz.id}`}
+                                className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm"
+                              >
+                                <Edit size={14} className="mr-1" />
+                                편집
+                              </Link>
+                            )}
                             <button
-                              onClick={() => setDeleteConfirm(quiz.id)}
+                              onClick={() => setShowDeleteWarning(quiz.id)}
                               className="px-3 py-1 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-sm"
                               disabled={deletingQuizId !== null || startingQuizId !== null}
                             >
@@ -432,6 +385,27 @@ const MyQuizzes: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* 편집 경고 모달 */}
+      <EditWarningModal
+        isOpen={!!showEditWarning}
+        onClose={() => setShowEditWarning(null)}
+        quizId={showEditWarning || ''}
+      />
+      
+      {/* 삭제 경고 모달 */}
+      {showDeleteWarning && (
+        <DeleteWarningModal
+          isOpen={true}
+          onClose={() => setShowDeleteWarning(null)}
+          onConfirm={() => {
+            const quizId = showDeleteWarning;
+            setShowDeleteWarning(null);
+            setDeleteConfirm(quizId);
+          }}
+          hasActiveSession={!!quizzes.find(q => q.id === showDeleteWarning)?.hasActiveSession}
+        />
+      )}
     </div>
   );
 };

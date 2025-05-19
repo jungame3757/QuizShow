@@ -5,7 +5,8 @@ import { Check, X } from 'lucide-react';
 interface QuizQuestionProps {
   question: Question;
   selectedAnswer: string | null;
-  onSelectAnswer: (answer: string) => void;
+  selectedAnswerIndex: number | null;
+  onSelectAnswer: (answer: string, index: number) => void;
   showResult: boolean;
   disabled: boolean;
 }
@@ -13,11 +14,12 @@ interface QuizQuestionProps {
 const QuizQuestion: React.FC<QuizQuestionProps> = ({
   question,
   selectedAnswer,
+  selectedAnswerIndex,
   onSelectAnswer,
   showResult,
   disabled
 }) => {
-  const isCorrect = selectedAnswer === question.options[question.correctAnswer];
+  const isCorrect = selectedAnswerIndex !== null && selectedAnswerIndex === question.correctAnswer;
 
   return (
     <div className="animate-fade-in">
@@ -27,10 +29,10 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         {question.options.map((option, index) => {
-          const isSelected = selectedAnswer === option;
+          const isSelected = selectedAnswerIndex !== null && selectedAnswerIndex === index;
           const isCorrectAnswer = index === question.correctAnswer;
           
-          let optionClass = 'bg-white border-2 border-gray-200 hover:border-purple-300';
+          let optionClass = 'bg-white border-2 border-gray-200 hover:border-teal-300';
           
           if (showResult) {
             if (isCorrectAnswer) {
@@ -39,13 +41,13 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
               optionClass = 'bg-red-100 border-2 border-red-500';
             }
           } else if (isSelected) {
-            optionClass = 'bg-purple-100 border-2 border-purple-500';
+            optionClass = 'bg-teal-100 border-2 border-teal-500';
           }
           
           return (
             <button
               key={index}
-              onClick={() => !disabled && onSelectAnswer(option)}
+              onClick={() => !disabled && onSelectAnswer(option, index)}
               disabled={disabled}
               className={`
                 p-4 rounded-xl shadow-sm text-left flex items-center

@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { updateProfile, deleteUser, reauthenticateWithCredential, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
-import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle } from 'lucide-react';
+import { User, ArrowLeft, Edit, LogOut, Trash2, AlertTriangle, Loader } from 'lucide-react';
+import { deleteAllUserData } from '../firebase/userDataService';
 
 const Profile = () => {
   const { currentUser, signInWithGoogle, signOut, auth } = useAuth();
@@ -11,6 +12,8 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const navigate = useNavigate();
 
   const handleUpdateName = async () => {
@@ -26,15 +29,42 @@ const Profile = () => {
     }
   };
 
+  // 사용자 데이터 삭제 및 계정 삭제 함수
+  const deleteUserDataAndAccount = async (userId: string) => {
+    setStatusMessage('사용자 데이터 삭제 중...');
+    try {
+      // 우선 데이터 삭제를 확실히 수행
+      await deleteAllUserData(userId);
+      setStatusMessage('사용자 데이터 삭제 완료, 계정 삭제 중...');
+      
+      // 로컬 퀴즈 데이터 초기화
+      clearQuizData();
+      
+      // 데이터 삭제 완료 후 계정 삭제
+      await deleteUser(currentUser!);
+      
+      // 삭제 완료 후 홈으로 이동
+      navigate('/');
+    } catch (error) {
+      console.error('데이터 또는 계정 삭제 오류:', error);
+      setStatusMessage('');
+      throw error; // 오류를 상위로 전달
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (!currentUser) return;
     
     try {
-      await deleteUser(currentUser);
-      clearQuizData();
-      navigate('/');
+      setIsProcessing(true);
+      setStatusMessage('계정 삭제 중...');
+      
+      // 계정 및 데이터 삭제 시도
+      await deleteUserDataAndAccount(currentUser.uid);
+      
     } catch (error: any) {
       console.error('계정 삭제 오류:', error);
+      setStatusMessage('');
       
       // 재인증이 필요한 경우
       if (error.code === 'auth/requires-recent-login') {
@@ -54,10 +84,9 @@ const Profile = () => {
               if (credential) {
                 // 재인증 수행
                 await reauthenticateWithCredential(currentUser, credential);
-                // 재인증 성공 후 다시 계정 삭제 시도
-                await deleteUser(currentUser);
-                clearQuizData();
-                navigate('/');
+                
+                // 재인증 성공 후 다시 계정 및 데이터 삭제 시도
+                await deleteUserDataAndAccount(currentUser.uid);
               } else {
                 throw new Error('인증 정보를 가져오지 못했습니다.');
               }
@@ -75,6 +104,9 @@ const Profile = () => {
       } else {
         alert('계정 삭제 중 오류가 발생했습니다. 재로그인 후 다시 시도해주세요.');
       }
+    } finally {
+      setIsProcessing(false);
+      setStatusMessage('');
     }
   };
 
@@ -93,9 +125,9 @@ const Profile = () => {
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 py-8 px-4">
       <div className="container mx-auto max-w-md">
         <div className="flex items-center mb-6">
-          <Link to="/" className="mr-4 text-purple-600 hover:text-purple-800 transition-colors">
+          <button onClick={() => navigate(-1)} className="mr-4 text-purple-600 hover:text-purple-800 transition-colors">
             <ArrowLeft size={20} />
-          </Link>
+          </button>
           <h1 className="text-3xl font-bold text-purple-800">내 프로필</h1>
         </div>
         
@@ -189,11 +221,20 @@ const Profile = () => {
           )}
         </div>
         
+        {/* 처리 중 상태 메시지 */}
+        {isProcessing && statusMessage && (
+          <div className="bg-blue-50 text-blue-700 p-4 rounded-lg mb-4 flex items-center justify-center">
+            <Loader size={18} className="animate-spin mr-2" />
+            <p>{statusMessage}</p>
+          </div>
+        )}
+        
         {/* 계정 관리 영역 */}
         <div className="space-y-4">
           <button
             onClick={handleLogout}
             className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 transition-colors w-full flex items-center justify-center"
+            disabled={isProcessing}
           >
             <LogOut size={18} className="mr-2" /> 로그아웃
           </button>
@@ -207,18 +248,27 @@ const Profile = () => {
               <p className="text-red-600 mb-4">
                 {currentUser?.isAnonymous 
                   ? '익명 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.' 
-                  : '정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'}
+                  : '정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 모든 퀴즈와 활동 기록이 함께 삭제됩니다.'}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={handleDeleteAccount}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors flex-1"
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors flex-1 flex items-center justify-center"
+                  disabled={isProcessing}
                 >
-                  삭제 확인
+                  {isProcessing ? (
+                    <>
+                      <Loader size={14} className="animate-spin mr-2" />
+                      처리 중...
+                    </>
+                  ) : (
+                    '삭제 확인'
+                  )}
                 </button>
                 <button
                   onClick={() => setIsDeleting(false)}
                   className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex-1"
+                  disabled={isProcessing}
                 >
                   취소
                 </button>
@@ -228,6 +278,7 @@ const Profile = () => {
             <button
               onClick={() => setIsDeleting(true)}
               className="bg-white border border-red-300 text-red-600 px-4 py-3 rounded-md hover:bg-red-50 transition-colors w-full flex items-center justify-center"
+              disabled={isProcessing}
             >
               <Trash2 size={18} className="mr-2" /> 계정 삭제
             </button>
