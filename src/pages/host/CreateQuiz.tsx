@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Check, X, Edit, Star } from 'lucide-react';
+import { Plus, Check, X, Edit } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import { useSession } from '../../contexts/SessionContext';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import QuestionForm from '../../components/QuestionForm';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import LoadingOverlay from '../../components/LoadingOverlay';
-import Breadcrumb from '../../components/Breadcrumb';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import QuestionForm from '../../components/host/create/QuestionForm';
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import Breadcrumb from '../../components/ui/Breadcrumb';
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart2 } from 'lucide-react';
-import { Quiz } from '../types';
+import { Quiz } from '../../../types';
 
 // Realtime Database 참가자 타입 정의
 interface RealtimeParticipant {

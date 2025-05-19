@@ -1,6 +1,6 @@
 import React from 'react';
-import { BarChart2, Award, ChevronUp, ChevronDown, Clock, RefreshCw, Trophy, CheckCircle, XCircle, BookOpen } from 'lucide-react';
-import { SessionHistory, Answer, Attempt } from '../firebase/sessionHistoryService';
+import { BarChart2, Award, ChevronUp, ChevronDown, Clock, RefreshCw, Trophy, CheckCircle, XCircle } from 'lucide-react';
+import { SessionHistory, Answer, Attempt } from '../../../firebase/sessionHistoryService';
 
 // 컴포넌트 내부에서 사용할 ExtendedParticipant 인터페이스
 interface ExtendedParticipant {
@@ -40,7 +40,6 @@ const RankingTab: React.FC<RankingTabProps> = ({
   setParticipantDetailTab,
   selectedAttemptIndex,
   setSelectedAttemptIndex,
-  formatDateCustom
 }) => {
   return (
     <div className="space-y-6">
@@ -188,7 +187,7 @@ const RankingTab: React.FC<RankingTabProps> = ({
                                 </div>
                                 
                                 {/* 이전 시도 포인트들 - 최신 시도가 왼쪽에 가깝게 시간 순으로 */}
-                                {participant.attempts && participant.attempts.length > 0 && [...participant.attempts].reverse().map((attempt, index) => {
+                                {participant.attempts && participant.attempts.length > 0 && [...participant.attempts].reverse().map((_attempt, index) => {
                                   // 위치 계산 - 전체 대비 균등 분할
                                   const totalAttempts = participant.attempts ? participant.attempts.length : 0;
                                   const spacing = totalAttempts > 0 ? 100 / (totalAttempts + 1) : 0;

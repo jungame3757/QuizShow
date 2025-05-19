@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, Loader, StopCircle, Copy, Check } from 'lucide-react';
-import Button from '../Button';
+import Button from '../../ui/Button';
 
 interface SessionControlsProps {
   currentSession: any;

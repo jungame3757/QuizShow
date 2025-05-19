@@ -1,5 +1,5 @@
 import React from 'react';
-import { Question } from '../types';
+import { Question } from '../../types';
 import { Check, X } from 'lucide-react';
 
 interface QuizQuestionProps {
@@ -13,7 +13,6 @@ interface QuizQuestionProps {
 
 const QuizQuestion: React.FC<QuizQuestionProps> = ({
   question,
-  selectedAnswer,
   selectedAnswerIndex,
   onSelectAnswer,
   showResult,

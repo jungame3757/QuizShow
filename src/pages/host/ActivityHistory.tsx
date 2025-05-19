@@ -3,10 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Users, ChevronRight, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getSessionHistoriesByHostId, SessionHistory } from '../../firebase/sessionHistoryService';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import Breadcrumb from '../../components/Breadcrumb';
-import LoadingAnimation from '../../components/LoadingAnimation';
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import Breadcrumb from '../../components/ui/Breadcrumb';
+import LoadingAnimation from '../../components/ui/LoadingAnimation';
 
 // 상대적인 시간 형식으로 변환하는 함수
 const formatRelativeTime = (timestamp: any): string => {

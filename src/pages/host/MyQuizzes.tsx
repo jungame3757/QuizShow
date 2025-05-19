@@ -5,19 +5,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
 import { getUserQuizzes, deleteQuiz } from '../../firebase/quizService';
 import { Quiz } from '../../types';
-import Button from '../../components/Button';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import LoadingOverlay from '../../components/LoadingOverlay';
-import LoadingAnimation from '../../components/LoadingAnimation';
-import Breadcrumb from '../../components/Breadcrumb';
+import Button from '../../components/ui/Button';
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import LoadingAnimation from '../../components/ui/LoadingAnimation';
+import Breadcrumb from '../../components/ui/Breadcrumb';
 
 // 모달 컴포넌트 임포트
 import { 
   EditWarningModal, 
   DeleteWarningModal, 
   DeleteConfirmModal 
-} from '../../components/modals';
+} from '../../components/ui/modals';
 
 interface EnhancedQuiz extends Quiz {
   hasActiveSession?: boolean;

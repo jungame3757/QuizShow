@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Book, Plus, X, Check, Edit } from 'lucide-react';
+import { Save, Plus, X, Check, Edit } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import QuestionForm from '../../components/QuestionForm';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import LoadingOverlay from '../../components/LoadingOverlay';
-import Breadcrumb from '../../components/Breadcrumb';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import QuestionForm from '../../components/host/create/QuestionForm';
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import Breadcrumb from '../../components/ui/Breadcrumb';
 
 const EditQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();

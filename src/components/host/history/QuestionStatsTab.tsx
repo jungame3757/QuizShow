@@ -1,5 +1,5 @@
 import React from 'react';
-import { SessionHistory } from '../firebase/sessionHistoryService';
+import { SessionHistory } from '../../../firebase/sessionHistoryService';
 
 interface QuestionStatsTabProps {
   sessionHistory: SessionHistory;

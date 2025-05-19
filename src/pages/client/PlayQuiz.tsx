@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { XCircle, Loader2 } from 'lucide-react';
 import { rtdb } from '../../firebase/config';
 import { ref, get, update, onValue, off } from 'firebase/database';
-import Button from '../../components/Button';
-import QuizQuestion from '../../components/QuizQuestion';
-import QuizResults from '../../components/QuizResults';
-import QuizStartPage from '../../components/QuizStartPage';
+import Button from '../../components/ui/Button';
+import QuizQuestion from '../../components/client/QuizQuestion';
+import QuizResults from '../../components/client/QuizResults';
+import QuizStartPage from '../../components/client/QuizStartPage';
 import { getQuizById } from '../../firebase/quizService';
 
 interface Question {

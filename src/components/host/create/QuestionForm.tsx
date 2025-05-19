@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, X, Check } from 'lucide-react';
-import Button from './Button';
-import Input from './Input';
+import Button from '../../ui/Button';
+import Input from '../../ui/Input';
 
 interface QuestionFormProps {
   onSave: (question: any) => void;
@@ -15,7 +15,7 @@ interface QuestionFormProps {
   maxOptions?: number;
 }
 
-const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, onCancel, initialData, maxOptions = 5 }) => {
+const QuestionForm: React.FC<QuestionFormProps> = ({ onSave, initialData, maxOptions = 5 }) => {
   const [text, setText] = useState(initialData?.text || '');
   const [options, setOptions] = useState(initialData?.options || ['', '', '', '']);
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number | null>(null);

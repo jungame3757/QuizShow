@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Wand, Users, Sparkles, Star, GraduationCap, BookOpen, Lightbulb, Rocket, User, Settings } from 'lucide-react';
-import Button from '../components/Button';
+import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
 

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, FileText, Info, User, Edit, X, LogOut } from 'lucide-react';
-import Button from './Button';
-import Input from './Input';
+import { Play, User, Edit, X, LogOut } from 'lucide-react';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import { ref, update } from 'firebase/database';
-import { rtdb } from '../firebase/config';
+import { rtdb } from '../../firebase/config';
 import { Link } from 'react-router-dom';
 
 interface Question {

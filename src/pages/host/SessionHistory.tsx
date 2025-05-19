@@ -1,65 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  BarChart2, Clock, Users, ArrowLeft, 
-  BookOpen, Trash2, RefreshCw, Award, 
-  CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, Trophy
-} from 'lucide-react';
+import { Clock, ArrowLeft, BookOpen, Trash2, Award } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getSessionHistoryById, SessionHistory, deleteSessionHistory, Attempt, Answer } from '../../firebase/sessionHistoryService';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import Breadcrumb from '../../components/Breadcrumb';
-import LoadingAnimation from '../../components/LoadingAnimation';
-import SummaryCards from '../../components/SummaryCards';
-import RankingTab from '../../components/RankingTab';
-import QuestionStatsTab from '../../components/QuestionStatsTab';
-
-const formatDate = (timestamp: any): string => {
-  if (!timestamp) return '날짜 없음';
-  
-  try {
-    // Firestore Timestamp 객체인 경우
-    if (timestamp && typeof timestamp.toDate === 'function') {
-      const date = timestamp.toDate();
-      return new Intl.DateTimeFormat('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(date);
-    }
-    
-    // 이미 Date 객체인 경우
-    if (timestamp instanceof Date) {
-      return new Intl.DateTimeFormat('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(timestamp);
-    }
-    
-    // 숫자(밀리초)인 경우
-    if (typeof timestamp === 'number') {
-      const date = new Date(timestamp);
-      return new Intl.DateTimeFormat('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(date);
-    }
-    
-    return '날짜 형식 오류';
-  } catch (error) {
-    console.error('날짜 변환 오류:', error);
-    return '날짜 변환 오류';
-  }
-};
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import Breadcrumb from '../../components/ui/Breadcrumb';
+import LoadingAnimation from '../../components/ui/LoadingAnimation';
+import SummaryCards from '../../components/host/history/SummaryCards';
+import RankingTab from '../../components/host/history/RankingTab';
+import QuestionStatsTab from '../../components/host/history/QuestionStatsTab';
 
 // 활동 시간 계산 (끝 시간 - 시작 시간)
 const calculateDuration = (startTimestamp: any, endTimestamp: any): string => {
@@ -115,7 +65,6 @@ const SessionHistoryDetail: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<'ranking' | 'questions'>('ranking');
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
-  const [expandedQuestions, setExpandedQuestions] = useState<number[]>([]);
   const [statsViewMode, setStatsViewMode] = useState<'latest' | 'all'>('latest');
   const [participantDetailTab, setParticipantDetailTab] = useState<'detail' | 'summary'>('summary');
   const [selectedAttemptIndex, setSelectedAttemptIndex] = useState<number | -1>(-1); // -1은 현재 시도
@@ -175,14 +124,6 @@ const SessionHistoryDetail: React.FC = () => {
       setShowDeleteConfirm(false);
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const toggleQuestion = (questionIndex: number) => {
-    if (expandedQuestions.includes(questionIndex)) {
-      setExpandedQuestions(expandedQuestions.filter(index => index !== questionIndex));
-    } else {
-      setExpandedQuestions([...expandedQuestions, questionIndex]);
     }
   };
 

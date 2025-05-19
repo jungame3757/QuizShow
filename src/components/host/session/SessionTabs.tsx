@@ -1,7 +1,7 @@
 import React from 'react';
 import { Share2, Users, BarChart2 } from 'lucide-react';
-import ParticipantList from '../ParticipantList';
-import QuizProgress from '../QuizProgress';
+import ParticipantList from '../history/ParticipantList';
+import QuizProgress from './QuizProgress';
 import InviteTab from './InviteTab';
 
 interface SessionTabsProps {

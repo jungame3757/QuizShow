@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Trophy, Medal, User, RefreshCw, Award, LogOut, AlertTriangle, Share2, Gem, Sparkle } from 'lucide-react';
-import Button from './Button';
+import Button from '../ui/Button';
 import confetti from 'canvas-confetti';
 
 interface Question {
@@ -61,7 +61,6 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   onResetQuiz,
   inviteCode
 }) => {
-  const navigate = useNavigate();
   const [showConfetti, setShowConfetti] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSuccess, setShowShareSuccess] = useState(false);

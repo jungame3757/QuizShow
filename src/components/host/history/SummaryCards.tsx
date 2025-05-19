@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users, FileText, Clock, CheckCircle } from 'lucide-react';
-import { SessionHistory } from '../firebase/sessionHistoryService';
+import { SessionHistory } from '../../../firebase/sessionHistoryService';
 
 interface SummaryCardsProps {
   sessionHistory: SessionHistory;

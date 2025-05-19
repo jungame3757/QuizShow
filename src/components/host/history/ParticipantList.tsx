@@ -121,7 +121,6 @@ const ParticipantList: React.FC<ParticipantListProps> = ({ participants, quiz })
           {sortedParticipants.map((participant, index) => {
             // 답변 진행 상황 계산
             const totalAnswers = participant.answers ? Object.keys(participant.answers).length : 0;
-            const totalQuestions = quiz?.questions?.length || 0;
             const correctAnswers = participant.answers 
               ? Object.values(participant.answers).filter(a => a.isCorrect).length
               : 0;

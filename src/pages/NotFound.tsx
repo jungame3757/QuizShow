@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home, AlertTriangle } from 'lucide-react';
-import Button from '../components/Button';
+import Button from '../components/ui/Button';
 
 const NotFound: React.FC = () => {
   return (

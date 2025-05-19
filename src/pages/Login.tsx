@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
-import Button from '../components/Button';
+import Button from '../components/ui/Button';
 
 const Login: React.FC = () => {
   const { currentUser, signInWithGoogle, signInAnonymous, isLoading } = useAuth();

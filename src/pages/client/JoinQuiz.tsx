@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, LogIn, Loader2, Send, User } from 'lucide-react';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { auth, rtdb } from '../../firebase/config';
 import { ref, get, set, update } from 'firebase/database';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';

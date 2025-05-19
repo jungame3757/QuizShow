@@ -1,26 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { 
-  Edit, Trash2, Loader, Users, BarChart2, BarChartBig, 
-  Copy, Share2, QrCode, Check, Link as LinkIcon, Play, StopCircle, Calendar
-} from 'lucide-react';
-import QRCode from 'react-qr-code';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { BarChartBig } from 'lucide-react';
 import copy from 'clipboard-copy';
 import { useQuiz } from '../../contexts/QuizContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
 import { deleteQuiz } from '../../firebase/quizService';
-import ParticipantList from '../../components/ParticipantList';
-import QuizProgress from '../../components/QuizProgress';
-import HostNavBar from '../../components/HostNavBar';
-import HostPageHeader from '../../components/HostPageHeader';
-import LoadingOverlay from '../../components/LoadingOverlay';
-import LoadingAnimation from '../../components/LoadingAnimation';
-import Button from '../../components/Button';
-import Breadcrumb from '../../components/Breadcrumb';
+import HostNavBar from '../../components/host/HostNavBar';
+import HostPageHeader from '../../components/host/HostPageHeader';
+import LoadingOverlay from '../../components/ui/LoadingOverlay';
+import LoadingAnimation from '../../components/ui/LoadingAnimation';
+import Button from '../../components/ui/Button';
+import Breadcrumb from '../../components/ui/Breadcrumb';
 
 // 컴포넌트 임포트
-import { QuizHeader, SessionControls, SessionTabs } from '../../components/session';
+import { QuizHeader, SessionControls, SessionTabs } from '../../components/host/session';
 
 // 모달 컴포넌트 임포트
 import { 
@@ -29,7 +23,7 @@ import {
   DeleteConfirmModal, 
   EndSessionConfirmModal, 
   QRCodeModal 
-} from '../../components/modals';
+} from '../../components/ui/modals';
 
 const SessionQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();

@@ -1,9 +1,8 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { QuizProvider } from './contexts/QuizContext';
 import { SessionProvider } from './contexts/SessionContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import MainPage from './pages/MainPage';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
