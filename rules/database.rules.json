@@ -1,0 +1,114 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "sessions": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && !data.exists() && newData.exists()",
+      
+      "$sessionId": {
+        ".read": "auth !== null",
+        ".write": "auth !== null && (!data.exists() || data.child('hostId').val() === auth.uid || newData.child('hostId').val() === auth.uid || (newData.child('participantCount').exists() && data.child('participantCount').exists() && newData.child('participantCount').val() === data.child('participantCount').val() + 1))",
+        
+        "participantCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        
+        "expiresAt": {
+          ".validate": "newData.isNumber() && newData.val() > now"
+        },
+        
+        "hostId": {
+          ".validate": "newData.val() === auth.uid"
+        }
+      }
+    },
+    
+    "quizData": {
+      ".write": "auth !== null",
+      "$sessionId": {
+        ".write": "auth !== null",
+        "public": {
+          ".read": "auth !== null",
+          ".write": "auth !== null"
+        },
+        "answers": {
+          ".read": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid",
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+        }
+      }
+    },
+    
+    "sessionCodes": {
+      ".read": "auth !== null",
+      ".write": "auth !== null",
+      
+      "$code": {
+      }
+    },
+    
+    "sessionParticipants": {
+      ".read": "auth !== null",
+      
+      "$sessionId": {
+        ".write": "auth !== null",
+        
+        "$userId": {
+          ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid)"
+        }
+      }
+    },
+    
+    "sessionQuestions": {
+      ".read": "auth !== null",
+      
+      "$sessionId": {
+        ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid",
+        
+        "$questionIndex": {
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+        }
+      }
+    },
+    
+    "sessionAnswers": {
+      ".read": "auth !== null",
+      
+      "$sessionId": {
+        ".write": "auth !== null",
+        
+        "$questionIndex": {
+          ".write": "auth !== null",
+          
+          "$userId": {
+            ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid)"
+          }
+        }
+      }
+    },
+    
+    "userSessions": {
+      ".read": "auth !== null",
+      ".write": "auth !== null",
+      
+      "$userId": {
+        ".read": "auth !== null && auth.uid === $userId",
+        ".write": "auth !== null && auth.uid === $userId"
+      }
+    },
+    
+    "participants": {
+      ".read": "auth !== null",
+      ".write": "auth !== null",
+      
+      "$sessionId": {
+        ".write": "auth !== null",
+        
+        "$userId": {
+          ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid)"
+        }
+      }
+    }
+  }
+} 

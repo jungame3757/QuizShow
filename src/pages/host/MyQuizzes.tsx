@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Wand, Calendar, Trash2, Edit, Plus, RefreshCw, Loader, Play } from 'lucide-react';
+import { Wand, Calendar, Trash2, Edit, Plus, RefreshCw, Loader, Play, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
-import { getUserQuizzes, deleteQuiz, QuizListResponse } from '../../firebase/quizService';
+import { getUserQuizzes, deleteQuiz } from '../../firebase/quizService';
 import { Quiz } from '../../types';
 import Button from '../../components/ui/Button';
 import HostNavBar from '../../components/host/HostNavBar';
@@ -15,20 +15,19 @@ import Breadcrumb from '../../components/ui/Breadcrumb';
 // 모달 컴포넌트 임포트
 import { 
   EditWarningModal, 
-  DeleteWarningModal, 
-  DeleteConfirmModal 
+  DeleteWarningModal
 } from '../../components/ui/modals';
 
 interface EnhancedQuiz extends Quiz {
   hasActiveSession?: boolean;
   sessionId?: string;
+  sessionExpiresAt?: number;
 }
 
 const MyQuizzes: React.FC = () => {
   const [quizzes, setQuizzes] = useState<EnhancedQuiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null);
   const [startingQuizId, setStartingQuizId] = useState<string | null>(null);
   const [showEditWarning, setShowEditWarning] = useState<string | null>(null);
@@ -81,7 +80,8 @@ const MyQuizzes: React.FC = () => {
         return {
           ...quiz,
           hasActiveSession: !!activeSession,
-          sessionId: activeSession?.id
+          sessionId: activeSession?.id,
+          sessionExpiresAt: activeSession?.expiresAt || null
         };
       });
       
@@ -159,7 +159,9 @@ const MyQuizzes: React.FC = () => {
       // 퀴즈 삭제
       await deleteQuiz(quizId, currentUser.uid);
       setQuizzes(quizzes.filter(quiz => quiz.id !== quizId));
-      setDeleteConfirm(null);
+      
+      // deleteConfirm 상태 대신 showDeleteWarning 상태 초기화
+      setShowDeleteWarning(null);
     } catch (error) {
       console.error('퀴즈 삭제 실패:', error);
       alert('퀴즈 삭제에 실패했습니다.');
@@ -203,8 +205,32 @@ const MyQuizzes: React.FC = () => {
     });
   };
 
+  // 남은 시간 계산 함수 추가
+  const formatRemainingTime = (expiresAt: number) => {
+    if (!expiresAt) return null;
+    
+    const now = Date.now();
+    const remaining = expiresAt - now;
+    
+    // 만료된 경우
+    if (remaining <= 0) return "만료됨";
+    
+    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    
+    // 가장 큰 단위만 표시
+    if (days > 0) {
+      return `${days}일 남음`;
+    } else if (hours > 0) {
+      return `${hours}시간 남음`;
+    } else {
+      return `${minutes}분 남음`;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
       {/* 삭제 중이거나 세션 생성 중일 때 로딩 오버레이 표시 */}
       {(deletingQuizId || startingQuizId) && (
         <LoadingOverlay 
@@ -223,139 +249,137 @@ const MyQuizzes: React.FC = () => {
         <Breadcrumb items={[{ label: '내 퀴즈 목록' }]} />
 
         {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+          <div className="bg-red-100 text-red-700 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 relative">
-          <div className="flex justify-between items-center p-6">
-            <h1 className="text-3xl font-bold text-purple-700">내 퀴즈 목록</h1>
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4 sm:mb-6 relative">
+          <div className="flex justify-between items-center p-4 sm:p-6">
+            <h1 className="text-xl sm:text-3xl font-bold text-purple-700">내 퀴즈 목록</h1>
             {!loading && quizzes.length > 0 && (
               <button 
                 onClick={loadQuizzes} 
                 className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
                 title="새로고침"
               >
-                <RefreshCw size={18} className="mr-1" />
-                <span className="text-sm">새로고침</span>
+                <RefreshCw size={16} className="mr-1" />
+                <span className="text-sm hidden sm:inline">새로고침</span>
               </button>
             )}
           </div>
           
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
               <LoadingAnimation message="퀴즈와 세션 정보를 불러오는 중" />
             </div>
           ) : quizzes.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-md p-8 text-center">
-              <Wand size={48} className="mx-auto text-purple-400 mb-4" />
+            <div className="bg-white rounded-xl shadow-md p-6 sm:p-8 text-center">
+              <Wand size={40} className="mx-auto text-purple-400 mb-4" />
               <h2 className="text-xl font-semibold mb-2">아직 만든 퀴즈가 없습니다</h2>
               <p className="text-gray-600 mb-6">지금 첫 번째 퀴즈를 만들어보세요!</p>
             </div>
           ) : (
-            <div className="p-4 md:p-6">
-              <div className="grid gap-4">
+            <div className="p-3 sm:p-6">
+              <div className="grid gap-3 sm:gap-4">
                 {quizzes.map(quiz => (
                   <div 
                     key={quiz.id} 
-                    className={`bg-white rounded-xl shadow-sm overflow-hidden border ${
+                    className={`bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden border ${
                       quiz.hasActiveSession ? 'border-green-300' : 'border-purple-100'
                     } relative`}
                   >
-                    {deleteConfirm === quiz.id ? (
-                      <DeleteConfirmModal
-                        isOpen={true}
-                        onClose={() => setDeleteConfirm(null)}
-                        onConfirm={() => handleDeleteQuiz(quiz.id)}
-                        title={quiz.title}
-                        isProcessing={deletingQuizId === quiz.id}
-                      />
-                    ) : (
-                      <>
-                        {quiz.hasActiveSession && (
-                          <div className="absolute top-3 right-3">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
-                              활동 켜짐
-                            </span>
-                          </div>
-                        )}
-                        <div className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="text-xl font-bold text-gray-800 mb-1 pr-20">
+                    <>
+                      <div className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+                          <div className="pr-16 sm:pr-0">
+                            <div className="flex flex-wrap items-start gap-2 mb-1 sm:mb-2">
+                              <h3 className="text-lg sm:text-xl font-bold text-gray-800 break-words">
                                 {quiz.title}
                               </h3>
-                              <p className="text-gray-600 text-sm">
-                                {quiz.description || '설명 없음'}
-                              </p>
+                              {quiz.hasActiveSession && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 absolute top-3 right-3 sm:static">
+                                  <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+                                  활동 켜짐
+                                </span>
+                              )}
                             </div>
-                          </div>
-                          
-                          <div className="mt-4 flex items-center text-sm text-gray-500">
-                            <Calendar size={14} className="mr-1" />
-                            <span>{formatDate(quiz.createdAt)}</span>
+                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                              {quiz.description || '설명 없음'}
+                            </p>
                           </div>
                         </div>
                         
-                        <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 flex justify-between">
-                          <div className="flex gap-2">
-                            {quiz.hasActiveSession ? (
-                              <button 
-                                onClick={() => setShowEditWarning(quiz.id)}
-                                className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm"
-                              >
-                                <Edit size={14} className="mr-1" />
-                                편집
-                              </button>
-                            ) : (
-                              <Link 
-                                to={`/host/edit/${quiz.id}`}
-                                className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm"
-                              >
-                                <Edit size={14} className="mr-1" />
-                                편집
-                              </Link>
-                            )}
-                            <button
-                              onClick={() => setShowDeleteWarning(quiz.id)}
-                              className="px-3 py-1 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-sm"
-                              disabled={deletingQuizId !== null || startingQuizId !== null}
-                            >
-                              <Trash2 size={14} className="mr-1" />
-                              삭제
-                            </button>
+                        <div className="flex flex-wrap items-center justify-between mt-1 sm:mt-2 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar size={14} className="mr-1" />
+                            <span>{formatDate(quiz.createdAt)}</span>
                           </div>
-                          <button 
-                            onClick={() => handleStartQuiz(quiz)}
-                            className={`px-3 py-1 rounded-md flex items-center text-sm ${
-                              quiz.hasActiveSession 
-                                ? "bg-green-600 hover:bg-green-700 text-white" 
-                                : "bg-purple-600 hover:bg-purple-700 text-white"
-                            }`}
-                            disabled={startingQuizId !== null}
+                          {quiz.hasActiveSession && quiz.sessionExpiresAt && (
+                            <div className="flex items-center text-green-600 mt-1 sm:mt-0">
+                              <Clock size={14} className="mr-1" />
+                              <span>{formatRemainingTime(quiz.sessionExpiresAt)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="border-t border-gray-100 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap gap-2 justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {quiz.hasActiveSession ? (
+                            <button 
+                              onClick={() => setShowEditWarning(quiz.id)}
+                              className="px-2 sm:px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-xs sm:text-sm"
+                            >
+                              <Edit size={12} className="mr-1" />
+                              편집
+                            </button>
+                          ) : (
+                            <Link 
+                              to={`/host/edit/${quiz.id}`}
+                              className="px-2 sm:px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-xs sm:text-sm"
+                            >
+                              <Edit size={12} className="mr-1" />
+                              편집
+                            </Link>
+                          )}
+                          <button
+                            onClick={() => setShowDeleteWarning(quiz.id)}
+                            className="px-2 sm:px-3 py-1 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-xs sm:text-sm"
+                            disabled={deletingQuizId !== null || startingQuizId !== null}
                           >
-                            {startingQuizId === quiz.id ? (
-                              <>
-                                <Loader size={14} className="animate-spin mr-1" />
-                                준비 중...
-                              </>
-                            ) : quiz.hasActiveSession ? (
-                              <>
-                                <Play size={14} className="mr-1" />
-                                계속하기
-                              </>
-                            ) : (
-                              <>
-                                <Play size={14} className="mr-1" />
-                                시작하기
-                              </>
-                            )}
+                            <Trash2 size={12} className="mr-1" />
+                            삭제
                           </button>
                         </div>
-                      </>
-                    )}
+                        <button 
+                          onClick={() => handleStartQuiz(quiz)}
+                          className={`px-2 sm:px-3 py-1 rounded-md flex items-center text-xs sm:text-sm ${
+                            quiz.hasActiveSession 
+                              ? "bg-green-600 hover:bg-green-700 text-white" 
+                              : "bg-purple-600 hover:bg-purple-700 text-white"
+                          }`}
+                          disabled={startingQuizId !== null}
+                        >
+                          {startingQuizId === quiz.id ? (
+                            <>
+                              <Loader size={12} className="animate-spin mr-1" />
+                              준비 중...
+                            </>
+                          ) : quiz.hasActiveSession ? (
+                            <>
+                              <Play size={12} className="mr-1" />
+                              계속하기
+                            </>
+                          ) : (
+                            <>
+                              <Play size={12} className="mr-1" />
+                              시작하기
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
                   </div>
                 ))}
               </div>
@@ -363,10 +387,10 @@ const MyQuizzes: React.FC = () => {
           )}
         </div>
         
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center mt-4 sm:mt-6">
           <Link to="/host/create">
-            <Button variant="primary" className="flex items-center">
-              <Plus size={18} className="mr-1" /> 새 퀴즈 만들기
+            <Button variant="primary" className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base">
+              <Plus size={16} className="mr-1 sm:mr-2" /> 새 퀴즈 만들기
             </Button>
           </Link>
         </div>
@@ -379,7 +403,7 @@ const MyQuizzes: React.FC = () => {
         quizId={showEditWarning || ''}
       />
       
-      {/* 삭제 경고 모달 */}
+      {/* 삭제 경고 모달 - 여기서 바로 삭제 처리 */}
       {showDeleteWarning && (
         <DeleteWarningModal
           isOpen={true}
@@ -387,7 +411,7 @@ const MyQuizzes: React.FC = () => {
           onConfirm={() => {
             const quizId = showDeleteWarning;
             setShowDeleteWarning(null);
-            setDeleteConfirm(quizId);
+            handleDeleteQuiz(quizId);
           }}
           hasActiveSession={!!quizzes.find(q => q.id === showDeleteWarning)?.hasActiveSession}
         />

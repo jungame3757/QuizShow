@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { XCircle, Loader2 } from 'lucide-react';
 import { rtdb } from '../../firebase/config';
@@ -8,6 +8,7 @@ import QuizQuestion from '../../components/client/QuizQuestion';
 import QuizResults from '../../components/client/QuizResults';
 import QuizStartPage from '../../components/client/QuizStartPage';
 import { getQuizById } from '../../firebase/quizService';
+import { getQuizDataForClient } from '../../firebase/sessionService';
 
 interface Question {
   text: string;
@@ -90,6 +91,8 @@ const PlayQuiz: React.FC = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   // 타이머 애니메이션을 위한 상태
   const [timerPercentage, setTimerPercentage] = useState(100);
+  // 타이머 렌더링 최적화를 위한 ref 추가
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // 랭킹 관련 상태 추가
   const [rankings, setRankings] = useState<RankingParticipant[]>([]);
@@ -172,9 +175,26 @@ const PlayQuiz: React.FC = () => {
         participantData.id = userId; // ID 추가
         setParticipant(participantData);
         
-        // 3. 퀴즈 정보 가져오기 (수정: quizService의 getQuizById 사용)
+        // 3. 세션에 저장된 퀴즈 데이터 불러오기
         try {
-          const quizData = await getQuizById(sessionData.quizId);
+          let quizData = null;
+          
+          // 먼저 RTDB에서 퀴즈 데이터 가져오기 시도
+          try {
+            quizData = await getQuizDataForClient(quizId);
+            if (quizData) {
+              console.log('RTDB에서 퀴즈 데이터 로드 성공:', quizData);
+            }
+          } catch (rtdbError) {
+            console.error('RTDB에서 퀴즈 데이터 로드 실패:', rtdbError);
+          }
+          
+          // RTDB에서 데이터를 찾지 못하면 Firestore에서 가져오기 (이전 방식의 호환성 유지)
+          if (!quizData) {
+            console.log('Firestore에서 퀴즈 데이터 로드 시도...');
+            quizData = await getQuizById(sessionData.quizId, sessionData.hostId);
+            console.log('Firestore에서 퀴즈 데이터 로드 성공:', quizData);
+          }
           
           if (!quizData) {
             setError('퀴즈 정보를 찾을 수 없습니다');
@@ -183,7 +203,6 @@ const PlayQuiz: React.FC = () => {
           }
           
           setQuiz(quizData);
-          console.log('퀴즈 데이터 로드 성공:', quizData);
           
           // 문제 순서 설정 - 무작위 출제 옵션에 따라 다르게 설정
           if (sessionData.randomizeQuestions) {
@@ -296,6 +315,11 @@ const PlayQuiz: React.FC = () => {
     // showResult가 true일 때도 타이머를 중지
     if (!quiz || !quiz.questions || !quizStarted || currentQuestionIndex >= quiz.questions.length || showQuizEnd || showResult || !session) return;
     
+    // 이전 타이머 정리
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+
     // 세션에서 설정된 문제 시간 제한 사용
     const questionTimeLimit = session.questionTimeLimit || 30; // 기본값 30초
     setTimeLeft(questionTimeLimit);
@@ -305,10 +329,13 @@ const PlayQuiz: React.FC = () => {
     const updateInterval = 100; // 0.1초
     const decrementPerUpdate = 100 / (questionTimeLimit * 1000 / updateInterval); // 0.1초당 감소할 퍼센트
     
-    const timer = setInterval(() => {
+    timerIntervalRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev === null || prev <= 0.1) {
-          clearInterval(timer);
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
           // 시간 초과, 자동 제출
           if (!selectedAnswer && !showResult) {
             handleTimeUp();
@@ -326,7 +353,12 @@ const PlayQuiz: React.FC = () => {
       
     }, updateInterval);
     
-    return () => clearInterval(timer);
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
   }, [quiz, currentQuestionIndex, selectedAnswer, showResult, showQuizEnd, quizStarted, session]);
   
   // 문제의 모든 보기 문항을 섞는 함수
@@ -362,14 +394,16 @@ const PlayQuiz: React.FC = () => {
         mapping: mapping
       };
       
-      // 로그로 디버깅 확인
-      console.log(`문제 ${questionIndex} 섞기 결과:`, {
-        originalOptions,
-        shuffledOptions,
-        mapping,
-        correctAnswer: question.correctAnswer,
-        mappedCorrectAnswer: mapping[question.correctAnswer]
-      });
+      // 로그로 디버깅 확인 - 개발 환경에서만 출력
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`문제 ${questionIndex} 섞기 결과:`, {
+          originalOptions,
+          shuffledOptions,
+          mapping,
+          correctAnswer: question.correctAnswer,
+          mappedCorrectAnswer: mapping[question.correctAnswer]
+        });
+      }
     });
     
     setShuffledOptions(shuffledOptionsData);
@@ -538,15 +572,17 @@ const PlayQuiz: React.FC = () => {
       const correctUIIndex = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
       isCorrect = index === correctUIIndex;
       
-      // 디버깅 로그
-      console.log('답안 선택 확인:', {
-        선택한UI인덱스: index,
-        원본정답인덱스: currentQuestion.correctAnswer,
-        변환된정답UI인덱스: correctUIIndex,
-        정답여부: isCorrect,
-        선택한답안: answer,
-        정답텍스트: shuffledOptions[realQuestionIndex].options[correctUIIndex]
-      });
+      // 디버깅 로그 - 개발 환경에서만 출력
+      if (process.env.NODE_ENV === 'development') {
+        console.log('답안 선택 확인:', {
+          선택한UI인덱스: index,
+          원본정답인덱스: currentQuestion.correctAnswer,
+          변환된정답UI인덱스: correctUIIndex,
+          정답여부: isCorrect,
+          선택한답안: answer,
+          정답텍스트: shuffledOptions[realQuestionIndex].options[correctUIIndex]
+        });
+      }
     } else {
       // 섞이지 않은 경우 직접 비교
       isCorrect = index === currentQuestion.correctAnswer;
@@ -800,12 +836,14 @@ const PlayQuiz: React.FC = () => {
     // 원본 정답 인덱스를 UI에 표시될 인덱스로 변환
     currentQuestionCorrectAnswer = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
     
-    // 디버깅 로그
-    console.log('렌더링 정답 인덱스 변환:', {
-      원본정답인덱스: currentQuestion.correctAnswer,
-      UI표시정답인덱스: currentQuestionCorrectAnswer,
-      문제인덱스: realQuestionIndex
-    });
+    // 디버깅 로그를 최초 렌더링시에만 출력하거나 개발 환경에서만 출력
+    if (process.env.NODE_ENV === 'development' && questionKey === 0) {
+      console.log('렌더링 정답 인덱스 변환:', {
+        원본정답인덱스: currentQuestion.correctAnswer,
+        UI표시정답인덱스: currentQuestionCorrectAnswer,
+        문제인덱스: realQuestionIndex
+      });
+    }
   }
 
   return (

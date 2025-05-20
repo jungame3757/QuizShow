@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import {
-  createSession,
   getSession,
   getSessionIdByCode,
   updateCurrentQuestion,
@@ -19,7 +18,9 @@ import {
   Participant,
   QuestionStatus,
   Answer,
-  SessionOptions
+  SessionOptions,
+  createSessionWithQuizData,
+  getQuizDataForClient
 } from '../firebase/sessionService';
 import { saveSessionHistory } from '../firebase/sessionHistoryService';
 import { getQuizById } from '../firebase/quizService';
@@ -34,7 +35,7 @@ interface SessionContextType {
   error: string | null;
   
   // 세션 관리 함수
-  createSessionForQuiz: (quizId: string, options?: SessionOptions) => Promise<string>;
+  createSessionForQuiz: (quizId: string, options?: SessionOptions, quizDataParam?: any) => Promise<string>;
   joinSession: (code: string, name: string) => Promise<string>;
   loadSessionById: (sessionId: string) => Promise<void>;
   
@@ -112,7 +113,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [unsubscribeSession, unsubscribeParticipants]);
   
   // 새 세션 생성
-  const createSessionForQuiz = async (quizId: string, options?: SessionOptions): Promise<string> => {
+  const createSessionForQuiz = async (quizId: string, options?: SessionOptions, quizDataParam?: any): Promise<string> => {
     if (!currentUser) {
       throw new Error('로그인이 필요합니다.');
     }
@@ -147,8 +148,33 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('새 세션 생성 시작...');
       
-      // 세션 옵션 적용하여 새 세션 생성
-      const sessionId = await createSession(quizId, currentUser.uid, options);
+      // 퀴즈 데이터 가져오기
+      let quizData = quizDataParam;
+      
+      // 매개변수로 전달된 퀴즈 데이터가 없으면 세션 스토리지에서 찾기
+      if (!quizData) {
+        try {
+          // 세션 스토리지에서 캐시된 퀴즈 데이터 확인
+          const cachedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
+          if (cachedQuiz) {
+            quizData = JSON.parse(cachedQuiz);
+            console.log('세션 스토리지에서 퀴즈 데이터를 로드했습니다:', quizData);
+          } else {
+            // 캐시된 데이터가 없으면 Firestore에서 로드 시도
+            quizData = await getQuizById(quizId, currentUser.uid);
+          }
+        } catch (error) {
+          console.error('퀴즈 데이터 로드 오류:', error);
+          throw new Error('퀴즈 데이터를 가져오는데 실패했습니다.');
+        }
+      }
+      
+      if (!quizData) {
+        throw new Error('퀴즈 데이터를 찾을 수 없습니다.');
+      }
+      
+      // 퀴즈 데이터와 함께 세션 생성
+      const sessionId = await createSessionWithQuizData(quizId, currentUser.uid, quizData, options);
       console.log('새 세션 생성 완료:', sessionId);
       
       // 세션 데이터 구독
@@ -442,8 +468,27 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 세션에 대한 퀴즈 정보 가져오기 (호스트 ID로 검색 시도)
-      const quiz = await getQuizById(session.quizId, session.hostId);
+      // 퀴즈 데이터를 RTDB에서 가져오기 시도
+      let quiz;
+      try {
+        // 먼저 RTDB에서 세션에 저장된 퀴즈 데이터 확인
+        const rtdbQuizData = await getQuizDataForClient(sessionId);
+        
+        if (rtdbQuizData) {
+          // RTDB에 저장된 퀴즈 데이터 사용
+          console.log('RTDB에서 퀴즈 데이터를 찾았습니다.');
+          quiz = rtdbQuizData;
+        } else {
+          // 기존 방식으로 Firestore에서 가져오기
+          console.log('Firestore에서 퀴즈 데이터 로드 시도...');
+          quiz = await getQuizById(session.quizId);
+        }
+      } catch (quizError) {
+        console.error('RTDB에서 퀴즈 데이터 로드 실패:', quizError);
+        // Firestore 폴백
+        quiz = await getQuizById(session.quizId);
+      }
+      
       if (!quiz) {
         throw new Error('퀴즈 정보를 찾을 수 없습니다.');
       }

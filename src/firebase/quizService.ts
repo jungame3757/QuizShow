@@ -9,10 +9,12 @@ import {
   deleteDoc, 
   serverTimestamp, 
   Timestamp,
-  collectionGroup 
+  collectionGroup,
+  where
 } from 'firebase/firestore';
 import { db } from './config';
 import { Quiz, Question } from '../types';
+import { getAuth } from 'firebase/auth';
 
 // 변경된 컬렉션 경로
 const getUserQuizzesCollectionPath = (userId: string) => `users/${userId}/quizzes`;
@@ -105,64 +107,6 @@ const convertFirestoreQuizToQuiz = (firestoreQuiz: FirestoreQuiz & { id: string 
 
 // 랜덤 ID 생성 헬퍼 함수
 const generateId = () => Math.random().toString(36).substring(2, 9);
-
-// Quiz를 Firestore에 저장하기 위한 변환
-const convertQuizToFirestoreQuiz = (quiz: Omit<Quiz, 'id'>): Omit<FirestoreQuiz, 'id'> => {
-  // 날짜를 안전하게 Timestamp로 변환
-  const safelyConvertToTimestamp = (dateString: string | undefined) => {
-    if (!dateString) return null;
-    
-    try {
-      // 유효한 날짜 문자열인지 확인
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        console.warn('유효하지 않은 날짜 문자열:', dateString);
-        return Timestamp.fromDate(new Date());
-      }
-      return Timestamp.fromDate(date);
-    } catch (error) {
-      console.error('날짜 변환 오류:', error, 'original value:', dateString);
-      return Timestamp.fromDate(new Date());
-    }
-  };
-
-  // 질문 데이터 유효성 검사
-  const validQuestions = Array.isArray(quiz.questions) 
-    ? quiz.questions.map(q => {
-        const options = Array.isArray(q.options) ? q.options : [];
-        let correctAnswerIndex = 0;
-        
-        if (typeof q.correctAnswer === 'number') {
-          // 이미 숫자 형태라면 그대로 사용
-          correctAnswerIndex = q.correctAnswer;
-        } else if (q.correctAnswer !== undefined && options.length > 0) {
-          // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
-          const correctAnswerStr = String(q.correctAnswer);
-          const index = options.findIndex(opt => String(opt) === correctAnswerStr);
-          if (index !== -1) {
-            correctAnswerIndex = index;
-          }
-        }
-        
-        return {
-          text: q.text || '문제',
-          options: options,
-          correctAnswer: correctAnswerIndex,
-        };
-      })
-    : [];
-
-  // 기본 객체 생성
-  const firestoreQuiz: any = {
-    title: quiz.title || '제목 없음',
-    description: quiz.description || '',
-    questions: validQuestions,
-    createdAt: safelyConvertToTimestamp(quiz.createdAt) || Timestamp.fromDate(new Date()),
-    updatedAt: serverTimestamp(),
-  };
-  
-  return firestoreQuiz;
-};
 
 // 페이지네이션과 함께 퀴즈 결과를 반환하는 인터페이스
 export interface QuizListResponse {
@@ -287,21 +231,57 @@ export const createQuiz = async (quiz: Omit<Quiz, 'id'>, userId: string): Promis
 };
 
 // 퀴즈 ID로 퀴즈 가져오기
-export const getQuizById = async (quizId: string): Promise<Quiz | null> => {
+export const getQuizById = async (quizId: string, hostId?: string): Promise<Quiz | null> => {
   try {
-    // 모든 사용자의 모든 퀴즈 컬렉션 그룹에서 검색
-    const quizzesGroup = collectionGroup(db, 'quizzes');
-    const querySnapshot = await getDocs(query(quizzesGroup));
-    
-    // 일치하는 ID 찾기
-    const matchingDoc = querySnapshot.docs.find(doc => doc.id === quizId);
-    
-    if (!matchingDoc) {
+    // ID 유효성 검사 추가
+    if (!quizId) {
+      console.error('유효하지 않은 퀴즈 ID:', quizId);
       return null;
     }
     
-    const quizData = matchingDoc.data() as FirestoreQuiz;
-    return convertFirestoreQuizToQuiz({ ...quizData, id: matchingDoc.id });
+    // 1. 호스트 ID가 제공된 경우 직접 경로를 통해 접근 (가장 안전한 방법)
+    if (hostId) {
+      const directDocRef = doc(db, `users/${hostId}/quizzes/${quizId}`);
+      const directDocSnapshot = await getDoc(directDocRef);
+      
+      if (directDocSnapshot.exists()) {
+        const quizData = directDocSnapshot.data() as FirestoreQuiz;
+        return convertFirestoreQuizToQuiz({ ...quizData, id: quizId });
+      }
+    }
+    
+    // 2. 현재 인증된 사용자의 퀴즈 컬렉션 확인 
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    if (currentUser) {
+      const userDocRef = doc(db, `users/${currentUser.uid}/quizzes/${quizId}`);
+      const userDocSnapshot = await getDoc(userDocRef);
+      
+      if (userDocSnapshot.exists()) {
+        const quizData = userDocSnapshot.data() as FirestoreQuiz;
+        return convertFirestoreQuizToQuiz({ ...quizData, id: quizId });
+      }
+    }
+    
+    // 3. collectionGroup을 사용하여 모든 사용자의 퀴즈에서 검색 (Firestore 규칙에 허용된 경우)
+    try {
+      const q = query(collectionGroup(db, 'quizzes'), where('__name__', '==', quizId));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const quizDoc = querySnapshot.docs[0];
+        const quizData = quizDoc.data() as FirestoreQuiz;
+        return convertFirestoreQuizToQuiz({ ...quizData, id: quizId });
+      }
+    } catch (collectionGroupError) {
+      console.error('collectionGroup 쿼리 오류:', collectionGroupError);
+      // collectionGroup 쿼리 권한이 없으면 여기서 오류가 발생할 수 있음
+    }
+    
+    // 모든 시도가 실패한 경우
+    console.warn('퀴즈를 찾을 수 없거나 접근 권한이 없습니다:', quizId);
+    return null;
   } catch (error) {
     console.error('Error getting quiz:', error);
     throw error;

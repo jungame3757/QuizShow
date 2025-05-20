@@ -238,7 +238,7 @@ const SessionHistoryDetail: React.FC = () => {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
         <div className="max-w-4xl mx-auto">
           <HostPageHeader handleNavigation={handleNavigation} />
           <HostNavBar handleNavigation={handleNavigation} />
@@ -249,7 +249,7 @@ const SessionHistoryDetail: React.FC = () => {
             ]} 
           />
           
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
             <LoadingAnimation message="세션 기록을 불러오는 중" />
           </div>
         </div>
@@ -259,7 +259,7 @@ const SessionHistoryDetail: React.FC = () => {
   
   if (error || !sessionHistory) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
         <div className="max-w-4xl mx-auto">
           <HostPageHeader handleNavigation={handleNavigation} />
           <HostNavBar handleNavigation={handleNavigation} />
@@ -270,9 +270,9 @@ const SessionHistoryDetail: React.FC = () => {
             ]} 
           />
           
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-              <h1 className="text-2xl font-bold text-purple-700 mb-2 sm:mb-0">결과 보고서를 찾을 수 없습니다.</h1>
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl font-bold text-purple-700 mb-2 sm:mb-0">결과 보고서를 찾을 수 없습니다.</h1>
               <Link 
                 to="/host/history"
                 className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center text-sm whitespace-nowrap w-full sm:w-auto justify-center sm:justify-start"
@@ -281,7 +281,7 @@ const SessionHistoryDetail: React.FC = () => {
               </Link>
             </div>
             
-            <div className="bg-red-50 text-red-600 p-4 rounded-md">
+            <div className="bg-red-50 text-red-600 p-3 sm:p-4 rounded-md">
               {error || '세션 기록을 찾을 수 없습니다.'}
             </div>
           </div>
@@ -294,7 +294,7 @@ const SessionHistoryDetail: React.FC = () => {
   const correctRate = calculateCorrectRate();
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
       <div className="max-w-4xl mx-auto">
         <HostPageHeader handleNavigation={handleNavigation} />
         <HostNavBar handleNavigation={handleNavigation} />
@@ -306,31 +306,33 @@ const SessionHistoryDetail: React.FC = () => {
         />
         
         {/* 첫 번째 프레임: 세션 제목, 기본 정보 및 요약 정보 카드 */}
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
-            <h1 className="text-2xl font-bold text-purple-700 mb-2 sm:mb-0">{sessionHistory.title}</h1>
-            <div className="flex items-center space-x-2 w-full sm:w-auto mt-2 sm:mt-0">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-3 sm:mb-4">
+          <div className="relative mb-2 sm:mb-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-purple-700 mb-2 sm:mb-0 break-words">{sessionHistory.title}</h1>
+
+            {/* 시작시간과 종료시간 표시 */}
+            <div className="mb-2 sm:mb-3">
+              <p className="text-xs sm:text-sm text-gray-600 flex items-center">
+                <Clock size={14} className="mr-1 flex-shrink-0" />
+                <span className="truncate">{formatDateCustom(sessionHistory.startedAt)} - {formatDateCustom(sessionHistory.endedAt)}</span>
+              </p>
+            </div>
+          
+            {/* 모바일에서는 날짜 아래, 데스크톱에서는 제목 옆에 위치 */}
+            <div className="flex items-center space-x-2 w-full sm:w-auto sm:absolute sm:top-0 sm:right-0">
               <Link 
                 to="/host/history"
-                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center text-sm whitespace-nowrap"
+                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center text-xs sm:text-sm whitespace-nowrap"
               >
-                <ArrowLeft size={14} className="mr-1" /> 목록으로
+                <ArrowLeft size={14} className="mr-1" /> 목록
               </Link>
               <button
                 onClick={handleDeleteClick}
-                className="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-sm whitespace-nowrap"
+                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-xs sm:text-sm whitespace-nowrap"
               >
                 <Trash2 size={14} className="mr-1" /> 삭제
               </button>
             </div>
-          </div>
-          
-          {/* 시작시간과 종료시간 표시 */}
-          <div className="mb-6">
-            <p className="text-gray-600 flex items-center">
-              <Clock size={16} className="mr-1" />
-              {formatDateCustom(sessionHistory.startedAt)} - {formatDateCustom(sessionHistory.endedAt)}
-            </p>
           </div>
 
           {/* 요약 정보 카드 컴포넌트 */}
@@ -339,41 +341,41 @@ const SessionHistoryDetail: React.FC = () => {
             correctRate={correctRate} 
             calculateDuration={calculateDuration} 
           />
-            </div>
-            
+        </div>
+        
         {/* 두 번째 프레임: 탭 내비게이션 및 콘텐츠 */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md overflow-hidden mb-4 sm:mb-8">
           {/* 탭 네비게이션 */}
           <div className="border-b border-gray-200">
-            <div className="flex space-x-4">
+            <div className="flex">
               <button
-                className={`py-4 px-6 font-medium ${
+                className={`py-3 sm:py-4 px-3 sm:px-6 font-medium text-sm sm:text-base flex-1 sm:flex-none ${
                   activeTab === 'ranking' 
                     ? 'text-purple-700 border-b-2 border-purple-500' : 
                     'text-gray-600 hover:text-purple-700'
                 }`}
                 onClick={() => setActiveTab('ranking')}
               >
-                <div className="flex items-center">
-                  <Award size={18} className="mr-2" /> 점수 순위
+                <div className="flex items-center justify-center sm:justify-start">
+                  <Award size={16} className="mr-1 sm:mr-2" /> 점수 순위
                 </div>
               </button>
               <button
-                className={`py-4 px-6 font-medium ${
+                className={`py-3 sm:py-4 px-3 sm:px-6 font-medium text-sm sm:text-base flex-1 sm:flex-none ${
                   activeTab === 'questions' 
                     ? 'text-purple-700 border-b-2 border-purple-500' : 
                     'text-gray-600 hover:text-purple-700'
                 }`}
                 onClick={() => setActiveTab('questions')}
               >
-                <div className="flex items-center">
-                  <BookOpen size={18} className="mr-2" /> 문제별 통계
+                <div className="flex items-center justify-center sm:justify-start">
+                  <BookOpen size={16} className="mr-1 sm:mr-2" /> 문제별 통계
                 </div>
               </button>
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-3 sm:p-6">
           {/* 점수 순위 탭 내용 */}
           {activeTab === 'ranking' && (
               <RankingTab 
@@ -405,22 +407,22 @@ const SessionHistoryDetail: React.FC = () => {
       {/* 삭제 확인 모달 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-5 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-3">세션 기록 삭제</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white rounded-lg p-4 sm:p-5 max-w-md w-full mx-4">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">세션 기록 삭제</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
               "{sessionHistory.title}" 세션 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
             </p>
             <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={handleCancelDelete}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto text-sm"
                 disabled={deleting}
               >
                 취소
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center w-full sm:w-auto"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center w-full sm:w-auto text-sm"
                 disabled={deleting}
               >
                 {deleting ? (

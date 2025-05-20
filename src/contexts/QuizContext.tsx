@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from 'firebase/auth';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { Quiz, Question, Participant } from '../types';
 import {
@@ -16,7 +15,7 @@ interface QuizContextType {
   participants: Participant[];
   createQuiz: (quiz: Omit<Quiz, 'id'>) => Promise<string>;
   updateQuiz: (id: string, quiz: Partial<Quiz>) => Promise<void>;
-  getQuiz: (id: string) => Promise<Quiz | null>;
+  getQuiz: (id: string, hostId?: string) => Promise<Quiz | null>;
   addQuestion: (quizId: string, question: Omit<Question, 'id'>) => Promise<void>;
   removeQuestion: (quizId: string, questionIndex: number) => Promise<void>;
   loadUserQuizzes: () => Promise<void>;
@@ -98,9 +97,6 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // 랜덤 ID 생성
-  const generateId = () => Math.random().toString(36).substring(2, 9);
-
   // 퀴즈 생성
   const createQuiz = async (quiz: Omit<Quiz, 'id'>) => {
     if (!currentUser) {
@@ -164,7 +160,7 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // ID로 퀴즈 가져오기
-  const getQuiz = async (id: string): Promise<Quiz | null> => {
+  const getQuiz = async (id: string, hostId?: string): Promise<Quiz | null> => {
     try {
       setLoading(true);
       setError(null);
@@ -181,8 +177,8 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
       let quiz: Quiz | null = null;
       
       try {
-        // ID로 검색
-        quiz = await getQuizByIdFromFirebase(id);
+        // ID로 검색 (hostId를 전달)
+        quiz = await getQuizByIdFromFirebase(id, hostId);
       } catch (fetchError) {
         console.error('Firebase에서 퀴즈 가져오기 오류:', fetchError);
       }

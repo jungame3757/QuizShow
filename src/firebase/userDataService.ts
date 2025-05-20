@@ -1,20 +1,5 @@
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  deleteDoc,
-  writeBatch,
-  query,
-  limit 
-} from 'firebase/firestore';
-import { 
-  ref, 
-  get, 
-  remove,
-  query as rtdbQuery,
-  orderByChild,
-  equalTo
-} from 'firebase/database';
+import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { ref, remove } from 'firebase/database';
 import { db, rtdb } from './config';
 import { getSessionsByHostId, deleteSession } from './sessionService';
 

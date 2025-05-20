@@ -1,12 +1,11 @@
 import React from 'react';
-import { Share2, Users, BarChart2 } from 'lucide-react';
-import ParticipantList from '../history/ParticipantList';
+import { Users, BarChart2 } from 'lucide-react';
+import ParticipantList from './ParticipantList';
 import QuizProgress from './QuizProgress';
-import InviteTab from './InviteTab';
 
 interface SessionTabsProps {
-  activeTab: 'participants' | 'progress' | 'invite';
-  setActiveTab: (tab: 'participants' | 'progress' | 'invite') => void;
+  activeTab: 'participants' | 'progress';
+  setActiveTab: (tab: 'participants' | 'progress') => void;
   participants: Record<string, any>;
   quiz: any;
   sessionCode: string;
@@ -14,7 +13,6 @@ interface SessionTabsProps {
   isCopied: boolean;
   onCopySessionCode: () => void;
   onCopyJoinUrl: () => void;
-  onShowQRCode: () => void;
 }
 
 const SessionTabs: React.FC<SessionTabsProps> = ({
@@ -26,26 +24,11 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   qrValue,
   isCopied,
   onCopySessionCode,
-  onCopyJoinUrl,
-  onShowQRCode
+  onCopyJoinUrl
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
       <div className="flex border-b border-gray-200">
-        <button
-          className={`
-            flex-1 py-3 px-3 sm:px-6 text-center font-medium
-            ${activeTab === 'invite' ? 
-              'text-purple-700 border-b-2 border-purple-500' : 
-              'text-gray-600 hover:text-purple-700'}
-          `}
-          onClick={() => setActiveTab('invite')}
-        >
-          <div className="flex flex-col sm:flex-row items-center justify-center">
-            <Share2 size={18} className="sm:mr-2" /> 
-            <span className="text-xs sm:text-base mt-1 sm:mt-0">초대하기</span>
-          </div>
-        </button>
         <button
           className={`
             flex-1 py-3 px-3 sm:px-6 text-center font-medium
@@ -85,22 +68,19 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
       
       <div className="p-6">
         {activeTab === 'participants' && (
-          <ParticipantList participants={participants} quiz={quiz} />
-        )}
-        
-        {activeTab === 'progress' && (
-          <QuizProgress quiz={quiz} participants={participants} />
-        )}
-
-        {activeTab === 'invite' && (
-          <InviteTab
+          <ParticipantList 
+            participants={participants} 
+            quiz={quiz}
             sessionCode={sessionCode}
             qrValue={qrValue}
             isCopied={isCopied}
             onCopySessionCode={onCopySessionCode}
             onCopyJoinUrl={onCopyJoinUrl}
-            onShowQRCode={onShowQRCode}
           />
+        )}
+        
+        {activeTab === 'progress' && (
+          <QuizProgress quiz={quiz} participants={participants} />
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Loader, StopCircle, Copy, Check } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Play, Loader, StopCircle, Clock } from 'lucide-react';
 import Button from '../../ui/Button';
 
 interface SessionControlsProps {
@@ -22,45 +22,70 @@ const SessionControls: React.FC<SessionControlsProps> = ({
   endingSession,
   onStartSession,
   onEndSessionClick,
-  sessionCode,
-  isCopied,
-  onCopyCode,
-  sessionDeleted
 }) => {
+  const [remainingTime, setRemainingTime] = useState<string>("계산 중...");
+  
+  // 남은 시간 계산
+  useEffect(() => {
+    if (!currentSession || !currentSession.expiresAt) return;
+    
+    const calculateRemainingTime = () => {
+      const now = Date.now();
+      const remaining = currentSession.expiresAt - now;
+      
+      if (remaining <= 0) {
+        setRemainingTime("만료됨");
+        return;
+      }
+      
+      const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // 조건부 형식 적용
+      if (days > 0) {
+        setRemainingTime(`${days}일 ${hours}시간 ${minutes}분`);
+      } else if (hours > 0) {
+        setRemainingTime(`${hours}시간 ${minutes}분`);
+      } else {
+        setRemainingTime(`${minutes}분`);
+      }
+    };
+    
+    calculateRemainingTime();
+    const timer = setInterval(calculateRemainingTime, 60000); // 1분마다 업데이트
+    
+    return () => clearInterval(timer);
+  }, [currentSession]);
+  
   return (
     <>
       {currentSession && !needsSession ? (
-        <div className={`mt-4 p-4 rounded-xl bg-green-100 border-2 border-green-300`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between">
+        <div className="mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl bg-green-100 border-2 border-green-300">
+          <div className="flex flex-col space-y-2 sm:space-y-3 sm:flex-row sm:items-center justify-between">
             <div>
-              <h3 className="text-lg font-medium text-green-800 mb-1">초대 코드</h3>
+              <h3 className="text-base sm:text-lg font-medium text-green-800 mb-0.5 sm:mb-1">활동 남은 시간</h3>
               <div className="flex items-center">
-                <span className="text-3xl font-bold tracking-wider text-green-700">{sessionCode}</span>
-                <button 
-                  onClick={onCopyCode}
-                  className="ml-2 p-1 text-green-600 hover:text-green-800 hover:bg-green-200 rounded-full transition-colors"
-                  aria-label="초대 코드 복사"
-                >
-                  {isCopied ? <Check size={20} /> : <Copy size={20} />}
-                </button>
+                <Clock size={18} className="text-green-700 mr-1.5 sm:mr-2" />
+                <span className="text-xl sm:text-3xl font-bold tracking-wider text-green-700">{remainingTime}</span>
               </div>
             </div>
-            <div className="mt-4 md:mt-0">
+            <div className="mt-1 sm:mt-0">
               <Button 
                 onClick={onEndSessionClick}
                 variant="danger"
                 disabled={endingSession}
-                className="flex items-center"
+                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4"
               >
                 {endingSession ? (
                   <>
-                    <Loader size={18} className="animate-spin mr-2" />
-                    종료 중...
+                    <Loader size={16} className="animate-spin mr-1.5 sm:mr-2" />
+                    <span className="text-sm sm:text-base">종료 중...</span>
                   </>
                 ) : (
                   <>
-                    <StopCircle size={18} className="mr-2" />
-                    활동 종료하기
+                    <StopCircle size={16} className="mr-1.5 sm:mr-2" />
+                    <span className="text-sm sm:text-base">활동 종료하기</span>
                   </>
                 )}
               </Button>
@@ -68,32 +93,32 @@ const SessionControls: React.FC<SessionControlsProps> = ({
           </div>
         </div>
       ) : needsSession ? (
-        <div className={`mt-4 p-4 rounded-xl bg-gray-100 border-2 border-gray-300`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between">
+        <div className="mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl bg-gray-100 border-2 border-gray-300">
+          <div className="flex flex-col space-y-2 sm:space-y-3 sm:flex-row sm:items-center justify-between">
             <div>
-              <h3 className="text-lg font-medium text-gray-800 mb-1">
+              <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-0.5 sm:mb-1">
                 활동이 꺼져있음
               </h3>
               <div className="flex items-center">
-                <p className="text-gray-700">활동을 시작하면 참가자들이 퀴즈에 참여할 수 있습니다.</p>
+                <p className="text-sm sm:text-base text-gray-700">활동을 시작하여 참가자들을 초대하세요.</p>
               </div>
             </div>
-            <div className="mt-4 md:mt-0">
+            <div className="mt-1 sm:mt-0">
               <Button 
                 onClick={onStartSession}
                 variant={"success"}
                 disabled={creatingSession}
-                className="flex items-center"
+                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4"
               >
                 {creatingSession ? (
                   <>
-                    <Loader size={18} className="animate-spin mr-2" />
-                    활동 생성 중...
+                    <Loader size={16} className="animate-spin mr-1.5 sm:mr-2" />
+                    <span className="text-sm sm:text-base">활동 생성 중...</span>
                   </>
                 ) : (
                   <>
-                    <Play size={18} className="mr-2" />
-                    {sessionDeleted ? "새 활동 시작하기" : "활동 시작하기"}
+                    <Play size={16} className="mr-1.5 sm:mr-2" />
+                    <span className="text-sm sm:text-base">새 활동 시작하기</span>
                   </>
                 )}
               </Button>

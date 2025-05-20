@@ -1,5 +1,4 @@
-import React from 'react';
-import { BarChart2 } from 'lucide-react';
+import React, { useState } from 'react';
 import { Quiz } from '../../../types';
 
 // Realtime Database 참가자 타입 정의
@@ -24,6 +23,8 @@ interface QuizProgressProps {
 }
 
 const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
+  const [showAnswers, setShowAnswers] = useState(true);
+
   // 참가자 배열로 변환
   const participantsArray = Object.values(participants);
 
@@ -68,9 +69,36 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
 
   return (
     <div>
-      <h3 className="text-xl font-bold text-purple-700 mb-4 flex items-center">
-        <BarChart2 size={24} className="mr-2" /> 문제 통계
-      </h3>
+      <div className="flex justify-end mb-4">
+        <div className="flex items-center">
+          <span className="font-medium text-sm text-gray-700 mr-2">정답 표시</span>
+          <div className="relative inline-block w-10 h-6">
+            <input
+              type="checkbox"
+              id="showAnswers"
+              className="opacity-0 w-0 h-0"
+              checked={showAnswers}
+              onChange={(e) => setShowAnswers(e.target.checked)}
+            />
+            <label
+              htmlFor="showAnswers"
+              className={`
+                absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full
+                transition-colors duration-200 ease-in-out
+                ${showAnswers ? 'bg-purple-500' : 'bg-gray-300'}
+              `}
+            >
+              <span
+                className={`
+                  absolute left-0.5 bottom-0.5 bg-white w-5 h-5 rounded-full
+                  transition-transform duration-200 ease-in-out
+                  ${showAnswers ? 'transform translate-x-4' : ''}
+                `}
+              ></span>
+            </label>
+          </div>
+        </div>
+      </div>
       
       {answersByQuestion.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
@@ -116,7 +144,7 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
                           {optionIndex + 1}
                         </div>
                         <span className="text-sm flex-1">{option}</span>
-                        {stats.isCorrect && (
+                        {showAnswers && stats.isCorrect && (
                           <div className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
                             정답
                           </div>
@@ -125,7 +153,7 @@ const QuizProgress: React.FC<QuizProgressProps> = ({ quiz, participants }) => {
                       <div className="flex items-center">
                         <div className="h-6 bg-gray-200 rounded-full overflow-hidden flex-grow mr-3" style={{ width: 'calc(100% - 50px)' }}>
                           <div 
-                            className={`h-full ${stats.isCorrect ? 'bg-green-500' : 'bg-red-500'}`}
+                            className={`h-full ${showAnswers && stats.isCorrect ? 'bg-green-500' : showAnswers ? 'bg-red-500' : 'bg-blue-500'}`}
                             style={{ width: `${stats.percentage}%` }}
                           ></div>
                         </div>

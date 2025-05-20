@@ -142,7 +142,7 @@ const CreateQuiz: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
       {/* 로딩 오버레이 컴포넌트 사용 */}
       {isSubmitting && <LoadingOverlay message="퀴즈와 세션을 생성하는 중..." />}
       
@@ -154,18 +154,18 @@ const CreateQuiz: React.FC = () => {
         <Breadcrumb items={[{ label: '새 퀴즈 만들기' }]} />
         
         {(error || quizError || sessionError) && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+          <div className="bg-red-100 text-red-700 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4">
             {error || quizError || sessionError}
           </div>
         )}
         
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 relative">
-          <h1 className="text-2xl font-bold text-purple-700 p-6">새 퀴즈 만들기</h1>
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-3 sm:mb-6 relative">
+          <h1 className="text-xl sm:text-2xl font-bold text-purple-700 p-4 sm:p-6">새 퀴즈 만들기</h1>
           
-          <div className="p-4 md:p-6">
-            <div className="space-y-4">
+          <div className="p-3 sm:p-6">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-lg font-medium text-gray-700 mb-2">
+                <label className="block text-base sm:text-lg font-medium text-gray-700 mb-1 sm:mb-2">
                   퀴즈 제목
                 </label>
                 <Input
@@ -178,7 +178,7 @@ const CreateQuiz: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-lg font-medium text-gray-700 mb-2">
+                <label className="block text-base sm:text-lg font-medium text-gray-700 mb-1 sm:mb-2">
                   설명 (선택사항)
                 </label>
                 <Input
@@ -195,19 +195,19 @@ const CreateQuiz: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-md p-3 mb-3">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-bold text-purple-700">문제</h2>
+            <h2 className="text-base sm:text-lg font-bold text-purple-700">문제</h2>
           </div>
           
           {questions.length === 0 && !isAddingQuestion && (
-            <div className="text-center py-6 bg-purple-50 rounded-lg">
-              <p className="text-gray-600 mb-3 text-sm">아직 추가된 문제가 없습니다</p>
+            <div className="text-center py-4 sm:py-6 bg-purple-50 rounded-lg">
+              <p className="text-gray-600 mb-2 sm:mb-3 text-sm">아직 추가된 문제가 없습니다</p>
               <Button 
                 onClick={() => setIsAddingQuestion(true)}
                 variant="primary"
                 size="medium"
-                className="py-2 px-4"
+                className="py-1.5 sm:py-2 px-3 sm:px-4 text-sm sm:text-base"
               >
-                <Plus size={16} className="mr-2" /> 첫 문제 추가하기
+                <Plus size={16} className="mr-1 sm:mr-2" /> 첫 문제 추가하기
               </Button>
             </div>
           )}
@@ -260,18 +260,18 @@ const CreateQuiz: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="text-gray-800 text-base font-medium line-clamp-1 mb-2">{question.text}</div>
-                      <div className="bg-purple-50 rounded-md p-3 w-full border border-purple-100">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="text-gray-800 text-sm sm:text-base font-medium line-clamp-1 mb-2">{question.text}</div>
+                      <div className="bg-purple-50 rounded-md p-2 sm:p-3 w-full border border-purple-100">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                           {question.options.map((option: string, optIdx: number) => (
                             <div key={optIdx} className="flex items-center">
                               {question.correctAnswerIndex === optIdx ? (
                                 <div className="flex items-center px-2 py-1 bg-green-50 border border-green-200 rounded-md text-green-700 w-full">
                                   <Check size={14} className="mr-1 flex-shrink-0" /> 
-                                  <span className="truncate">{option}</span>
+                                  <span className="truncate text-sm">{option}</span>
                                 </div>
                               ) : (
-                                <div className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-600 ml-4 w-full truncate">
+                                <div className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-600 ml-4 w-full truncate text-sm">
                                   {option}
                                 </div>
                               )}
@@ -322,11 +322,12 @@ const CreateQuiz: React.FC = () => {
           )}
         </div>
         
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center mt-4 sm:mt-6">
           <Button 
             onClick={handleCreateQuiz}
             variant="primary"
             disabled={!title || questions.length === 0 || isSubmitting || quizLoading || sessionLoading}
+            className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base"
           >
             {isSubmitting ? (
               <span>처리 중...</span>

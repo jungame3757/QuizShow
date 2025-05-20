@@ -9,6 +9,7 @@ import HostNavBar from '../../components/host/HostNavBar';
 import HostPageHeader from '../../components/host/HostPageHeader';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import Breadcrumb from '../../components/ui/Breadcrumb';
+import { getAuth } from 'firebase/auth';
 
 const EditQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
@@ -39,7 +40,13 @@ const EditQuiz: React.FC = () => {
         setIsLoading(true);
         setError('');
         
-        const quizData = await getQuiz(quizId);
+        // 현재 사용자의 ID를 호스트 ID로 전달
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        const hostId = currentUser?.uid;
+        
+        // 호스트 ID와 함께 퀴즈 로드 시도
+        const quizData = await getQuiz(quizId, hostId);
         
         if (quizData) {
           setTitle(quizData.title || '');
@@ -141,8 +148,13 @@ const EditQuiz: React.FC = () => {
         throw new Error('유효하지 않은 퀴즈 ID입니다.');
       }
       
+      // 현재 사용자 ID 가져오기
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const hostId = currentUser?.uid;
+      
       // 기존 퀴즈 데이터와 비교하여 변경사항이 있는지 확인
-      const originalQuizData = await getQuiz(quizId);
+      const originalQuizData = await getQuiz(quizId, hostId);
       
       // 실제 변경 여부 확인 (제목, 설명, 질문 수 또는 질문 내용)
       const titleChanged = originalQuizData?.title !== title.trim();

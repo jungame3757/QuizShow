@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Settings, Clock } from 'lucide-react';
 import copy from 'clipboard-copy';
 import { useQuiz } from '../../contexts/QuizContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,166 +9,27 @@ import HostPageHeader from '../../components/host/HostPageHeader';
 import LoadingOverlay from '../../components/ui/LoadingOverlay';
 import LoadingAnimation from '../../components/ui/LoadingAnimation';
 import Breadcrumb from '../../components/ui/Breadcrumb';
-import { db } from '../../firebase/config';
-import { writeBatch, doc, getDoc, FirestoreError } from 'firebase/firestore';
+import { FirestoreError } from 'firebase/firestore';
+import { deleteQuiz } from '../../firebase/quizService';
 
 // 컴포넌트 임포트
-import { QuizHeader, SessionControls, SessionTabs } from '../../components/host/session';
+import { QuizHeader, SessionControls, SessionTabs, SessionSettingsFrame } from '../../components/host/session';
+import { SessionSettings } from '../../components/host/session/SessionSettings';
 
 // 모달 컴포넌트 임포트
 import { 
   EditWarningModal, 
   DeleteWarningModal, 
-  DeleteConfirmModal, 
   EndSessionConfirmModal, 
   QRCodeModal
 } from '../../components/ui/modals';
 
 // 세션 설정 기본값
-const DEFAULT_SESSION_SETTINGS = {
+const DEFAULT_SESSION_SETTINGS: SessionSettings = {
   expiresIn: 24 * 60 * 60 * 1000, // 24시간
   randomizeQuestions: false,
   singleAttempt: true,
   questionTimeLimit: 30 // 30초
-};
-
-// 세션 설정 타입 정의
-interface SessionSettings {
-  expiresIn: number;
-  randomizeQuestions: boolean;
-  singleAttempt: boolean;
-  questionTimeLimit: number;
-}
-
-// 세션 설정 컴포넌트 props 타입
-interface SessionSettingsFrameProps {
-  settings: SessionSettings;
-  setSettings: React.Dispatch<React.SetStateAction<SessionSettings>>;
-  isLoading: boolean;
-}
-
-// 세션 설정 컴포넌트
-const SessionSettingsFrame: React.FC<SessionSettingsFrameProps> = ({ settings, setSettings }) => {
-  // 만료 시간 옵션들
-  const expiryOptions = [
-    { label: '1시간', value: 1 * 60 * 60 * 1000 },
-    { label: '3시간', value: 3 * 60 * 60 * 1000 },
-    { label: '6시간', value: 6 * 60 * 60 * 1000 },
-    { label: '12시간', value: 12 * 60 * 60 * 1000 },
-    { label: '24시간', value: 24 * 60 * 60 * 1000 },
-    { label: '48시간', value: 48 * 60 * 60 * 1000 },
-    { label: '7일', value: 7 * 24 * 60 * 60 * 1000 },
-  ];
-
-  // 문제 시간 옵션들 (초 단위)
-  const timeOptions = [
-    { label: '15초', value: 15 },
-    { label: '30초', value: 30 },
-    { label: '45초', value: 45 },
-    { label: '60초', value: 60 },
-    { label: '90초', value: 90 },
-    { label: '120초', value: 120 }
-  ];
-
-  return (
-    <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
-      <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="flex items-center">
-          <Settings size={20} className="mr-2 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-800">활동 설정</h3>
-        </div>
-      </div>
-
-      <div className="p-6 border-t border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 만료 기간 설정 */}
-          <div className="space-y-2">
-            <label htmlFor="expiry" className="block text-sm font-medium text-gray-700">
-              만료 기간
-            </label>
-            <select
-              id="expiry"
-              value={settings.expiresIn}
-              onChange={(e) => setSettings({...settings, expiresIn: Number(e.target.value)})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {expiryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              지정된 시간이 지나면 활동이 자동으로 종료됩니다.
-            </p>
-          </div>
-
-          {/* 문제 시간 설정 */}
-          <div className="space-y-2">
-            <label htmlFor="questionTime" className="block text-sm font-medium text-gray-700 flex items-center">
-              <Clock size={16} className="mr-1 text-blue-600" />
-              문제 시간 설정
-            </label>
-            <select
-              id="questionTime"
-              value={settings.questionTimeLimit}
-              onChange={(e) => setSettings({...settings, questionTimeLimit: Number(e.target.value)})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {timeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              참가자가 각 문제를 풀 수 있는 제한 시간입니다.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          {/* 문제 무작위 출제 */}
-          <div className="flex items-start space-x-3">
-            <input
-              type="checkbox"
-              id="randomize"
-              checked={settings.randomizeQuestions}
-              onChange={(e) => setSettings({...settings, randomizeQuestions: e.target.checked})}
-              className="h-4 w-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <div>
-              <label htmlFor="randomize" className="text-sm font-medium text-gray-700">
-                문제 무작위 출제
-              </label>
-              <p className="text-xs text-gray-500">
-                참가자마다 문제가 다른 순서로 표시됩니다.
-              </p>
-            </div>
-          </div>
-
-          {/* 참가 횟수 제한 */}
-          <div className="flex items-start space-x-3">
-            <input
-              type="checkbox"
-              id="singleAttempt"
-              checked={settings.singleAttempt}
-              onChange={(e) => setSettings({...settings, singleAttempt: e.target.checked})}
-              className="h-4 w-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <div>
-              <label htmlFor="singleAttempt" className="text-sm font-medium text-gray-700">
-                한 번만 참가 가능
-              </label>
-              <p className="text-xs text-gray-500">
-                참가자가 한 번만 퀴즈에 참여할 수 있습니다. 체크 해제 시 여러 번 참여 가능합니다.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const SessionQuiz: React.FC = () => {
@@ -177,7 +37,7 @@ const SessionQuiz: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getQuiz, loading: quizLoading, error: quizError } = useQuiz();
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: authLoading } = useAuth();
   const { 
     createSessionForQuiz,
     currentSession,
@@ -193,14 +53,14 @@ const SessionQuiz: React.FC = () => {
   // 데이터 로딩 상태 참조
   const quizLoadingRef = useRef(false);
   const sessionLoadingRef = useRef(false);
+  const authCheckedRef = useRef(false);
   
   const [quiz, setQuiz] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'participants' | 'progress' | 'invite'>('invite');
+  const [activeTab, setActiveTab] = useState<'participants' | 'progress'>('participants');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDataChanged, setIsDataChanged] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrValue, setQrValue] = useState('');
@@ -216,9 +76,10 @@ const SessionQuiz: React.FC = () => {
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [waitingForAuth, setWaitingForAuth] = useState(true);
   
   // 세션 설정 관련 상태
-  const [sessionSettings, setSessionSettings] = useState(DEFAULT_SESSION_SETTINGS);
+  const [sessionSettings, setSessionSettings] = useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
   
   const urlSearchParams = new URLSearchParams(location.search);
   const urlSessionId = urlSearchParams.get('sessionId');
@@ -239,6 +100,15 @@ const SessionQuiz: React.FC = () => {
       window.removeEventListener('offline', handleOfflineStatus);
     };
   }, []);
+  
+  // 인증 상태 확인
+  useEffect(() => {
+    if (!authLoading) {
+      // 인증 로딩이 완료되었을 때만 waitingForAuth 상태 해제
+      setWaitingForAuth(false);
+      authCheckedRef.current = true;
+    }
+  }, [authLoading]);
   
   // 퀴즈 ID 유효성 검사
   useEffect(() => {
@@ -272,7 +142,16 @@ const SessionQuiz: React.FC = () => {
 
   // 세션 로드 로직 - 의존성 최소화 및 중복 호출 방지
   const loadSessionData = useCallback(async () => {
-      if (!quizId || !currentUser || sessionLoaded || loadAttempted || sessionDeleted || sessionLoadingRef.current) {
+      if (!quizId || sessionLoaded || loadAttempted || sessionDeleted || sessionLoadingRef.current || waitingForAuth) {
+        return;
+      }
+      
+      // 인증되지 않은 경우 일단 리턴
+      if (!currentUser && !authLoading && authCheckedRef.current) {
+        console.log("인증되지 않은 사용자가 세션 로드 시도");
+        setError('로그인 후 다시 시도해주세요.');
+        setLoadAttempted(true);
+        setSessionLoaded(true);
         return;
       }
       
@@ -280,6 +159,8 @@ const SessionQuiz: React.FC = () => {
         sessionLoadingRef.current = true;
         setLoadAttempted(true);
         setLoadingActiveSession(true);
+        // 세션을 로드할 때 항상 참가자 탭이 선택되도록 설정
+        setActiveTab('participants');
         console.log(`퀴즈 ID(${quizId})로 세션 정보 로드 중...`);
 
         const quizSessions = await getSessionsByQuizId(quizId);
@@ -327,15 +208,44 @@ const SessionQuiz: React.FC = () => {
         setLoadingActiveSession(false);
         sessionLoadingRef.current = false;
       }
-  }, [quizId, currentUser, urlSessionId, loadSessionById, getSessionsByQuizId, navigate, sessionLoaded, loadAttempted, sessionDeleted, resetSessionState]);
+  }, [quizId, currentUser, urlSessionId, loadSessionById, getSessionsByQuizId, navigate, sessionLoaded, loadAttempted, sessionDeleted, resetSessionState, authLoading, waitingForAuth]);
 
   useEffect(() => {
     loadSessionData();
-  }, [loadSessionData]);
+  }, [loadSessionData, currentUser, waitingForAuth]);
 
   // 퀴즈 데이터 로드 - 중복 호출 방지 로직 추가
   const loadQuizData = useCallback(async () => {
-      if (!quizId || quizLoaded || sessionDeleted || quizLoadingRef.current) {
+      if (!quizId || quizLoaded || sessionDeleted || quizLoadingRef.current || waitingForAuth) {
+        return;
+      }
+      
+      // 인증되지 않은 경우에도 세션 스토리지에서 먼저 데이터 확인
+      const cachedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
+      if (cachedQuiz) {
+        try {
+          const quizData = JSON.parse(cachedQuiz);
+          console.log("세션 스토리지에서 퀴즈 정보 로드:", quizData);
+          setQuiz(quizData);
+          setQuizLoaded(true);
+          setIsLoading(false);
+          
+          // 인증 대기 중인 경우 여기서 리턴
+          if (!currentUser && authLoading) {
+            return;
+          }
+        } catch (cacheError) {
+          console.warn("캐시 사용 실패:", cacheError);
+        }
+      }
+      
+      // 인증되지 않은 경우 일단 리턴
+      if (!currentUser && !authLoading && authCheckedRef.current) {
+        console.log("인증되지 않은 사용자가 퀴즈 로드 시도");
+        if (!quiz) {
+          setError('로그인 후 다시 시도해주세요.');
+          navigate('/host/my-quizzes', { replace: true });
+        }
         return;
       }
       
@@ -345,58 +255,59 @@ const SessionQuiz: React.FC = () => {
         setError(null);
         console.log("퀴즈 정보 로드 중...", quizId);
         
-        // 로컬 캐싱 체크 (sessionStorage 활용)
-        const cachedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
-        if (cachedQuiz && !isOffline) {
+        if (currentUser) {
           try {
-            const quizData = JSON.parse(cachedQuiz);
-            const quizDocRef = doc(db, 'quizzes', quizId);
-            const quizDoc = await getDoc(quizDocRef);
+            // getQuiz 함수를 사용하여 퀴즈 정보 로드 (호스트 ID 함께 전달)
+            const quizData = await getQuiz(quizId, currentUser.uid);
             
-            // 캐시된 데이터가 최신인지 확인 (lastUpdated 필드 등을 활용할 수 있음)
-            if (quizDoc.exists() && quizDoc.data().updatedAt === quizData.updatedAt) {
-              console.log("캐시된 퀴즈 정보 사용:", quizData);
+            if (quizData) {
+              console.log("퀴즈 정보 로드 완료:", quizData);
+              
+              // 세션 스토리지에 저장
+              try {
+                sessionStorage.setItem(`quiz_${quizId}`, JSON.stringify(quizData));
+              } catch (storageError) {
+                console.warn("퀴즈 캐싱 실패:", storageError);
+              }
+              
               setQuiz(quizData);
               setQuizLoaded(true);
-              setIsLoading(false);
-              return;
+            } else {
+              console.error("퀴즈를 찾을 수 없음:", quizId);
+              setError('퀴즈를 찾을 수 없습니다. 세션이 종료되었거나 존재하지 않습니다.');
+              setSessionDeleted(true);
             }
-          } catch (cacheError) {
-            // 캐시 처리 실패 시 조용히 실패하고 원래 로직으로 진행
-            console.warn("캐시 사용 실패:", cacheError);
+          } catch (loadError) {
+            console.error("퀴즈 로드 오류:", loadError);
+            
+            // 캐시된 데이터가 있으면 그것을 사용
+            if (quiz) {
+              console.log("오류 발생했지만 캐시된 데이터 사용:", quiz);
+            } else {
+              setError('퀴즈 정보를 불러오는데 실패했습니다.');
+              setSessionDeleted(true);
+            }
           }
-        }
-        
-        const quizData = await getQuiz(quizId);
-        
-        if (quizData) {
-          console.log("퀴즈 정보 로드 완료:", quizData);
-          // 로컬 캐싱 (sessionStorage 활용)
-          try {
-            sessionStorage.setItem(`quiz_${quizId}`, JSON.stringify(quizData));
-          } catch (storageError) {
-            console.warn("퀴즈 캐싱 실패:", storageError);
-          }
-          setQuiz(quizData);
-          setQuizLoaded(true);
-        } else {
-          console.error("퀴즈를 찾을 수 없음:", quizId);
-          setError('퀴즈를 찾을 수 없습니다. 세션이 종료되었거나 존재하지 않습니다.');
-          setSessionDeleted(true);
+        } else if (!quiz) {
+          // 여전히 퀴즈 데이터가 없는 경우 (캐시도 없고 인증도 안됨)
+          setError('로그인 후 다시 시도해주세요.');
+          navigate('/host/my-quizzes', { replace: true });
         }
       } catch (err) {
         console.error("퀴즈 로드 오류:", err);
-        handleFirestoreError(err as FirestoreError, '퀴즈 정보를 불러오는데 실패했습니다.');
-        setSessionDeleted(true);
+        if (!quiz) {
+          handleFirestoreError(err as FirestoreError, '퀴즈 정보를 불러오는데 실패했습니다.');
+          setSessionDeleted(true);
+        }
       } finally {
         setIsLoading(false);
         quizLoadingRef.current = false;
       }
-  }, [quizId, getQuiz, quizLoaded, sessionDeleted, isOffline]);
+  }, [quizId, getQuiz, quizLoaded, sessionDeleted, isOffline, currentUser, authLoading, quiz, navigate, waitingForAuth]);
 
   useEffect(() => {
     loadQuizData();
-  }, [loadQuizData]);
+  }, [loadQuizData, currentUser, waitingForAuth]);
 
   // QR 코드 URL 생성 - 중복 계산 방지
   useEffect(() => {
@@ -411,7 +322,7 @@ const SessionQuiz: React.FC = () => {
   
   // 세션 시작 핸들러
   const handleStartSession = async () => {
-    if (!quizId || !currentUser) return;
+    if (!quizId || !currentUser || !quiz) return;
     
     if (isOffline) {
       setError('오프라인 상태에서는 세션을 시작할 수 없습니다.');
@@ -423,7 +334,8 @@ const SessionQuiz: React.FC = () => {
       setError(null);
       console.log('세션 생성 시작:', quizId, sessionSettings);
       
-      const sessionId = await createSessionForQuiz(quizId, sessionSettings);
+      // 이미 로드된 퀴즈 데이터를 직접 전달
+      const sessionId = await createSessionForQuiz(quizId, sessionSettings, quiz);
       console.log('세션 생성 완료:', sessionId);
       
       if (sessionId) {
@@ -432,6 +344,8 @@ const SessionQuiz: React.FC = () => {
         setLoadAttempted(false);
         
         resetSessionState();
+        // 새 활동을 시작할 때 항상 참가자 탭이 선택되도록 설정
+        setActiveTab('participants');
         
         navigate(`/host/session/${quizId}?sessionId=${sessionId}`, { replace: true });
       }
@@ -498,31 +412,56 @@ const SessionQuiz: React.FC = () => {
     console.error('Firestore 에러:', error.message);
     
     let errorMessage = defaultMessage;
+    let shouldRedirect = false;
+    let redirectPath = '/host/my-quizzes';
     
     if (error instanceof FirestoreError) {
       switch (error.code) {
         case 'permission-denied':
-          errorMessage = '이 작업을 수행할 권한이 없습니다.';
+          errorMessage = '이 작업을 수행할 권한이 없습니다. 로그인 페이지로 이동합니다.';
+          redirectPath = '/login';
+          shouldRedirect = true;
+          // 세션 스토리지에서 해당 퀴즈 정보 제거 (새로 로그인 후 다시 로드하도록)
+          if (quizId) {
+            sessionStorage.removeItem(`quiz_${quizId}`);
+          }
           break;
         case 'unavailable':
-          errorMessage = '네트워크 연결이 불안정합니다. 다시 시도해주세요.';
+          errorMessage = '네트워크 연결이 불안정합니다. 퀴즈 목록으로 이동합니다.';
+          shouldRedirect = true;
           break;
         case 'not-found':
-          errorMessage = '요청하신 데이터를 찾을 수 없습니다.';
+          errorMessage = '요청하신 데이터를 찾을 수 없습니다. 퀴즈 목록으로 이동합니다.';
+          shouldRedirect = true;
           break;
         case 'resource-exhausted':
           errorMessage = '요청량이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+          shouldRedirect = true;
           break;
         default:
-          // 기본 에러 메시지 사용
+          // 기본 에러 메시지에 리다이렉트 안내 추가
+          errorMessage = `${defaultMessage} 퀴즈 목록으로 이동합니다.`;
+          shouldRedirect = true;
           break;
       }
+    } else {
+      // 일반 Error 객체인 경우에도 리다이렉트
+      errorMessage = `${defaultMessage} 퀴즈 목록으로 이동합니다.`;
+      shouldRedirect = true;
     }
     
+    // 오류 메시지 설정
     setError(errorMessage);
+    
+    // 리다이렉트 수행 (약간의 지연을 두어 사용자가 오류 메시지를 볼 수 있게 함)
+    if (shouldRedirect) {
+      setTimeout(() => {
+        navigate(redirectPath);
+      }, 1500);
+    }
   };
 
-  // 퀴즈 삭제 핸들러 (배치 작업 사용)
+  // 퀴즈 삭제 핸들러
   const handleDeleteQuiz = async () => {
     if (!currentUser || !quizId) return;
     
@@ -535,51 +474,41 @@ const SessionQuiz: React.FC = () => {
       setIsProcessing(true);
       setIsDataChanged(true);
       
-      const batch = writeBatch(db);
-      
-      // 활성화된 세션과 관련 데이터 삭제 준비
+      // 활성화된 세션과 관련 데이터 삭제
       if (currentSession) {
-        console.log(`활성화된 세션 삭제 준비 중: ${currentSession.id}`);
-        
-        // 세션 삭제 처리
-        await cleanupSession(currentSession.id);
-        
-        // 세션 문서 삭제를 배치에 추가
-        const sessionRef = doc(db, 'sessions', currentSession.id);
-        batch.delete(sessionRef);
-        
-        console.log('세션 삭제 준비 완료');
-        resetSessionState();
+        console.log(`활성화된 세션 삭제 중: ${currentSession.id}`);
+        try {
+          await cleanupSession(currentSession.id);
+          console.log('세션 삭제 완료');
+          resetSessionState();
+        } catch (sessionError) {
+          console.error('세션 삭제 실패:', sessionError);
+          // 세션 삭제 실패해도 퀴즈 삭제 계속 진행
+        }
       } else if (quizId) {
-        // 활성화되지 않은 세션 삭제 준비
+        // 활성화되지 않은 세션이 있는지 확인하고 모두 삭제
         try {
           const sessions = await getSessionsByQuizId(quizId);
           
           for (const session of sessions) {
-            console.log(`관련 세션 삭제 준비 중: ${session.id}`);
-            
-            // 세션 삭제 처리
+            console.log(`관련 세션 삭제 중: ${session.id}`);
             await cleanupSession(session.id);
-            
-            // 세션 문서 삭제를 배치에 추가
-            const sessionRef = doc(db, 'sessions', session.id);
-            batch.delete(sessionRef);
           }
           
-          console.log(`관련 세션 삭제 준비 완료`);
+          console.log(`관련 세션 삭제 완료`);
         } catch (sessionsError) {
           console.error('세션 목록 조회 실패:', sessionsError);
           // 세션 조회 실패해도 퀴즈 삭제 계속 진행
         }
       }
       
-      // 퀴즈 문서 삭제를 배치에 추가
-      const quizRef = doc(db, 'quizzes', quizId);
-      batch.delete(quizRef);
+      // 삭제 전 퀴즈 ID 로깅 추가
+      console.log('삭제할 퀴즈 ID 확인:', quizId, '사용자 ID:', currentUser.uid);
       
-      // 배치 작업 실행
-      await batch.commit();
-      console.log('퀴즈 및 관련 데이터 삭제 완료');
+      // deleteQuiz 함수 직접 호출
+      console.log('퀴즈 삭제 시작:', quizId);
+      await deleteQuiz(quizId, currentUser.uid);
+      console.log('퀴즈 삭제 완료');
       
       // 캐시 정리
       sessionStorage.removeItem(`quiz_${quizId}`);
@@ -592,7 +521,7 @@ const SessionQuiz: React.FC = () => {
     } finally {
       setIsProcessing(false);
       setIsDataChanged(false);
-      setShowDeleteConfirm(false);
+      setShowDeleteWarning(false);
     }
   };
 
@@ -617,7 +546,7 @@ const SessionQuiz: React.FC = () => {
   // 로딩 컴포넌트
   const QuizLoadingState = () => (
     <div className="flex flex-col items-center justify-center py-12">
-      <LoadingAnimation message="퀴즈 정보를 불러오는 중" />
+      <LoadingAnimation message={waitingForAuth ? "사용자 인증 확인 중" : "퀴즈 정보를 불러오는 중"} />
     </div>
   );
 
@@ -633,7 +562,19 @@ const SessionQuiz: React.FC = () => {
     );
   };
 
-  if (isLoading || quizLoading || sessionLoading || loadingActiveSession) {
+  // 오류 메시지 컴포넌트
+  const ErrorMessage = () => {
+    if (!error) return null;
+    
+    return (
+      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-md">
+        <p className="font-bold mb-1">오류가 발생했습니다</p>
+        <p>{error}</p>
+      </div>
+    );
+  };
+
+  if (waitingForAuth || isLoading || quizLoading || sessionLoading || loadingActiveSession) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
         <div className="max-w-4xl mx-auto">
@@ -653,10 +594,53 @@ const SessionQuiz: React.FC = () => {
     );
   }
   
-  // 오류 발생 시에도 UI를 계속 표시하되 세션이 없는 상태로 처리
+  // 오류 발생 시 오류 페이지 표시
+  if ((error || quizError || sessionError) && !sessionDeleted && !quiz) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+        <div className="max-w-4xl mx-auto">
+          <HostPageHeader handleNavigation={handleNavigation} />
+          <HostNavBar handleNavigation={handleNavigation} />
+          <Breadcrumb 
+            items={[
+              { label: '내 퀴즈 목록', path: '/host/my-quizzes' },
+              { label: '오류' }
+            ]} 
+          />
+          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+            <div className="text-center py-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-red-700 mb-2">오류가 발생했습니다</h2>
+              <p className="text-gray-600 mb-6">{error || quizError || sessionError || '알 수 없는 오류가 발생했습니다.'}</p>
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => navigate('/host/my-quizzes')} 
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors mr-3"
+                >
+                  퀴즈 목록으로 이동
+                </button>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  새로고침
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // 오류 발생 시에도 UI를 계속 표시하되 세션이 없는 상태로 처리 (이 부분은 오류 메시지만 표시하고 삭제하지 않음)
   if ((error || quizError || sessionError) && !sessionDeleted) {
     // 세션 불러오기 이외의 에러(퀴즈 불러오기 등)는 바로 내 퀴즈 목록으로 이동
-    if (error || quizError) {
+    if ((error || quizError) && !quiz) {
       navigate('/host/my-quizzes', { replace: true });
       return null;
     }
@@ -688,14 +672,10 @@ const SessionQuiz: React.FC = () => {
         />
 
         {OfflineBanner()}
+        
+        <ErrorMessage />
 
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 mb-4 sm:mb-8">
           {/* 퀴즈 헤더 컴포넌트 */}
           <QuizHeader
             quiz={quiz}
@@ -726,6 +706,7 @@ const SessionQuiz: React.FC = () => {
             settings={sessionSettings}
             setSettings={setSessionSettings}
             isLoading={creatingSession}
+            quiz={quiz}
           />
         )}
 
@@ -741,7 +722,6 @@ const SessionQuiz: React.FC = () => {
             isCopied={isCopied}
             onCopySessionCode={copySessionCode}
             onCopyJoinUrl={copyJoinUrl}
-            onShowQRCode={() => setShowQRCode(true)}
           />
         )}
 
@@ -769,18 +749,10 @@ const SessionQuiz: React.FC = () => {
           isOpen={showDeleteWarning}
           onClose={() => setShowDeleteWarning(false)}
           onConfirm={() => {
-                    setShowDeleteWarning(false);
-                    setShowDeleteConfirm(true);
-                  }}
+            setShowDeleteWarning(false);
+            handleDeleteQuiz();
+          }}
           hasActiveSession={!!currentSession}
-        />
-
-        <DeleteConfirmModal
-          isOpen={showDeleteConfirm}
-          onClose={() => setShowDeleteConfirm(false)}
-          onConfirm={handleDeleteQuiz}
-          title={quiz?.title || ''}
-          isProcessing={isProcessing}
         />
 
         {/* 로딩 오버레이 */}

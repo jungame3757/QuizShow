@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SessionHistory } from '../../../firebase/sessionHistoryService';
 
 interface QuestionStatsTabProps {
@@ -14,45 +14,65 @@ const QuestionStatsTab: React.FC<QuestionStatsTabProps> = ({
   setStatsViewMode,
   calculateQuestionStats
 }) => {
+  // 재시도 데이터가 존재하는지 확인
+  const hasRetries = useMemo(() => {
+    // 적어도 하나의 문제에서 최신 데이터와 모든 데이터의 결과가 다른지 확인
+    return sessionHistory.quiz.questions.some((_, index) => {
+      const latestStats = calculateQuestionStats(index, 'latest');
+      const allStats = calculateQuestionStats(index, 'all');
+      
+      // 총 응답 수가 다르거나 옵션 선택 분포가 다르면 재시도가 있는 것
+      return latestStats.totalResponses !== allStats.totalResponses || 
+        latestStats.optionCounts.some((count, i) => count !== allStats.optionCounts[i]);
+    });
+  }, [sessionHistory, calculateQuestionStats]);
+
   return (
     <div className="space-y-6">
       <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800 mb-2 sm:mb-0">문제별 통계</h2>
           
-          {/* 보기 모드 전환 버튼 */}
-          <div className="flex space-x-2 w-full sm:w-auto">
-            <button
-              onClick={() => setStatsViewMode('latest')}
-              className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded-md transition whitespace-nowrap ${
-                statsViewMode === 'latest'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              최신 데이터만
-            </button>
-            <button
-              onClick={() => setStatsViewMode('all')}
-              className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded-md transition whitespace-nowrap ${
-                statsViewMode === 'all'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              모든 제출 데이터
-            </button>
-          </div>
+          {/* 재시도가 있는 경우에만 보기 모드 전환 버튼 표시 */}
+          {hasRetries && (
+            <div className="flex space-x-2 w-full sm:w-auto">
+              <button
+                onClick={() => setStatsViewMode('latest')}
+                className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded-md transition whitespace-nowrap ${
+                  statsViewMode === 'latest'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                최신 데이터만
+              </button>
+              <button
+                onClick={() => setStatsViewMode('all')}
+                className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded-md transition whitespace-nowrap ${
+                  statsViewMode === 'all'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                모든 제출 데이터
+              </button>
+            </div>
+          )}
         </div>
         
-        <div className="text-sm text-gray-500 mb-6">
-          {statsViewMode === 'latest' 
-            ? '각 참가자의 가장 최근에 제출한 답변만 집계합니다.' 
-            : '모든 시도에서 제출된 모든 답변을 집계합니다.'}
-        </div>
+        {/* 재시도가 있는 경우에만 설명글 표시 */}
+        {hasRetries && (
+          <div className="text-sm text-gray-500 mb-6">
+            {statsViewMode === 'latest' 
+              ? '각 참가자의 가장 최근에 제출한 답변만 집계합니다.' 
+              : '모든 시도에서 제출된 모든 답변을 집계합니다.'}
+          </div>
+        )}
         
         {sessionHistory.quiz.questions.map((question, index) => {
-          const { totalResponses, optionCounts } = calculateQuestionStats(index, statsViewMode);
+          // 재시도가 없으면 항상 'latest' 모드로 계산
+          const mode = hasRetries ? statsViewMode : 'latest';
+          const { totalResponses, optionCounts } = calculateQuestionStats(index, mode);
           
           return (
             <div key={index} className="mb-6 rounded-lg shadow-sm overflow-hidden border border-gray-200">

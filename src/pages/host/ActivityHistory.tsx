@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Calendar, Clock, Users, ChevronRight, ChevronLeft, ChevronRight as ChevronNext } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getSessionHistoriesByHostId, SessionHistory, SessionHistoryResponse } from '../../firebase/sessionHistoryService';
+import { getSessionHistoriesByHostId, SessionHistory } from '../../firebase/sessionHistoryService';
 import HostNavBar from '../../components/host/HostNavBar';
 import HostPageHeader from '../../components/host/HostPageHeader';
 import Breadcrumb from '../../components/ui/Breadcrumb';
@@ -244,16 +244,16 @@ const ActivityHistory: React.FC = () => {
   
   // 비어있는 상태 메시지 메모이제이션
   const emptyStateMessage = useMemo(() => (
-    <div className="text-center py-8">
-      <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-lg font-medium text-gray-900">분석할 퀴즈 활동이 없습니다</h3>
-      <p className="mt-1 text-sm text-gray-500">
+    <div className="text-center py-6 sm:py-8">
+      <Calendar className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
+      <h3 className="mt-2 text-base sm:text-lg font-medium text-gray-900">분석할 퀴즈 활동이 없습니다</h3>
+      <p className="mt-1 text-xs sm:text-sm text-gray-500">
         아직 종료된 퀴즈 활동이 없습니다. 퀴즈를 진행하고 종료하면 여기에 기록됩니다.
       </p>
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-6">
         <Link
           to="/host/my-quizzes"
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
           퀴즈 목록으로 이동
         </Link>
@@ -263,17 +263,17 @@ const ActivityHistory: React.FC = () => {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
         <div className="max-w-4xl mx-auto">
           <HostPageHeader handleNavigation={handleNavigation} />
           <HostNavBar handleNavigation={handleNavigation} />
           <Breadcrumb items={[{ label: '결과 보고서' }]} />
           
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-purple-700">결과 보고서</h1>
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h1 className="text-xl sm:text-2xl font-bold text-purple-700">결과 보고서</h1>
             </div>
-            <div className="flex flex-col items-center justify-center py-12">
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
               <LoadingAnimation message="활동 기록을 불러오는 중" />
             </div>
           </div>
@@ -283,23 +283,23 @@ const ActivityHistory: React.FC = () => {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-3 sm:p-4">
       <div className="max-w-4xl mx-auto">
         <HostPageHeader handleNavigation={handleNavigation} />
         <HostNavBar handleNavigation={handleNavigation} />
         <Breadcrumb items={[{ label: '결과 보고서' }]} />
         
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-purple-700">결과 보고서</h1>
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
+          <div className="mb-3 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-purple-700">결과 보고서</h1>
           </div>
           
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 mb-4 rounded-md flex justify-between items-center">
-              <span>{error}</span>
+            <div className="bg-red-50 text-red-600 p-3 sm:p-4 mb-4 rounded-md flex flex-col sm:flex-row sm:justify-between sm:items-center">
+              <span className="mb-2 sm:mb-0">{error}</span>
               <button 
                 onClick={() => loadPageData(currentPage)}
-                className="text-red-700 hover:text-red-900 text-sm font-medium"
+                className="text-red-700 hover:text-red-900 text-sm font-medium py-1 px-2 border border-red-300 rounded-md self-end sm:self-auto"
               >
                 다시 시도
               </button>
@@ -311,35 +311,35 @@ const ActivityHistory: React.FC = () => {
           {!loading && sessionHistories.length === 0 ? (
             emptyStateMessage
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 sm:space-y-3">
               {sessionHistories.map((history) => (
                 <div 
                   key={history.id}
-                  className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer border-l-8 ${getColorByQuizId(history.quiz?.id || 'unknown')}`}
+                  className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer border-l-4 sm:border-l-8 ${getColorByQuizId(history.quiz?.id || 'unknown')}`}
                   onClick={() => navigateToHistoryDetail(history.id!)}
                 >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">{history.title}</h3>
-                      <p className="text-sm text-gray-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 sm:p-4 bg-white">
+                    <div className="mb-2 sm:mb-0 pr-6 sm:pr-0">
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-0.5 sm:mb-1">{history.title}</h3>
+                      <p className="text-xs sm:text-sm text-gray-500">
                         <span className="inline-flex items-center">
-                          <Clock size={14} className="mr-1" />
+                          <Clock size={12} className="mr-1" />
                           {formatRelativeTime(history.endedAt)}
                         </span>
                       </p>
                     </div>
-                    <div className="mt-2 sm:mt-0 flex items-center">
-                      <div className="flex flex-wrap gap-2 mr-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <Users size={12} className="mr-1" />
+                    <div className="flex items-center w-full sm:w-auto">
+                      <div className="flex flex-wrap gap-1 sm:gap-2 mr-1 sm:mr-2 w-full sm:w-auto justify-end">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <Users size={10} className="mr-1" />
                           참가자 {history.participantCount}명
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <Clock size={12} className="mr-1" />
-                          진행 시간: {calculateDuration(history.startedAt, history.endedAt)}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <Clock size={10} className="mr-1" />
+                          진행: {calculateDuration(history.startedAt, history.endedAt)}
                         </span>
                       </div>
-                      <ChevronRight size={18} className="text-gray-400" />
+                      <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
                     </div>
                   </div>
                 </div>
@@ -347,26 +347,26 @@ const ActivityHistory: React.FC = () => {
               
               {/* 페이지네이션 UI */}
               {sessionHistories.length > 0 && (
-                <div className="flex justify-center items-center mt-4 space-x-2">
+                <div className="flex justify-center items-center mt-4 space-x-1 sm:space-x-2">
                   {/* 이전 페이지 버튼 */}
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || loading}
-                    className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                    className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-md border ${
                       currentPage === 1 || loading
                         ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                         : 'border-purple-300 text-purple-700 hover:bg-purple-50'
                     }`}
                     aria-label="이전 페이지"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={16} />
                   </button>
                   
                   {/* 페이지 번호 버튼들 */}
                   {(() => {
                     // 표시할 페이지 번호 범위 계산
                     const pageNumbers = [];
-                    const maxVisiblePages = 5; // 한 번에 보여줄 최대 페이지 번호 개수
+                    const maxVisiblePages = window.innerWidth < 640 ? 3 : 5; // 모바일에서는 3개만 표시
                     
                     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
                     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -383,7 +383,7 @@ const ActivityHistory: React.FC = () => {
                           key="page-1"
                           onClick={() => handlePageChange(1)}
                           disabled={loading}
-                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                          className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-md border ${
                             1 === currentPage
                               ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
                               : 'border-purple-200 text-purple-700 hover:bg-purple-50'
@@ -396,7 +396,7 @@ const ActivityHistory: React.FC = () => {
                       // 줄임표 (1과 시작 페이지 사이에 페이지가 있는 경우)
                       if (startPage > 2) {
                         pageNumbers.push(
-                          <span key="ellipsis-1" className="px-2 text-gray-500">
+                          <span key="ellipsis-1" className="px-1 sm:px-2 text-gray-500">
                             ...
                           </span>
                         );
@@ -410,7 +410,7 @@ const ActivityHistory: React.FC = () => {
                           key={`page-${i}`}
                           onClick={() => handlePageChange(i)}
                           disabled={loading}
-                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                          className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm ${
                             i === currentPage
                               ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
                               : 'border-purple-200 text-purple-700 hover:bg-purple-50'
@@ -426,7 +426,7 @@ const ActivityHistory: React.FC = () => {
                       // 줄임표 (끝 페이지와 totalPages 사이에 페이지가 있는 경우)
                       if (endPage < totalPages - 1) {
                         pageNumbers.push(
-                          <span key="ellipsis-2" className="px-2 text-gray-500">
+                          <span key="ellipsis-2" className="px-1 sm:px-2 text-gray-500">
                             ...
                           </span>
                         );
@@ -437,7 +437,7 @@ const ActivityHistory: React.FC = () => {
                           key={`page-${totalPages}`}
                           onClick={() => handlePageChange(totalPages)}
                           disabled={loading}
-                          className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                          className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm ${
                             totalPages === currentPage
                               ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold'
                               : 'border-purple-200 text-purple-700 hover:bg-purple-50'
@@ -455,14 +455,14 @@ const ActivityHistory: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages || loading}
-                    className={`flex items-center justify-center w-10 h-10 rounded-md border ${
+                    className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-md border ${
                       currentPage === totalPages || loading
                         ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                         : 'border-purple-300 text-purple-700 hover:bg-purple-50'
                     }`}
                     aria-label="다음 페이지"
                   >
-                    <ChevronNext size={18} />
+                    <ChevronNext size={16} />
                   </button>
                 </div>
               )}

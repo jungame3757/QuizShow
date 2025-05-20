@@ -49,6 +49,19 @@ export interface Answer {
   score: number;
 }
 
+// 퀴즈 데이터 인터페이스
+export interface QuizQuestion {
+  text: string;
+  options: string[];
+  correctAnswer: number;
+}
+
+export interface Quiz {
+  title: string;
+  description?: string;
+  questions: QuizQuestion[];
+}
+
 // 세션 옵션 인터페이스 정의
 export interface SessionOptions {
   expiresIn?: number; // 밀리초 단위의 세션 유효 기간
@@ -105,6 +118,129 @@ export const createSession = async (quizId: string, hostId: string, options?: Se
     return sessionId;
   } catch (error) {
     console.error('세션 생성 오류:', error);
+    throw error;
+  }
+};
+
+// 퀴즈 데이터를 포함한 세션 생성 함수
+export const createSessionWithQuizData = async (
+  quizId: string, 
+  hostId: string, 
+  quizData: Quiz, 
+  options?: SessionOptions
+): Promise<string> => {
+  try {
+    // 6자리 고유 세션 코드 생성
+    const sessionCode = await generateSessionCode();
+    
+    // 세션 노드 참조 생성
+    const sessionsRef = ref(rtdb, 'sessions');
+    const newSessionRef = push(sessionsRef);
+    const sessionId = newSessionRef.key;
+    
+    if (!sessionId) {
+      throw new Error('세션 ID 생성에 실패했습니다.');
+    }
+    
+    // 기본 만료 시간: 1일 (밀리초)
+    const defaultExpiresIn = 24 * 60 * 60 * 1000;
+    const expiresIn = options?.expiresIn || defaultExpiresIn;
+    const expiresAt = Date.now() + expiresIn;
+    
+    // 세션 데이터 생성
+    const sessionData: Omit<Session, 'id'> = {
+      quizId, // 원래 ID도 유지 (기존 호환성)
+      hostId,
+      code: sessionCode,
+      currentQuestion: 0,
+      createdAt: Date.now(),
+      startedAt: null,
+      endedAt: null,
+      participantCount: 0,
+      expiresAt,
+      randomizeQuestions: options?.randomizeQuestions || false,
+      singleAttempt: options?.singleAttempt !== undefined ? options.singleAttempt : true,
+      questionTimeLimit: options?.questionTimeLimit || 30
+    };
+    
+    // 클라이언트용 퀴즈 데이터 - 정답 제외
+    const clientQuizData = {
+      title: quizData.title,
+      description: quizData.description,
+      questions: quizData.questions.map((q) => ({
+        text: q.text,
+        options: q.options
+        // correctAnswer는 제외
+      }))
+    };
+    
+    // 호스트용 정답 데이터
+    const hostAnswersData = quizData.questions.map((q, index) => ({
+      questionIndex: index,
+      correctAnswer: q.correctAnswer
+    }));
+    
+    // 세션 데이터 저장
+    await set(newSessionRef, sessionData);
+    
+    // 세션 코드 인덱스 생성
+    await set(ref(rtdb, `sessionCodes/${sessionCode}`), sessionId);
+    
+    // 퀴즈 데이터 저장 (클라이언트용)
+    await set(ref(rtdb, `quizData/${sessionId}/public`), clientQuizData);
+    
+    // 정답 데이터 저장 (호스트 전용)
+    await set(ref(rtdb, `quizData/${sessionId}/answers`), hostAnswersData);
+    
+    // 호스트 사용자의 활성 세션 업데이트
+    await set(ref(rtdb, `userSessions/${hostId}/active/${sessionId}`), true);
+    
+    return sessionId;
+  } catch (error) {
+    console.error('세션 생성 오류:', error);
+    throw error;
+  }
+};
+
+// 퀴즈 데이터 가져오기 (클라이언트용)
+export const getQuizDataForClient = async (sessionId: string): Promise<any | null> => {
+  try {
+    const quizDataRef = ref(rtdb, `quizData/${sessionId}/public`);
+    const snapshot = await get(quizDataRef);
+    
+    if (snapshot.exists()) {
+      return snapshot.val();
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('퀴즈 데이터 조회 오류:', error);
+    throw error;
+  }
+};
+
+// 정답 확인 함수 - 서버에서 실행
+export const validateAnswer = async (
+  sessionId: string,
+  questionIndex: number,
+  answerIndex: number
+): Promise<boolean> => {
+  try {
+    const answersRef = ref(rtdb, `quizData/${sessionId}/answers`);
+    const snapshot = await get(answersRef);
+    
+    if (snapshot.exists()) {
+      const answers = snapshot.val();
+      const questionAnswer = answers.find((a: any) => a.questionIndex === questionIndex);
+      
+      if (questionAnswer) {
+        return questionAnswer.correctAnswer === answerIndex;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('정답 확인 오류:', error);
     throw error;
   }
 };
@@ -289,7 +425,10 @@ export const deleteSession = async (sessionId: string): Promise<void> => {
       remove(ref(rtdb, `sessionQuestions/${sessionId}`)),
       
       // 호스트의 활성 세션에서 제거
-      remove(ref(rtdb, `userSessions/${session.hostId}/active/${sessionId}`))
+      remove(ref(rtdb, `userSessions/${session.hostId}/active/${sessionId}`)),
+      
+      // 퀴즈 데이터 삭제 추가
+      remove(ref(rtdb, `quizData/${sessionId}`))
     ];
     
     // 응답 데이터 삭제 (개별 접근 대신 상위 경로에서 한 번에 삭제)
