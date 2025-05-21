@@ -73,26 +73,50 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#F8F7FF] via-[#F3F1FF] to-[#F0EEFF] p-4">
       <div className="max-w-md mx-auto">
         <button 
           onClick={() => navigate('/')}
-          className="flex items-center text-purple-700 mb-6 hover:text-purple-900 transition-colors"
+          className="flex items-center text-[#783ae8] mb-6 hover:text-purple-900 transition-colors"
+          style={{
+            transition: 'all 0.2s ease',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateX(-2px)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateX(0)';
+          }}
         >
           <ArrowLeft size={20} className="mr-2" /> 홈으로 돌아가기
         </button>
 
-        <div className="bg-white rounded-2xl shadow-md p-8">
-          <h1 className="text-3xl font-bold text-purple-700 mb-8 text-center">로그인</h1>
+        <div className="bg-white rounded-2xl shadow-md p-8" style={{
+          border: '1px solid rgba(139, 92, 246, 0.3)', 
+          boxShadow: '0 3px 0 rgba(139, 92, 246, 0.15)'
+        }}>
+          <h1 className="text-3xl font-bold text-[#783ae8] mb-8 text-center">로그인</h1>
           
           <p className="text-gray-600 mb-8 text-center">
-            퀴즈 쇼를 생성하려면 로그인이 필요합니다.
+            퀴즈를 생성하려면 로그인이 필요합니다.
           </p>
           
           <div className="space-y-4">
             <button 
               onClick={handleGoogleLogin}
-              className="bg-white border border-blue-300 text-blue-600 px-4 py-3 rounded-md hover:bg-blue-50 transition-colors w-full flex items-center justify-center"
+              className="bg-white border border-blue-300 text-blue-600 px-4 py-3 rounded-xl hover:bg-blue-50 transition-colors w-full flex items-center justify-center"
+              style={{
+                boxShadow: '0 2px 0 rgba(0,0,0,0.1)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.1)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.1)';
+              }}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -127,13 +151,28 @@ const Login: React.FC = () => {
             <Button 
               onClick={handleAnonymousLogin}
               variant="secondary"
-              className="w-full py-3 justify-center"
+              className="w-full py-3 justify-center bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl"
+              style={{
+                boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                border: '2px solid #000',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+              }}
             >
               <UserCircle size={20} className="mr-2" /> 익명으로 로그인
             </Button>
             
             <p className="text-sm text-gray-500 text-center mt-6">
-              로그인은 퀴즈 쇼 생성에만 필요합니다.<br />
+              로그인은 퀴즈 생성에만 필요합니다.<br />
               이미 생성된 퀴즈에 참여하는 것은 로그인 없이 가능합니다.
             </p>
           </div>

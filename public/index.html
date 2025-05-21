@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome to Firebase Hosting</title>
-
+    <title>콰직 - 인터랙티브 퀴즈 플랫폼</title>
+    <link rel="icon" type="image/x-icon" href="/assets/logo/favicon.ico">
+    
     <!-- update the version number as needed -->
     <script defer src="/__/firebase/11.7.1/firebase-app-compat.js"></script>
     <!-- include only the Firebase features as you need -->
@@ -24,10 +25,18 @@
     <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
     <style media="screen">
+      @font-face {
+        font-family: 'SBAggroB';
+        src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff') format('woff');
+        font-weight: normal;
+        font-style: normal;
+      }
+      
       body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
       #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
       #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
       #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
+      .brand-name { font-family: 'SBAggroB'; }
       #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
       #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
       #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
@@ -40,12 +49,12 @@
   </head>
   <body>
     <div id="message">
-      <h2>Welcome</h2>
-      <h1>Firebase Hosting Setup Complete</h1>
-      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
-      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
+      <h2>환영합니다</h2>
+      <h1><span class="brand-name">콰직</span> - 인터랙티브 퀴즈 플랫폼</h1>
+      <p>Firebase 호스팅 설정이 완료되었습니다. 이제 멋진 퀴즈 경험을 만들어보세요!</p>
+      <a target="_blank" href="https://firebase.google.com/docs/hosting/">호스팅 문서 열기</a>
     </div>
-    <p id="load">Firebase SDK Loading&hellip;</p>
+    <p id="load">Firebase SDK 로딩 중&hellip;</p>
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
@@ -78,10 +87,10 @@
             'remoteConfig',
             'performance',
           ].filter(feature => typeof app[feature] === 'function');
-          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
+          loadEl.textContent = `Firebase SDK가 로드되었습니다: ${features.join(', ')}`;
         } catch (e) {
           console.error(e);
-          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
+          loadEl.textContent = 'Firebase SDK 로딩 중 오류가 발생했습니다. 콘솔을 확인하세요.';
         }
       });
     </script>

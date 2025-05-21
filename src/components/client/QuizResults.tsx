@@ -521,14 +521,79 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   
   // Launch confetti
   useEffect(() => {
-    if (accuracy >= 70 && !showConfetti) {
+    if (!showConfetti) {
       setShowConfetti(true);
-      const duration = 3 * 1000;
+      
+      // 티어에 따라 컨페티 강도 조절
+      const duration = tierInfo.name === '다이아몬드' || tierInfo.name === '플래티넘' 
+        ? 5 * 1000  // 최상위 등급은 더 오래 더 화려하게
+        : tierInfo.name === '골드'
+          ? 3 * 1000 // 골드는 적당히
+          : 2 * 1000; // 기본
+          
       const animationEnd = Date.now() + duration;
       
       const randomInRange = (min: number, max: number) => {
         return Math.random() * (max - min) + min;
       };
+      
+      // 티어별 컨페티 색상 설정
+      const colors = tierInfo.name === '다이아몬드' 
+        ? ['#14B8A6', '#0EA5E9', '#818CF8', '#A78BFA', '#C084FC', '#E9D5FF'] // 다이아몬드 색상
+        : tierInfo.name === '플래티넘'
+          ? ['#14B8A6', '#0EA5E9', '#38BDF8', '#7DD3FC', '#BAE6FD'] // 플래티넘 색상
+          : tierInfo.name === '골드'
+            ? ['#F59E0B', '#FBBF24', '#FCD34D', '#FEF3C7'] // 골드 색상
+            : ['#14B8A6', '#0EA5E9', '#4ECDC4', '#FFE66D']; // 기본
+            
+      // 첫 발사 (등급이 높을수록 더 많은 파티클)
+      const initialBlast = tierInfo.name === '다이아몬드' ? 150 
+        : tierInfo.name === '플래티넘' ? 100
+        : tierInfo.name === '골드' ? 80
+        : 50;
+      
+      confetti({
+        particleCount: initialBlast,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 },
+        colors: colors,
+        zIndex: 2000
+      });
+      
+      // 티어가 높은 경우 추가 효과
+      if (tierInfo.name === '다이아몬드' || tierInfo.name === '플래티넘') {
+        setTimeout(() => {
+          confetti({
+            particleCount: 80,
+            angle: 60,
+            spread: 70,
+            origin: { x: 0, y: 0.65 },
+            colors: colors
+          });
+        }, 500);
+        
+        setTimeout(() => {
+          confetti({
+            particleCount: 80,
+            angle: 120,
+            spread: 70,
+            origin: { x: 1, y: 0.65 },
+            colors: colors
+          });
+        }, 800);
+      }
+      
+      // 주기적인 발사 간격
+      const firingInterval = tierInfo.name === '다이아몬드' ? 300 
+        : tierInfo.name === '플래티넘' ? 400
+        : tierInfo.name === '골드' ? 500
+        : 600;
+      
+      // 발사 양
+      const particlePerShot = tierInfo.name === '다이아몬드' ? 30
+        : tierInfo.name === '플래티넘' ? 20
+        : tierInfo.name === '골드' ? 15
+        : 10;
       
       const interval = setInterval(() => {
         const timeLeft = animationEnd - Date.now();
@@ -537,19 +602,17 @@ const QuizResults: React.FC<QuizResultsProps> = ({
           return clearInterval(interval);
         }
         
-        const particleCount = 50;
-        
         confetti({
-          particleCount,
+          particleCount: particlePerShot,
           origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 },
-          colors: ['#14B8A6', '#0EA5E9', '#4ECDC4', '#FFE66D'],
+          colors: colors,
           zIndex: 2000,
         });
-      }, 300);
+      }, firingInterval);
       
       return () => clearInterval(interval);
     }
-  }, [accuracy, showConfetti]);
+  }, [showConfetti, tierInfo.name]);
 
   const handleResetConfirm = () => {
     if (onResetQuiz) {
@@ -607,8 +670,15 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-3 flex flex-col items-center pt-4">
-      <div className="max-w-3xl w-full bg-white rounded-2xl shadow-lg p-4 animate-fade-in">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col items-center pt-4">
+      <div className="max-w-3xl w-full bg-white rounded-2xl p-4 animate-fade-in"
+        style={{
+          boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
+          border: '2px solid #0D9488',
+          borderRadius: '16px',
+          background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+        }}
+      >
         {/* 랭킹 정보 (중점적으로 표시) */}
         <div className="mb-3">
           <div className={`relative ${generateCardStyles()}`}>
@@ -651,16 +721,23 @@ const QuizResults: React.FC<QuizResultsProps> = ({
             </div>
           </div>
           
-          {/* 랭킹 목록 - 스크롤 제거 */}
-          <div className="bg-gray-50 rounded-xl p-3 mb-3">
+          {/* 랭킹 목록 - 디자인 가이드에 맞게 수정 */}
+          <div className="bg-white rounded-xl p-3 mb-3"
+            style={{
+              boxShadow: '0 3px 0 rgba(20, 184, 166, 0.3)',
+              border: '1px solid #0D9488',
+              borderRadius: '16px',
+              background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-teal-700 flex items-center text-sm">
-                <Trophy size={16} className="mr-1" /> 
+              <h3 className="font-bold text-[#783ae8] flex items-center text-sm">
+                <Trophy size={16} className="mr-1 text-teal-600" /> 
                 {rankingViewMode === 'top5' ? 'TOP 5' : '내 주변 랭킹'}
               </h3>
               <div className="flex items-center gap-2">
                 <div className="text-xs text-gray-500">총 {rankings.length}명 참가</div>
-                <div className="flex rounded-md overflow-hidden text-xs border border-gray-200">
+                <div className="flex rounded-md overflow-hidden text-xs border border-teal-200">
                   <button 
                     onClick={() => setRankingViewMode('top5')}
                     className={`px-2 py-0.5 ${rankingViewMode === 'top5' 
@@ -717,7 +794,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
                           <span className="ml-1 text-xs text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full">나</span>
                         )}
                       </div>
-                      <div className="font-bold text-teal-700">{rank.score}점</div>
+                      <div className="font-bold text-[#783ae8]">{rank.score}점</div>
                     </div>
                   ))
                 )}
@@ -736,7 +813,22 @@ const QuizResults: React.FC<QuizResultsProps> = ({
             onClick={handleShareResults}
             variant="secondary"
             size="large"
-            className="px-8 bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
+            className="px-8 bg-gradient-to-r from-teal-500 to-teal-400 text-white"
+            style={{
+              boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+              border: '2px solid #000',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+            }}
           >
             <Share2 className="mr-2" /> 결과 공유하기
           </Button>
@@ -747,22 +839,31 @@ const QuizResults: React.FC<QuizResultsProps> = ({
               onClick={handleResetClick}
               variant="primary"
               size="large"
-              className="flex items-center mx-auto"
+              className="flex items-center mx-auto bg-gradient-to-r from-teal-500 to-teal-400 text-white"
+              style={{
+                boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                border: '2px solid #000',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+              }}
             >
               <RefreshCw size={18} className="mr-2" />
               퀴즈 다시 풀기
             </Button>
           )}
-          {onResetQuiz && !canRetry && (
-            <div className="flex items-center justify-center mx-auto text-amber-600 bg-amber-50 py-2 px-4 rounded-lg text-sm">
-              <AlertTriangle size={16} className="mr-2" />
-              이 퀴즈는 한 번만 참여할 수 있습니다.
-            </div>
-          )}
           
           {/* 공유 성공 메시지 */}
           {showShareSuccess && (
-            <div className="text-sm text-teal-600 bg-teal-50 px-3 py-1 rounded-full animate-fade-in">
+            <div className="text-sm text-teal-600 bg-teal-50 px-3 py-1 rounded-full animate-fade-in" style={{ border: '1px solid #0D9488' }}>
               클립보드에 복사되었습니다!
             </div>
           )}
@@ -770,18 +871,25 @@ const QuizResults: React.FC<QuizResultsProps> = ({
 
         {/* 다른 퀴즈 참여하기 링크 - 나가기 아이콘으로 변경 */}
         <div className="text-center mt-3 border-t pt-3 border-dashed border-teal-200">
-            <Link 
-              to="/join" 
-              className="inline-flex items-center text-teal-600 hover:text-teal-800 transition-colors font-medium text-sm"
-            >
-              다른 퀴즈 참여하기 <LogOut size={14} className="ml-1" />
-            </Link>
+          <Link 
+            to="/join" 
+            className="inline-flex items-center text-teal-600 hover:text-teal-800 transition-colors font-medium text-sm"
+          >
+            다른 퀴즈 참여하기 <LogOut size={14} className="ml-1" />
+          </Link>
         </div>
         
         {/* 확인 팝업 */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-5 max-w-md w-full animate-fade-in">
+            <div className="bg-white rounded-xl p-5 max-w-md w-full animate-fade-in"
+              style={{
+                boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
+                border: '2px solid #0D9488',
+                borderRadius: '16px',
+                background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+              }}
+            >
               <div className="flex items-center text-amber-500 mb-3">
                 <AlertTriangle size={24} className="mr-2" />
                 <h3 className="text-lg font-bold">퀴즈 다시 풀기</h3>
@@ -803,6 +911,22 @@ const QuizResults: React.FC<QuizResultsProps> = ({
                   onClick={handleResetConfirm}
                   variant="primary"
                   size="small"
+                  className="bg-gradient-to-r from-teal-500 to-teal-400"
+                  style={{
+                    boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                    border: '2px solid #000',
+                    borderRadius: '12px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 5px 0 rgba(0,0,0,0.8)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                  }}
                 >
                   계속하기
                 </Button>

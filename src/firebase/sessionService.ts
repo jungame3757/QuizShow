@@ -245,6 +245,23 @@ export const validateAnswer = async (
   }
 };
 
+// 정답 데이터 가져오기 (클라이언트용)
+export const getAnswersForClient = async (sessionId: string): Promise<any[] | null> => {
+  try {
+    const answersRef = ref(rtdb, `quizData/${sessionId}/answers`);
+    const snapshot = await get(answersRef);
+    
+    if (snapshot.exists()) {
+      return snapshot.val();
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('정답 데이터 조회 오류:', error);
+    return null;
+  }
+};
+
 // 세션 코드로 세션 ID 찾기
 export const getSessionIdByCode = async (code: string): Promise<string | null> => {
   try {

@@ -285,101 +285,138 @@ const MyQuizzes: React.FC = () => {
                 {quizzes.map(quiz => (
                   <div 
                     key={quiz.id} 
-                    className={`bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden border ${
-                      quiz.hasActiveSession ? 'border-green-300' : 'border-purple-100'
-                    } relative`}
+                    className="bg-white relative overflow-hidden rounded-lg sm:rounded-xl"
+                    style={{
+                      boxShadow: quiz.hasActiveSession ? '0 3px 0 rgba(20, 184, 166, 0.5)' : '0 3px 0 rgba(98, 58, 162, 0.3)',
+                      border: quiz.hasActiveSession ? '2px solid #0D9488' : '2px solid rgba(139, 92, 246, 0.5)',
+                      borderRadius: '16px',
+                      background: quiz.hasActiveSession 
+                        ? 'linear-gradient(to bottom right, #fff, #f0fffc)' 
+                        : 'linear-gradient(to bottom right, #fff, #fafaff)'
+                    }}
                   >
-                    <>
-                      <div className="p-3 sm:p-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-                          <div className="pr-16 sm:pr-0">
-                            <div className="flex flex-wrap items-start gap-2 mb-1 sm:mb-2">
-                              <h3 className="text-lg sm:text-xl font-bold text-gray-800 break-words">
-                                {quiz.title}
-                              </h3>
-                              {quiz.hasActiveSession && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 absolute top-3 right-3 sm:static">
-                                  <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
-                                  활동 켜짐
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                              {quiz.description || '설명 없음'}
-                            </p>
-                          </div>
+                    <div className="p-4 sm:p-5">
+                      {/* 헤더 영역: 퀴즈 제목과 상태 배지 */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 mr-3">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1.5 break-words">
+                            {quiz.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 line-clamp-1">
+                            {quiz.description || '설명 없음'}
+                          </p>
                         </div>
                         
-                        <div className="flex flex-wrap items-center justify-between mt-1 sm:mt-2 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Calendar size={14} className="mr-1" />
-                            <span>{formatDate(quiz.createdAt)}</span>
-                          </div>
-                          {quiz.hasActiveSession && quiz.sessionExpiresAt && (
-                            <div className="flex items-center text-green-600 mt-1 sm:mt-0">
-                              <Clock size={14} className="mr-1" />
-                              <span>{formatRemainingTime(quiz.sessionExpiresAt)}</span>
-                            </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {quiz.hasActiveSession ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 border border-teal-300 whitespace-nowrap">
+                              <span className="w-2 h-2 mr-1 bg-teal-500 rounded-full animate-pulse"></span>
+                              활동 켜짐
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300 whitespace-nowrap">
+                              <span className="w-2 h-2 mr-1 bg-gray-500 rounded-full"></span>
+                              활동 꺼짐
+                            </span>
                           )}
                         </div>
                       </div>
                       
-                      <div className="border-t border-gray-100 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap gap-2 justify-between">
-                        <div className="flex flex-wrap gap-2">
-                          {quiz.hasActiveSession ? (
-                            <button 
-                              onClick={() => setShowEditWarning(quiz.id)}
-                              className="px-2 sm:px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-xs sm:text-sm"
-                            >
-                              <Edit size={12} className="mr-1" />
-                              편집
-                            </button>
-                          ) : (
-                            <Link 
-                              to={`/host/edit/${quiz.id}`}
-                              className="px-2 sm:px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-xs sm:text-sm"
-                            >
-                              <Edit size={12} className="mr-1" />
-                              편집
-                            </Link>
+                      {/* 하단 영역: 날짜 정보, 버튼 그룹 */}
+                      <div className="flex flex-wrap items-center justify-between gap-y-3">
+                        {/* 날짜 및 시간 정보 */}
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar size={14} className="mr-1.5" />
+                            <span>{formatDate(quiz.createdAt)}</span>
+                          </div>
+                          {quiz.hasActiveSession && quiz.sessionExpiresAt && (
+                            <div className="flex items-center text-teal-600 font-medium">
+                              <Clock size={14} className="mr-1.5" />
+                              <span>{formatRemainingTime(quiz.sessionExpiresAt)}</span>
+                            </div>
                           )}
+                        </div>
+                        
+                        {/* 버튼 그룹 */}
+                        <div className="flex items-center gap-3 ml-auto">
+                          {/* 편집/삭제 버튼 */}
+                          <div className="flex space-x-2">
+                            {quiz.hasActiveSession ? (
+                              <button 
+                                onClick={() => setShowEditWarning(quiz.id)}
+                                className="px-2.5 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+                                aria-label="퀴즈 편집"
+                              >
+                                <Edit size={14} className="mr-1.5" />
+                                <span className="whitespace-nowrap text-xs sm:text-sm font-medium">편집</span>
+                              </button>
+                            ) : (
+                              <Link 
+                                to={`/host/edit/${quiz.id}`}
+                                className="px-2.5 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+                                aria-label="퀴즈 편집"
+                              >
+                                <Edit size={14} className="mr-1.5" />
+                                <span className="whitespace-nowrap text-xs sm:text-sm font-medium">편집</span>
+                              </Link>
+                            )}
+                            <button
+                              onClick={() => setShowDeleteWarning(quiz.id)}
+                              className="px-2.5 py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center justify-center"
+                              disabled={deletingQuizId !== null || startingQuizId !== null}
+                              aria-label="퀴즈 삭제"
+                            >
+                              <Trash2 size={14} className="mr-1.5" />
+                              <span className="whitespace-nowrap text-xs sm:text-sm font-medium">삭제</span>
+                            </button>
+                          </div>
+                          
+                          {/* 메인 액션 버튼 */}
                           <button
-                            onClick={() => setShowDeleteWarning(quiz.id)}
-                            className="px-2 sm:px-3 py-1 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-xs sm:text-sm"
-                            disabled={deletingQuizId !== null || startingQuizId !== null}
+                            onClick={() => handleStartQuiz(quiz)}
+                            className={`sm:flex-shrink-0 px-3 py-1.5 rounded-md flex items-center justify-center text-sm font-bold ${
+                              quiz.hasActiveSession
+                                ? "bg-gradient-to-r from-green-600 to-green-500 text-white"
+                                : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                            }`}
+                            style={{
+                              boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                              border: '2px solid #000',
+                              borderRadius: '8px',
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 5px 0 rgba(0,0,0,0.8)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                            }}
+                            disabled={startingQuizId !== null}
+                            aria-label={quiz.hasActiveSession ? "퀴즈 계속하기" : "퀴즈 시작하기"}
                           >
-                            <Trash2 size={12} className="mr-1" />
-                            삭제
+                            {startingQuizId === quiz.id ? (
+                              <>
+                                <Loader size={16} className="animate-spin mr-2" />
+                                <span className="whitespace-nowrap">준비 중...</span>
+                              </>
+                            ) : quiz.hasActiveSession ? (
+                              <>
+                                <Play size={16} className="mr-2" />
+                                <span className="whitespace-nowrap">계속하기</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play size={16} className="mr-2" />
+                                <span className="whitespace-nowrap">시작하기</span>
+                              </>
+                            )}
                           </button>
                         </div>
-                        <button 
-                          onClick={() => handleStartQuiz(quiz)}
-                          className={`px-2 sm:px-3 py-1 rounded-md flex items-center text-xs sm:text-sm ${
-                            quiz.hasActiveSession 
-                              ? "bg-green-600 hover:bg-green-700 text-white" 
-                              : "bg-purple-600 hover:bg-purple-700 text-white"
-                          }`}
-                          disabled={startingQuizId !== null}
-                        >
-                          {startingQuizId === quiz.id ? (
-                            <>
-                              <Loader size={12} className="animate-spin mr-1" />
-                              준비 중...
-                            </>
-                          ) : quiz.hasActiveSession ? (
-                            <>
-                              <Play size={12} className="mr-1" />
-                              계속하기
-                            </>
-                          ) : (
-                            <>
-                              <Play size={12} className="mr-1" />
-                              시작하기
-                            </>
-                          )}
-                        </button>
                       </div>
-                    </>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -389,7 +426,25 @@ const MyQuizzes: React.FC = () => {
         
         <div className="flex justify-center mt-4 sm:mt-6">
           <Link to="/host/create">
-            <Button variant="primary" className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base">
+            <Button
+              variant="primary"
+              className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-indigo-600"
+              style={{
+                boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                border: '2px solid #000',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+              }}
+            >
               <Plus size={16} className="mr-1 sm:mr-2" /> 새 퀴즈 만들기
             </Button>
           </Link>

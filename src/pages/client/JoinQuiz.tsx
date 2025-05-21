@@ -288,7 +288,7 @@ const JoinQuiz: React.FC = () => {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-4 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col items-center justify-center">
         <div className="flex flex-col items-center">
           <Loader2 size={40} className="text-teal-600 animate-spin mb-4" />
           <p className="text-teal-700 text-lg">인증 상태 확인 중...</p>
@@ -298,11 +298,18 @@ const JoinQuiz: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-4 flex flex-col items-center">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col items-center">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-md p-8 animate-fade-in-up">
+        <div className="bg-white rounded-2xl p-8 animate-fade-in-up"
+          style={{
+            boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
+            border: '2px solid #0D9488',
+            borderRadius: '16px',
+            background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+          }}
+        >
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center" style={{ border: '2px solid #0D9488' }}>
               {step === 'code' ? (
                 <LogIn size={36} className="text-teal-600" />
               ) : (
@@ -311,7 +318,7 @@ const JoinQuiz: React.FC = () => {
             </div>
           </div>
           
-          <h1 className="text-3xl font-bold text-center text-teal-700 mb-6">
+          <h1 className="text-3xl font-bold text-center text-[#783ae8] mb-6">
             {step === 'code' ? '퀴즈 쇼 참여하기' : '닉네임 정하기'}
           </h1>
           
@@ -322,7 +329,7 @@ const JoinQuiz: React.FC = () => {
           )}
           
           {existingParticipant && step === 'nickname' && (
-            <div className="bg-green-50 p-4 rounded-lg mb-6">
+            <div className="bg-green-50 p-4 rounded-lg mb-6" style={{ border: '1px solid #0D9488' }}>
               <p className="text-green-700 font-medium mb-2">이미 참여한 기록이 있습니다</p>
               <p className="text-green-600 mb-3">닉네임: <span className="font-bold">{existingParticipant.name}</span></p>
               <Button 
@@ -330,6 +337,22 @@ const JoinQuiz: React.FC = () => {
                 variant="success"
                 fullWidth
                 disabled={loading}
+                className="bg-gradient-to-r from-teal-500 to-teal-400"
+                style={{
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                  border: '2px solid #000',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                }}
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -363,7 +386,22 @@ const JoinQuiz: React.FC = () => {
                   variant="primary"
                   size="large"
                   fullWidth
-                  className="bg-gradient-to-r from-teal-500 to-cyan-500"
+                  className="bg-gradient-to-r from-teal-500 to-teal-400"
+                  style={{
+                    boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                    border: '2px solid #000',
+                    borderRadius: '12px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                  }}
                   disabled={loading}
                 >
                   {loading ? (
@@ -402,7 +440,22 @@ const JoinQuiz: React.FC = () => {
                   variant="primary"
                   size="large"
                   fullWidth
-                  className="bg-gradient-to-r from-teal-500 to-cyan-500"
+                  className="bg-gradient-to-r from-teal-500 to-teal-400"
+                  style={{
+                    boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                    border: '2px solid #000',
+                    borderRadius: '12px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                  }}
                   disabled={loading}
                 >
                   {loading ? (

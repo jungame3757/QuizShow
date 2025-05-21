@@ -105,6 +105,20 @@ const BORDER_COLORS = [
   'border-cyan-400',
 ];
 
+// 색상 코드 배열 추가 - border-색상에 해당하는 실제 색상 코드
+const COLOR_CODES = {
+  'border-blue-400': '#60A5FA',
+  'border-green-400': '#34D399',
+  'border-yellow-400': '#FBBF24',
+  'border-pink-400': '#F472B6',
+  'border-purple-400': '#A78BFA',
+  'border-indigo-400': '#818CF8',
+  'border-red-400': '#F87171',
+  'border-orange-400': '#FB923C',
+  'border-teal-400': '#2DD4BF',
+  'border-cyan-400': '#22D3EE'
+};
+
 // 퀴즈 ID에 따른 배경색을 가져오는 함수
 const getColorByQuizId = (quizId: string) => {
   if (!quizId || quizId === 'unknown') {
@@ -119,6 +133,11 @@ const getColorByQuizId = (quizId: string) => {
   
   // 해시값을 사용하여 색상 선택
   return BORDER_COLORS[hashValue];
+};
+
+// 색상 클래스에서 실제 색상 코드를 반환하는 함수 추가
+const getColorCode = (colorClass: string) => {
+  return COLOR_CODES[colorClass as keyof typeof COLOR_CODES] || '#60A5FA'; // 기본값은 파란색
 };
 
 // 페이지 당 항목 수
@@ -312,38 +331,59 @@ const ActivityHistory: React.FC = () => {
             emptyStateMessage
           ) : (
             <div className="space-y-2 sm:space-y-3">
-              {sessionHistories.map((history) => (
-                <div 
-                  key={history.id}
-                  className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer border-l-4 sm:border-l-8 ${getColorByQuizId(history.quiz?.id || 'unknown')}`}
-                  onClick={() => navigateToHistoryDetail(history.id!)}
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 sm:p-4 bg-white">
-                    <div className="mb-2 sm:mb-0 pr-6 sm:pr-0">
-                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-0.5 sm:mb-1">{history.title}</h3>
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        <span className="inline-flex items-center">
-                          <Clock size={12} className="mr-1" />
-                          {formatRelativeTime(history.endedAt)}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-center w-full sm:w-auto">
-                      <div className="flex flex-wrap gap-1 sm:gap-2 mr-1 sm:mr-2 w-full sm:w-auto justify-end">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <Users size={10} className="mr-1" />
-                          참가자 {history.participantCount}명
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <Clock size={10} className="mr-1" />
-                          진행: {calculateDuration(history.startedAt, history.endedAt)}
-                        </span>
+              {sessionHistories.map((history) => {
+                // 퀴즈 ID에 기반한 색상 클래스 가져오기
+                const colorClass = getColorByQuizId(history.quiz?.id || 'unknown');
+                const colorCode = getColorCode(colorClass);
+                
+                return (
+                  <div 
+                    key={history.id}
+                    className="bg-white p-0 relative overflow-hidden transform transition-all duration-300 hover:-translate-y-1"
+                    style={{
+                      boxShadow: `0 3px 0 ${colorCode}50`,
+                      border: `2px solid ${colorCode}`,
+                      borderRadius: '16px',
+                      background: 'linear-gradient(to bottom right, #fff, #fafaff)',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.boxShadow = `0 5px 0 ${colorCode}60`;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.boxShadow = `0 3px 0 ${colorCode}50`;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    onClick={() => navigateToHistoryDetail(history.id!)}
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 sm:p-4">
+                      <div className="mb-2 sm:mb-0 pr-6 sm:pr-0">
+                        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-0.5 sm:mb-1">{history.title}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500">
+                          <span className="inline-flex items-center">
+                            <Clock size={12} className="mr-1" />
+                            {formatRelativeTime(history.endedAt)}
+                          </span>
+                        </p>
                       </div>
-                      <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                      <div className="flex items-center w-full sm:w-auto">
+                        <div className="flex flex-wrap gap-1 sm:gap-2 mr-1 sm:mr-2 w-full sm:w-auto justify-end">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Users size={10} className="mr-1" />
+                            참가자 {history.participantCount}명
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <Clock size={10} className="mr-1" />
+                            진행: {calculateDuration(history.startedAt, history.endedAt)}
+                          </span>
+                        </div>
+                        <ChevronRight size={16} style={{ color: colorCode }} className="flex-shrink-0" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {/* 페이지네이션 UI */}
               {sessionHistories.length > 0 && (

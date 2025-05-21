@@ -25,19 +25,22 @@ const HostNavBar: React.FC<HostNavBarProps> = ({ handleNavigation }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm mb-5 overflow-hidden">
       <div className="container pl-0">
         <div className="flex justify-between">
           <button 
             onClick={() => handleNav('/host/my-quizzes')}
             className={`py-3 px-3 sm:px-6 flex flex-col sm:flex-row items-center transition-colors flex-1 justify-center sm:justify-start ${
               isMyQuizzes 
-                ? 'bg-purple-600 text-white font-medium border-b-2 border-purple-800' 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium border-b-2 border-purple-800'
                 : 'text-gray-600 hover:bg-purple-50 hover:text-purple-600'
             }`}
+            style={{
+              boxShadow: isMyQuizzes ? '0 3px 0 rgba(98, 58, 162, 0.5)' : 'none'
+            }}
             aria-label="내 퀴즈"
           >
-            <BookMarked size={18} className="sm:mr-2" />
+            <BookMarked size={18} className={`sm:mr-2 ${isMyQuizzes ? 'text-white' : 'text-purple-600'}`} />
             <span className="text-xs sm:text-base mt-1 sm:mt-0">내 퀴즈</span>
           </button>
           
@@ -47,12 +50,15 @@ const HostNavBar: React.FC<HostNavBarProps> = ({ handleNavigation }) => {
             onClick={() => handleNav('/host/create')}
             className={`py-3 px-3 sm:px-6 flex flex-col sm:flex-row items-center transition-colors flex-1 justify-center sm:justify-start ${
               isCreateQuiz 
-                ? 'bg-purple-600 text-white font-medium border-b-2 border-purple-800' 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium border-b-2 border-purple-800'
                 : 'text-gray-600 hover:bg-purple-50 hover:text-purple-600'
             }`}
+            style={{
+              boxShadow: isCreateQuiz ? '0 3px 0 rgba(98, 58, 162, 0.5)' : 'none'
+            }}
             aria-label="퀴즈 만들기"
           >
-            <Wand size={18} className="sm:mr-2" />
+            <Wand size={18} className={`sm:mr-2 ${isCreateQuiz ? 'text-white' : 'text-purple-600'}`} />
             <span className="text-xs sm:text-base mt-1 sm:mt-0">퀴즈 만들기</span>
           </button>
           
@@ -62,12 +68,15 @@ const HostNavBar: React.FC<HostNavBarProps> = ({ handleNavigation }) => {
             onClick={() => handleNav('/host/history')}
             className={`py-3 px-3 sm:px-6 flex flex-col sm:flex-row items-center transition-colors flex-1 justify-center sm:justify-start ${
               isHistory 
-                ? 'bg-purple-600 text-white font-medium border-b-2 border-purple-800' 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium border-b-2 border-purple-800'
                 : 'text-gray-600 hover:bg-purple-50 hover:text-purple-600'
             }`}
+            style={{
+              boxShadow: isHistory ? '0 3px 0 rgba(98, 58, 162, 0.5)' : 'none'
+            }}
             aria-label="결과 보고서"
           >
-            <BarChartBig size={18} className="sm:mr-2" />
+            <BarChartBig size={18} className={`sm:mr-2 ${isHistory ? 'text-white' : 'text-purple-600'}`} />
             <span className="text-xs sm:text-base mt-1 sm:mt-0">결과 보고서</span>
           </button>
         </div>

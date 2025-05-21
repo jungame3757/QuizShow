@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Check, X, Edit } from 'lucide-react';
+import { Plus, Check, X, Edit, Wand } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import { useSession } from '../../contexts/SessionContext';
 import Button from '../../components/ui/Button';
@@ -322,17 +322,38 @@ const CreateQuiz: React.FC = () => {
           )}
         </div>
         
-        <div className="flex justify-center mt-4 sm:mt-6">
+        <div className="flex justify-end mt-4 sm:mt-6">
           <Button 
             onClick={handleCreateQuiz}
             variant="primary"
             disabled={!title || questions.length === 0 || isSubmitting || quizLoading || sessionLoading}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center"
+            style={{
+              boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+              border: '2px solid #000',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+            }}
           >
             {isSubmitting ? (
-              <span>처리 중...</span>
+              <span className="flex items-center">
+                <Plus size={16} className="mr-1 sm:mr-2 animate-spin" />
+                처리 중...
+              </span>
             ) : (
-              '퀴즈 만들기'
+              <span className="flex items-center">
+                <Wand size={16} className="mr-1 sm:mr-2" />
+                퀴즈 만들기
+              </span>
             )}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, User, Edit, X, LogOut } from 'lucide-react';
+import { Play, User, Edit, X, LogOut, Clock, AlertTriangle, MessageSquare, Users } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { ref, update } from 'firebase/database';
@@ -22,6 +22,8 @@ interface Participant {
   id: string;
   name: string;
   score: number;
+  isActive: boolean;
+  joinedAt: number;
   quizId: string;
 }
 
@@ -43,7 +45,7 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
   timeLimit = 30 // 기본값 30초
 }) => {
   const [isEditingNickname, setIsEditingNickname] = useState(false);
-  const [nickname, setNickname] = useState(participant.name);
+  const [nickname, setNickname] = useState(participant.name || '');
   const [isUpdatingNickname, setIsUpdatingNickname] = useState(false);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   
@@ -56,12 +58,13 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
   // 팝업 닫기
   const closePopup = () => {
     setIsEditingNickname(false);
-    setNickname(participant.name);
+    setNickname(participant.name || '');
     setNicknameError(null);
   };
   
   // 닉네임 변경 핸들러
   const handleNicknameChange = async () => {
+    // 입력 유효성 검사
     if (!nickname.trim()) {
       setNicknameError('닉네임을 입력해주세요');
       return;
@@ -74,15 +77,14 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
     
     try {
       setIsUpdatingNickname(true);
-      setNicknameError(null);
       
-      // Firebase에 닉네임 업데이트
+      // Firebase 데이터베이스에 닉네임 업데이트
       const participantRef = ref(rtdb, `participants/${sessionId}/${participant.id}`);
       await update(participantRef, {
         name: nickname.trim()
       });
       
-      // 로컬 스토리지 정보도 업데이트
+      // 로컬 스토리지 참여 정보 업데이트
       const storedParticipation = localStorage.getItem('quizParticipation');
       if (storedParticipation) {
         const participation = JSON.parse(storedParticipation);
@@ -90,11 +92,15 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
         localStorage.setItem('quizParticipation', JSON.stringify(participation));
       }
       
-      setIsEditingNickname(false);
-      setIsUpdatingNickname(false);
-    } catch (err) {
-      console.error('닉네임 업데이트 오류:', err);
-      setNicknameError('닉네임 변경에 실패했습니다.');
+      // 팝업 닫기
+      closePopup();
+      
+      // 성공 메시지 표시 (선택사항)
+      console.log('닉네임이 성공적으로 변경되었습니다');
+    } catch (error) {
+      console.error('닉네임 변경 실패:', error);
+      setNicknameError('닉네임 변경에 실패했습니다. 다시 시도해주세요.');
+    } finally {
       setIsUpdatingNickname(false);
     }
   };
@@ -115,15 +121,33 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isEditingNickname]);
-  
+
+  // 시간 제한을 사람이 읽기 좋은 형식으로 변환
+  const formatTimeLimit = () => {
+    if (timeLimit >= 60) {
+      const minutes = Math.floor(timeLimit / 60);
+      const seconds = timeLimit % 60;
+      return `${minutes}분 ${seconds > 0 ? `${seconds}초` : ''}`;
+    }
+    return `${timeLimit}초`;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-blue-50 p-4 flex flex-col items-center pt-8">
-      <div className="max-w-3xl w-full bg-white rounded-2xl shadow-lg p-8 animate-fade-in">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col items-center pt-4">
+      <div className="max-w-3xl w-full bg-white rounded-2xl p-8 animate-fade-in"
+        style={{
+          boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
+          border: '2px solid #0D9488',
+          borderRadius: '16px',
+          background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+        }}
+      >
         {/* 사용자 정보 - 심플하게 개선 */}
         <div className="flex justify-end mb-6">
           <button 
             onClick={() => setIsEditingNickname(true)}
             className="inline-flex items-center gap-1.5 bg-teal-50 py-1.5 px-3 rounded-full text-teal-600 hover:bg-teal-100 transition-all font-medium text-sm"
+            style={{ border: '1px solid #0D9488' }}
           >
             <User size={14} className="text-teal-500" /> {participant.name} <Edit size={12} className="ml-1 text-teal-400" />
           </button>
@@ -134,10 +158,15 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
             <div 
               ref={popupRef} 
-              className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-fade-in-up"
+              className="bg-white rounded-lg p-6 w-full max-w-md animate-fade-in-up"
+              style={{
+                boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
+                border: '2px solid #0D9488',
+                borderRadius: '16px',
+              }}
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-teal-700">닉네임 변경</h3>
+                <h3 className="text-xl font-bold text-[#783ae8]">닉네임 변경</h3>
                 <button 
                   onClick={closePopup}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -181,6 +210,22 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
                   variant="primary"
                   size="small"
                   disabled={isUpdatingNickname}
+                  className="bg-gradient-to-r from-teal-500 to-teal-400"
+                  style={{
+                    boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                    border: '2px solid #000',
+                    borderRadius: '12px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 5px 0 rgba(0,0,0,0.8)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                  }}
                 >
                   {isUpdatingNickname ? (
                     <span className="flex items-center">
@@ -198,7 +243,7 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
         )}
         
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-teal-700 mb-3">{quiz.title}</h1>
+          <h1 className="text-3xl font-bold text-[#783ae8] mb-3">{quiz.title}</h1>
           {quiz.description && (
             <p className="text-gray-600 mb-4">{quiz.description}</p>
           )}
@@ -209,13 +254,28 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
             onClick={onStartQuiz}
             variant="primary"
             size="large"
-            className="px-8 bg-gradient-to-r from-teal-500 to-cyan-500"
+            className="px-8 bg-gradient-to-r from-teal-500 to-teal-400"
+            style={{
+              boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+              border: '2px solid #000',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+            }}
           >
             <Play size={20} className="mr-2" /> {isResuming ? '이어서 풀기' : '퀴즈 시작하기'}
           </Button>
         </div>
         
-        <div className="bg-teal-50 rounded-lg p-6">
+        <div className="bg-teal-50 rounded-lg p-6" style={{ border: '1px solid #0D9488' }}>
           <div className="space-y-2">
             <div className="flex items-center text-gray-600">
               <div className="w-28 font-medium">문제 수:</div>

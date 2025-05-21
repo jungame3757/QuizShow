@@ -34,7 +34,7 @@
           ".write": "auth !== null"
         },
         "answers": {
-          ".read": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid",
+          ".read": "auth !== null",
           ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
         }
       }

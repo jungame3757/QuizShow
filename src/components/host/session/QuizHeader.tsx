@@ -57,27 +57,30 @@ const QuizHeader: React.FC<QuizHeaderProps> = ({
             {currentSession ? (
               <button 
                 onClick={onEditClick}
-                className="px-3 py-1 sm:py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm whitespace-nowrap"
+                className="px-2.5 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+                aria-label="퀴즈 편집"
               >
-                <Edit size={14} className="mr-1" />
-                편집
+                <Edit size={14} className="mr-1.5" />
+                <span className="whitespace-nowrap text-xs sm:text-sm font-medium">편집</span>
               </button>
             ) : (
               <Link 
                 to={`/host/edit/${quiz.id}`}
-                className="px-3 py-1 sm:py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center text-sm whitespace-nowrap"
+                className="px-2.5 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+                aria-label="퀴즈 편집"
               >
-                <Edit size={14} className="mr-1" />
-                편집
+                <Edit size={14} className="mr-1.5" />
+                <span className="whitespace-nowrap text-xs sm:text-sm font-medium">편집</span>
               </Link>
             )}
             <button
               onClick={onDeleteClick}
-              className="px-3 py-1 sm:py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center text-sm whitespace-nowrap"
+              className="px-2.5 py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors flex items-center justify-center"
               disabled={isProcessing}
+              aria-label="퀴즈 삭제"
             >
-              <Trash2 size={14} className="mr-1" />
-              삭제
+              <Trash2 size={14} className="mr-1.5" />
+              <span className="whitespace-nowrap text-xs sm:text-sm font-medium">삭제</span>
             </button>
           </div>
         </div>

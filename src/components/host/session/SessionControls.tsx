@@ -62,7 +62,7 @@ const SessionControls: React.FC<SessionControlsProps> = ({
     <>
       {currentSession && !needsSession ? (
         <div className="mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl bg-green-100 border-2 border-green-300">
-          <div className="flex flex-col space-y-2 sm:space-y-3 sm:flex-row sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
               <h3 className="text-base sm:text-lg font-medium text-green-800 mb-0.5 sm:mb-1">활동 남은 시간</h3>
               <div className="flex items-center">
@@ -70,12 +70,27 @@ const SessionControls: React.FC<SessionControlsProps> = ({
                 <span className="text-xl sm:text-3xl font-bold tracking-wider text-green-700">{remainingTime}</span>
               </div>
             </div>
-            <div className="mt-1 sm:mt-0">
+            <div className="flex items-center justify-center mt-3 sm:mt-0">
               <Button 
                 onClick={onEndSessionClick}
                 variant="danger"
                 disabled={endingSession}
-                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4"
+                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4 bg-gradient-to-r from-red-600 to-red-500"
+                style={{
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                  border: '2px solid #000',
+                  borderRadius: '0.75rem',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                }}
               >
                 {endingSession ? (
                   <>
@@ -94,7 +109,7 @@ const SessionControls: React.FC<SessionControlsProps> = ({
         </div>
       ) : needsSession ? (
         <div className="mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl bg-gray-100 border-2 border-gray-300">
-          <div className="flex flex-col space-y-2 sm:space-y-3 sm:flex-row sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
               <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-0.5 sm:mb-1">
                 활동이 꺼져있음
@@ -103,12 +118,27 @@ const SessionControls: React.FC<SessionControlsProps> = ({
                 <p className="text-sm sm:text-base text-gray-700">활동을 시작하여 참가자들을 초대하세요.</p>
               </div>
             </div>
-            <div className="mt-1 sm:mt-0">
+            <div className="flex items-center justify-center mt-3 sm:mt-0">
               <Button 
                 onClick={onStartSession}
                 variant={"success"}
                 disabled={creatingSession}
-                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4"
+                className="w-full sm:w-auto flex justify-center items-center py-1.5 sm:py-2 px-3 sm:px-4 bg-gradient-to-r from-purple-600 to-indigo-600"
+                style={{
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+                  border: '2px solid #000',
+                  borderRadius: '0.75rem',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+                }}
               >
                 {creatingSession ? (
                   <>

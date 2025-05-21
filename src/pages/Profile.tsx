@@ -122,19 +122,34 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#F8F7FF] via-[#F3F1FF] to-[#F0EEFF] py-8 px-4">
       <div className="container mx-auto max-w-md">
         <div className="flex items-center mb-6">
-          <button onClick={() => navigate(-1)} className="mr-4 text-purple-600 hover:text-purple-800 transition-colors">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mr-4 text-[#783ae8] hover:text-purple-800 transition-colors"
+            style={{
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateX(-2px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateX(0)';
+            }}
+          >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-3xl font-bold text-purple-800">내 프로필</h1>
+          <h1 className="text-3xl font-bold text-[#783ae8]">내 프로필</h1>
         </div>
         
         {/* 프로필 카드 */}
-        <div className="bg-white shadow-lg rounded-xl p-6 mb-6 border border-purple-100">
+        <div className="bg-white shadow-lg rounded-xl p-6 mb-6" style={{
+          border: '1px solid rgba(139, 92, 246, 0.3)', 
+          boxShadow: '0 3px 0 rgba(139, 92, 246, 0.15)'
+        }}>
           <div className="flex items-center justify-center mb-6">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-400 to-indigo-500 flex items-center justify-center shadow-md">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center shadow-md">
               <User size={40} className="text-white" />
             </div>
           </div>
@@ -162,13 +177,38 @@ const Profile = () => {
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={handleUpdateName}
-                      className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors flex-1 flex items-center justify-center"
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors flex-1 flex items-center justify-center"
+                      style={{
+                        boxShadow: '0 2px 0 rgba(0,0,0,0.5)',
+                        border: '1px solid #000',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.5)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.5)';
+                      }}
                     >
                       저장
                     </button>
                     <button
                       onClick={() => setIsEditing(false)}
-                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex-1"
+                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-300 transition-colors flex-1"
+                      style={{
+                        boxShadow: '0 2px 0 rgba(0,0,0,0.1)',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.1)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.1)';
+                      }}
                     >
                       취소
                     </button>
@@ -181,7 +221,7 @@ const Profile = () => {
                     <p className="font-medium text-gray-800">{currentUser.displayName || '이름 없음'}</p>
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="text-purple-600 hover:text-purple-800 transition-colors p-1"
+                      className="text-[#783ae8] hover:text-purple-800 transition-colors p-1"
                     >
                       <Edit size={18} />
                     </button>
@@ -195,7 +235,19 @@ const Profile = () => {
               <p className="mb-6 text-gray-600">Google 계정으로 연결하여 더 많은 기능을 사용할 수 있습니다.</p>
               <button
                 onClick={signInWithGoogle}
-                className="bg-white border border-blue-300 text-blue-600 px-4 py-2 rounded-md hover:bg-blue-50 transition-colors w-full flex items-center justify-center"
+                className="bg-white border border-blue-300 text-blue-600 px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors w-full flex items-center justify-center"
+                style={{
+                  boxShadow: '0 2px 0 rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.1)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.1)';
+                }}
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -233,14 +285,32 @@ const Profile = () => {
         <div className="space-y-4">
           <button
             onClick={handleLogout}
-            className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 transition-colors w-full flex items-center justify-center"
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition-colors w-full flex items-center justify-center"
+            style={{
+              boxShadow: '0 3px 0 rgba(0,0,0,0.8)',
+              border: '2px solid #000',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(0,0,0,0.8)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(0,0,0,0.8)';
+            }}
             disabled={isProcessing}
           >
             <LogOut size={18} className="mr-2" /> 로그아웃
           </button>
           
           {isDeleting ? (
-            <div className="bg-white shadow-lg rounded-xl p-6 border border-red-200">
+            <div className="bg-white shadow-lg rounded-xl p-6" style={{
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 3px 0 rgba(239, 68, 68, 0.15)'
+            }}>
               <div className="flex items-center mb-3 text-red-600">
                 <AlertTriangle size={20} className="mr-2" />
                 <h3 className="font-bold">계정 삭제 확인</h3>
@@ -253,7 +323,20 @@ const Profile = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleDeleteAccount}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors flex-1 flex items-center justify-center"
+                  className="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 transition-colors flex-1 flex items-center justify-center"
+                  style={{
+                    boxShadow: '0 2px 0 rgba(0,0,0,0.5)',
+                    border: '1px solid #000',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.5)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.5)';
+                  }}
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
@@ -267,7 +350,19 @@ const Profile = () => {
                 </button>
                 <button
                   onClick={() => setIsDeleting(false)}
-                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors flex-1"
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-300 transition-colors flex-1"
+                  style={{
+                    boxShadow: '0 2px 0 rgba(0,0,0,0.1)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 0 rgba(0,0,0,0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 0 rgba(0,0,0,0.1)';
+                  }}
                   disabled={isProcessing}
                 >
                   취소
@@ -277,7 +372,19 @@ const Profile = () => {
           ) : (
             <button
               onClick={() => setIsDeleting(true)}
-              className="bg-white border border-red-300 text-red-600 px-4 py-3 rounded-md hover:bg-red-50 transition-colors w-full flex items-center justify-center"
+              className="bg-white border border-red-300 text-red-600 px-4 py-3 rounded-xl hover:bg-red-50 transition-colors w-full flex items-center justify-center"
+              style={{
+                boxShadow: '0 2px 0 rgba(239, 68, 68, 0.2)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 0 rgba(239, 68, 68, 0.2)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 0 rgba(239, 68, 68, 0.2)';
+              }}
               disabled={isProcessing}
             >
               <Trash2 size={18} className="mr-2" /> 계정 삭제
