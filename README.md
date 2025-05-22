@@ -20,12 +20,18 @@ Firestore는 주로 정적인 데이터와 사용자 관련 정보를 저장합�
             *   `createdAt`: (Timestamp) 퀴즈 생성 시간
             *   `updatedAt`: (Timestamp) 퀴즈 마지막 수정 시간
         *   `/users/{userId}/sessionHistories/{historyId}`: 해당 사용자가 호스트한 퀴즈 세션의 기록입니다.
-            *   `hostId`: (String) 세션을 호스트한 사용자 ID
             *   `title`: (String) 진행된 퀴즈의 제목
             *   `startedAt`: (Timestamp) 세션 시작 시간
             *   `endedAt`: (Timestamp) 세션 종료 시간
             *   `participantCount`: (Number) 세션 참여자 수
-            *   `quiz`: (Object) 진행된 퀴즈의 전체 데이터 (`/users/{userId}/quizzes/{quizId}` 구조와 유사)
+            *   `quiz`: (Object) 진행된 퀴즈의 전체 데이터. 상세 구조는 다음과 같습니다:
+                *   `id`: (String) 퀴즈의 고유 ID
+                *   `title`: (String) 퀴즈 제목
+                *   `description`: (String, Optional) 퀴즈에 대한 설명
+                *   `questions`: (Array) 퀴즈 질문 목록
+                    *   `text`: (String) 질문 내용
+                    *   `options`: (Array of Strings) 객관식 선택지
+                    *   `correctAnswer`: (Number) 정답 선택지의 인덱스
             *   `participants`: (Object) 세션 참여자 정보 (Key: 참여자 ID)
                 *   `id`: (String) 참여자 고유 ID
                 *   `name`: (String) 참여자 이름
@@ -46,12 +52,6 @@ Firestore는 주로 정적인 데이터와 사용자 관련 정보를 저장합�
 *   `/publicQuizzes/{quizId}`: 공개적으로 접근 가능한 퀴즈 목록입니다. (현재는 읽기만 가능하며, 생성/수정은 제한됩니다.)
     *   구조는 `/users/{userId}/quizzes/{quizId}`와 동일합니다.
 
-### 세션 메타데이터 컬렉션
-
-*   `/sessions/{sessionId}`: 실시간 세션(RTDB)에 대한 메타데이터 및 Firestore와의 동기화를 위한 정보를 저장할 수 있습니다. (주로 RTDB의 세션 정보를 가리키는 역할로 보임)
-    *   `hostId`: (String) 세션 호스트의 사용자 ID
-    *   (기타 필드는 RTDB의 `/sessions/{sessionId}` 데이터와 동기화될 수 있습니다.)
-
 ## Firebase Realtime Database (RTDB)
 
 RTDB는 실시간으로 동기화되어야 하는 세션 관련 데이터를 주로 처리합니다.
@@ -65,8 +65,8 @@ RTDB는 실시간으로 동기화되어야 하는 세션 관련 데이터를 주
     *   `code`: (String) 참가자들이 세션에 참여하기 위한 고유 코드
     *   `currentQuestion`: (Number) 현재 진행 중인 질문의 인덱스
     *   `createdAt`: (Number) 세션 생성 시간 (Unix Timestamp)
-    *   `startedAt`: (Number, Nullable) 세션 시작 시간 (Unix Timestamp)
-    *   `endedAt`: (Number, Nullable) 세션 종료 시간 (Unix Timestamp)
+    *   `startedAt`: (Number) 세션 시작 시간 (Unix Timestamp)
+    *   `endedAt`: (Number) 세션 종료 시간 (Unix Timestamp)
     *   `participantCount`: (Number) 현재 세션 참여자 수
     *   `expiresAt`: (Number) 세션 만료 시간 (Unix Timestamp)
     *   `randomizeQuestions`: (Boolean) 질문 순서 무작위 여부
@@ -96,27 +96,25 @@ RTDB는 실시간으로 동기화되어야 하는 세션 관련 데이터를 주
 
 ### 세션 참여자 정보
 
-*   `/sessionParticipants/{sessionId}/{participantId}`: 특정 세션에 참여한 각 참가자의 실시간 정보입니다.
-    *   `id`: (String) 참가자 고유 ID
+*   `/participants/{sessionId}/{participantId}`: 특정 세션에 참여한 각 참가자의 실시간 정보입니다.
+    *   `id`: (String) 참가자 고유 ID (일반적으로 `userId`와 동일)
     *   `name`: (String) 참가자 이름
     *   `joinedAt`: (Number) 세션 참여 시간 (Unix Timestamp)
-    *   `isActive`: (Boolean) 현재 참가자의 활성 상태
+    *   `isActive`: (Boolean) 현재 참가자의 활성 상태 (예: 세션 참여 시 `true`, 이탈 또는 연결 끊김 시 `false`로 업데이트될 수 있음)
     *   `score`: (Number) 참가자의 현재 누적 점수
-
-### 세션 질문 상태 (구조 추정)
-
-*   `/sessionQuestionStatus/{sessionId}/{questionIndex}`: 특정 세션의 각 질문 진행 상태를 나타냅니다.
-    *   `revealed`: (Boolean) 해당 질문이 참가자에게 공개되었는지 여부
-    *   `startedAt`: (Number, Nullable) 질문 시작 시간 (Unix Timestamp)
-    *   `endedAt`: (Number, Nullable) 질문 종료 시간 (Unix Timestamp)
-
-### 세션 답변 정보 (구조 추정)
-
-*   `/sessionAnswers/{sessionId}/{questionIndex}/{userId}`: 특정 세션의 각 질문에 대한 사용자별 답변 정보입니다.
-    *   `answer`: (String) 사용자가 선택한 답변
-    *   `answeredAt`: (Number) 답변 제출 시간 (Unix Timestamp)
-    *   `isCorrect`: (Boolean) 정답 여부
-    *   `score`: (Number) 해당 답변으로 획득한 점수
+    *   `answers`: (Object, Optional) 각 질문 인덱스를 키로 가지며, 해당 질문에 대한 참가자의 답변 정보를 저장합니다. (구조는 아래 `Answer` 타입 참고)
+        *   `{questionIndex}`: (Object) `Answer` 타입 객체
+            *   `questionIndex`: (Number) 질문의 원본 인덱스
+            *   `answerIndex`: (Number) 참여자가 선택한 답변의 인덱스 (시간 초과 시 -1)
+            *   `isCorrect`: (Boolean) 정답 여부
+            *   `points`: (Number) 해당 답변으로 획득한 점수
+            *   `answeredAt`: (Number) 답변 제출 시간 (Unix Timestamp)
+    *   `attempts`: (Array of `Attempt` Objects, Optional) 퀴즈 재시도 시 이전 시도 기록을 저장합니다.
+        *   `Attempt` 객체 구조:
+            *   `answers`: (Object) 해당 시도의 `answers` 객체 (위 `answers` 구조와 동일)
+            *   `score`: (Number) 해당 시도에서 얻은 총 점수
+            *   `completedAt`: (Number) 해당 시도 완료 시간 (Unix Timestamp)
+    *   참고: 클라이언트 측 `RealtimeParticipant` 인터페이스에는 `quizId` 필드가 있을 수 있으나, 이는 RTDB 저장 시점에 해당 객체 내에 직접 포함되지 않을 수 있습니다.
 
 ---
 

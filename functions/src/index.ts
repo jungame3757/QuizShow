@@ -39,31 +39,77 @@ async function createSessionHistoryData(
     ? admin.firestore.Timestamp.fromMillis(rtdbSessionData.endedAt)
     : admin.firestore.Timestamp.now(); // 만료 시점을 종료 시점으로
 
+  // sessionHistoryService.ts와 동일하게 quiz 객체에 항상 rtdbSessionData.quizId 사용
+  const quizWithId = {
+    ...quiz,
+    id: rtdbSessionData.quizId, // 항상 rtdbSessionData.quizId 사용
+    title: quiz.title || '제목 없음' // quiz.title이 없으면 기본값 사용
+  };
+
   const historyParticipants: Record<string, HistoryParticipant> = {};
   for (const pId in participantsData) {
     const rtdbPart = participantsData[pId];
-    // TODO: RTDB 참가자 답변/시도 정보를 가져와서 HistoryParticipant 내부의 attempts 배열을 채워야 함
-    // 이 예시에서는 간단히 score만 매핑합니다.
+    
+    // participant 객체의 전체 데이터를 any로 캐스팅하여 접근
+    const participantData = rtdbPart as any;
+    
+    // sessionHistoryService.ts와 동일하게 quizId 필드 제거 (필요시)
+    if (participantData.quizId) {
+      delete participantData.quizId;
+    }
+    
+    // answers 필드가 있는지 확인하고 필요한 형식으로 변환
+    let historyAnswers = {};
+    if (participantData.answers && Array.isArray(participantData.answers)) {
+      // answers 배열을 Record<string, HistoryAnswer> 형태로 변환
+      historyAnswers = participantData.answers.reduce((acc: Record<string, any>, answer: any, index: number) => {
+        if (answer) {
+          acc[index.toString()] = {
+            questionIndex: answer.questionIndex || index,
+            answerIndex: answer.answerIndex || 0,
+            isCorrect: answer.isCorrect || false,
+            points: answer.points || 0,
+            answeredAt: answer.answeredAt || 0
+          };
+        }
+        return acc;
+      }, {});
+    }
+    
+    // attempts 필드 처리
+    const attempts = participantData.attempts || [];
+    
+    // 답변 데이터가 있고 attempts가 없는 경우, 답변 데이터로부터 attempt 생성
+    if (Object.keys(historyAnswers).length > 0 && attempts.length === 0) {
+      attempts.push({
+        answers: historyAnswers,
+        score: rtdbPart.score,
+        completedAt: participantData.lastActivityAt || endedAtTimestamp.toMillis()
+      });
+    }
+    
+    // sessionHistoryService.ts와 일관된 형태로 참가자 데이터 구성
     historyParticipants[pId] = {
       id: pId,
       name: rtdbPart.name,
       joinedAt: rtdbPart.joinedAt,
-      isActive: rtdbPart.isActive, // 세션 종료 시점의 활성 상태
+      isActive: rtdbPart.isActive,
       score: rtdbPart.score,
-      attempts: [], // 상세 답변/시도 기록은 추가 구현 필요
+      attempts: attempts
     };
   }
 
+  // sessionHistoryService.ts와 일관된 형태로 세션 기록 생성
   return {
     hostId: rtdbSessionData.hostId,
-    title: quiz.title || '제목 없음',
+    title: quizWithId.title, // 퀴즈 타이틀 사용
     startedAt: rtdbSessionData.startedAt 
       ? admin.firestore.Timestamp.fromMillis(rtdbSessionData.startedAt) 
       : admin.firestore.Timestamp.fromMillis(rtdbSessionData.createdAt),
     endedAt: endedAtTimestamp,
     participantCount: rtdbSessionData.participantCount || Object.keys(participantsData).length,
-    quiz: quiz, // Quiz 객체 전체 저장
-    participants: historyParticipants,
+    quiz: quizWithId, // 수정된 퀴즈 객체 저장 (id 포함)
+    participants: historyParticipants, // quizId 필드가 제거된 참가자 데이터
   };
 }
 

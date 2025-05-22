@@ -79,15 +79,30 @@ export const saveSessionHistory = async (
       Timestamp.fromMillis(session.createdAt);
     const endedAt = session.endedAt ? Timestamp.fromMillis(session.endedAt) : null;
 
-    // 세션 기록 데이터 생성
+    // session.quizId를 사용하여 quiz 객체에 id 추가
+    const quizWithId = { 
+      ...quiz,
+      id: session.quizId, // 항상 session.quizId 사용
+      title: quiz.title || title // quiz.title이 없으면 전달받은 title 사용
+    };
+
+    // participants에서 quizId 필드 제거
+    const cleanedParticipants: Record<string, Participant> = {};
+    Object.entries(participants).forEach(([key, participant]) => {
+      // participant를 복사하고 quizId 필드 제거
+      const { quizId, ...cleanedParticipant } = participant as any;
+      cleanedParticipants[key] = cleanedParticipant;
+    });
+
+    // 세션 기록 데이터 생성 (title은 quiz.title로 통일)
     const sessionHistory: Omit<SessionHistory, 'id'> = {
       hostId: session.hostId,
-      title: title,
+      title: quizWithId.title,
       participantCount: session.participantCount,
       startedAt,
       endedAt,
-      participants,
-      quiz: quiz // 퀴즈 전체 객체를 저장
+      participants: cleanedParticipants,
+      quiz: quizWithId
     };
 
     // 사용자별 하위 컬렉션에 세션 기록 추가
