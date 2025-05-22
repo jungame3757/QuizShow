@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, User, Edit, X, LogOut, Clock, AlertTriangle, MessageSquare, Users } from 'lucide-react';
+import { Play, User, Edit, X, LogOut } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { ref, update } from 'firebase/database';
@@ -121,16 +121,6 @@ const QuizStartPage: React.FC<QuizStartPageProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isEditingNickname]);
-
-  // 시간 제한을 사람이 읽기 좋은 형식으로 변환
-  const formatTimeLimit = () => {
-    if (timeLimit >= 60) {
-      const minutes = Math.floor(timeLimit / 60);
-      const seconds = timeLimit % 60;
-      return `${minutes}분 ${seconds > 0 ? `${seconds}초` : ''}`;
-    }
-    return `${timeLimit}초`;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col items-center pt-4">

@@ -24,6 +24,7 @@ const SessionControls: React.FC<SessionControlsProps> = ({
   onEndSessionClick,
 }) => {
   const [remainingTime, setRemainingTime] = useState<string>("계산 중...");
+  const [isExpired, setIsExpired] = useState(false);
   
   // 남은 시간 계산
   useEffect(() => {
@@ -35,9 +36,11 @@ const SessionControls: React.FC<SessionControlsProps> = ({
       
       if (remaining <= 0) {
         setRemainingTime("만료됨");
+        setIsExpired(true);
         return;
       }
       
+      setIsExpired(false);
       const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
       const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
@@ -61,13 +64,17 @@ const SessionControls: React.FC<SessionControlsProps> = ({
   return (
     <>
       {currentSession && !needsSession ? (
-        <div className="mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl bg-green-100 border-2 border-green-300">
+        <div className={`mt-2 sm:mt-3 p-2 sm:p-4 rounded-xl ${isExpired ? 'bg-orange-100 border-2 border-orange-300' : 'bg-green-100 border-2 border-green-300'}`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
-              <h3 className="text-base sm:text-lg font-medium text-green-800 mb-0.5 sm:mb-1">활동 남은 시간</h3>
+              <h3 className={`text-base sm:text-lg font-medium ${isExpired ? 'text-orange-800' : 'text-green-800'} mb-0.5 sm:mb-1`}>
+                {isExpired ? '활동 만료됨' : '활동 남은 시간'}
+              </h3>
               <div className="flex items-center">
-                <Clock size={18} className="text-green-700 mr-1.5 sm:mr-2" />
-                <span className="text-xl sm:text-3xl font-bold tracking-wider text-green-700">{remainingTime}</span>
+                <Clock size={18} className={`${isExpired ? 'text-orange-700' : 'text-green-700'} mr-1.5 sm:mr-2`} />
+                <span className={`text-xl sm:text-3xl font-bold tracking-wider ${isExpired ? 'text-orange-700' : 'text-green-700'}`}>
+                  {remainingTime}
+                </span>
               </div>
             </div>
             <div className="flex items-center justify-center mt-3 sm:mt-0">

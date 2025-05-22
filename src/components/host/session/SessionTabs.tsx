@@ -13,6 +13,7 @@ interface SessionTabsProps {
   isCopied: boolean;
   onCopySessionCode: () => void;
   onCopyJoinUrl: () => void;
+  isSessionExpired?: boolean;
 }
 
 const SessionTabs: React.FC<SessionTabsProps> = ({
@@ -24,7 +25,8 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   qrValue,
   isCopied,
   onCopySessionCode,
-  onCopyJoinUrl
+  onCopyJoinUrl,
+  isSessionExpired = false
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
@@ -76,6 +78,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
             isCopied={isCopied}
             onCopySessionCode={onCopySessionCode}
             onCopyJoinUrl={onCopyJoinUrl}
+            isSessionExpired={isSessionExpired}
           />
         )}
         

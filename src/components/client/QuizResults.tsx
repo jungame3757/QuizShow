@@ -70,8 +70,6 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   
   // Calculate results
   const totalQuestions = quiz.questions.length;
-  const correctAnswers = participant.answers.filter(a => a.isCorrect).length;
-  const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
   
   // 점수별로 정렬된 랭킹 계산 (동점자 처리 포함)
   const processedRankings = React.useMemo(() => {

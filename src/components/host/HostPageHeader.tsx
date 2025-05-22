@@ -17,7 +17,7 @@ const HostPageHeader: React.FC<HostPageHeaderProps> = ({
       <div className="flex items-center">
         {handleNavigation ? (
           <button 
-            onClick={() => handleNavigation("/")}
+            onClick={() => handleNavigation("/host/my-quizzes")}
             className="flex items-center gap-2 h-8"
             aria-label="홈으로 이동"
           >
@@ -27,7 +27,7 @@ const HostPageHeader: React.FC<HostPageHeaderProps> = ({
             </span>
           </button>
         ) : (
-          <Link to="/" className="flex items-center gap-2 h-8" aria-label="홈으로 이동">
+          <Link to="/host/my-quizzes" className="flex items-center gap-2 h-8" aria-label="홈으로 이동">
             <img src="/assets/logo/logo-light.svg" alt="콰직 로고" className="h-8 mr-1" />
             <span className="text-xl sm:text-2xl font-bold text-[#783ae8]" style={{ fontFamily: 'SBAggroB' }}>
               콰직

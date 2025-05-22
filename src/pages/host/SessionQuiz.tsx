@@ -574,6 +574,19 @@ const SessionQuiz: React.FC = () => {
     );
   };
 
+  // 새로운 상태 변수 추가
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
+
+  // 세션 만료 여부를 확인하는 useEffect 추가
+  useEffect(() => {
+    if (currentSession && currentSession.expiresAt) {
+      const now = Date.now();
+      setIsSessionExpired(currentSession.expiresAt < now);
+    } else {
+      setIsSessionExpired(false);
+    }
+  }, [currentSession]);
+
   if (waitingForAuth || isLoading || quizLoading || sessionLoading || loadingActiveSession) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 p-4">
@@ -722,6 +735,7 @@ const SessionQuiz: React.FC = () => {
             isCopied={isCopied}
             onCopySessionCode={copySessionCode}
             onCopyJoinUrl={copyJoinUrl}
+            isSessionExpired={isSessionExpired}
           />
         )}
 

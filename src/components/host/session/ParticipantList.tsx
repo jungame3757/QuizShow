@@ -34,6 +34,7 @@ interface ParticipantListProps {
   isCopied?: boolean;
   onCopySessionCode?: () => void;
   onCopyJoinUrl?: () => void;
+  isSessionExpired?: boolean; // 세션 만료 여부 추가
 }
 
 const ParticipantList: React.FC<ParticipantListProps> = ({ 
@@ -43,7 +44,8 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
   qrValue = "", 
   isCopied = false,
   onCopySessionCode = () => {}, 
-  onCopyJoinUrl = () => {} 
+  onCopyJoinUrl = () => {},
+  isSessionExpired = false
 }) => {
   // 상세 정보를 확장할 참가자 ID 추적
   const [expandedParticipantId, setExpandedParticipantId] = useState<string | null>(null);
@@ -124,9 +126,10 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
     );
   };
 
-  // 초대 섹션 렌더링
+  // 초대 섹션 렌더링 - 만료된 경우 표시하지 않음
   const renderInviteSection = () => {
-    if (!sessionCode) return null;
+    // 세션이 만료되었거나 세션 코드가 없는 경우 표시하지 않음
+    if (isSessionExpired || !sessionCode) return null;
     
     return (
       <div className="mb-5">
@@ -205,6 +208,30 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
     <div>
       {/* 초대 섹션 */}
       {renderInviteSection()}
+
+      {/* 만료된 경우 안내 메시지 표시 */}
+      {isSessionExpired && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-5">
+          <h3 className="text-lg font-semibold text-orange-800 mb-1">이 활동은 만료되었습니다</h3>
+          <p className="text-orange-700">
+            새로운 참가자는 더 이상 참여할 수 없지만, 기존 참가자 데이터는 계속 확인할 수 있습니다.
+          </p>
+        </div>
+      )}
+
+      {/* 참가자 목록 헤더 - 만료된 경우에도 표시 */}
+      {!renderInviteSection() && !isSessionExpired && (
+        <div className="mb-4">
+          <h3 className="text-xl font-semibold text-gray-800">
+            참가자 목록
+            {sortedParticipants.length > 0 && (
+              <span className="ml-2 text-base font-normal text-gray-500">
+                (총 {sortedParticipants.length}명)
+              </span>
+            )}
+          </h3>
+        </div>
+      )}
 
       {/* 참가자 목록 섹션 */}
       {sortedParticipants.length === 0 ? (

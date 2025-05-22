@@ -78,7 +78,6 @@ export const useQuizLogic = (quizId: string | undefined) => {
   const [showQuizEnd, setShowQuizEnd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedAttemptIndex] = useState<number | -1>(-1);
   
   const [quizStarted, setQuizStarted] = useState(false);
   const [timerPercentage, setTimerPercentage] = useState(100);

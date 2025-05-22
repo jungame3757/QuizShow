@@ -287,11 +287,21 @@ const MyQuizzes: React.FC = () => {
                     key={quiz.id} 
                     className="bg-white relative overflow-hidden rounded-lg sm:rounded-xl"
                     style={{
-                      boxShadow: quiz.hasActiveSession ? '0 3px 0 rgba(20, 184, 166, 0.5)' : '0 3px 0 rgba(98, 58, 162, 0.3)',
-                      border: quiz.hasActiveSession ? '2px solid #0D9488' : '2px solid rgba(139, 92, 246, 0.5)',
+                      boxShadow: quiz.hasActiveSession 
+                        ? (quiz.sessionExpiresAt && quiz.sessionExpiresAt < Date.now() 
+                          ? '0 3px 0 rgba(249, 115, 22, 0.5)' 
+                          : '0 3px 0 rgba(20, 184, 166, 0.5)') 
+                        : '0 3px 0 rgba(98, 58, 162, 0.3)',
+                      border: quiz.hasActiveSession 
+                        ? (quiz.sessionExpiresAt && quiz.sessionExpiresAt < Date.now() 
+                          ? '2px solid #F97316' 
+                          : '2px solid #0D9488') 
+                        : '2px solid rgba(139, 92, 246, 0.5)',
                       borderRadius: '16px',
                       background: quiz.hasActiveSession 
-                        ? 'linear-gradient(to bottom right, #fff, #f0fffc)' 
+                        ? (quiz.sessionExpiresAt && quiz.sessionExpiresAt < Date.now() 
+                          ? 'linear-gradient(to bottom right, #fff, #fff8f0)' 
+                          : 'linear-gradient(to bottom right, #fff, #f0fffc)') 
                         : 'linear-gradient(to bottom right, #fff, #fafaff)'
                     }}
                   >
@@ -309,10 +319,17 @@ const MyQuizzes: React.FC = () => {
                         
                         <div className="flex flex-col items-end gap-2">
                           {quiz.hasActiveSession ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 border border-teal-300 whitespace-nowrap">
-                              <span className="w-2 h-2 mr-1 bg-teal-500 rounded-full animate-pulse"></span>
-                              활동 켜짐
-                            </span>
+                            quiz.sessionExpiresAt && quiz.sessionExpiresAt < Date.now() ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300 whitespace-nowrap">
+                                <span className="w-2 h-2 mr-1 bg-orange-500 rounded-full"></span>
+                                만료됨
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 border border-teal-300 whitespace-nowrap">
+                                <span className="w-2 h-2 mr-1 bg-teal-500 rounded-full animate-pulse"></span>
+                                활동 켜짐
+                              </span>
+                            )
                           ) : (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300 whitespace-nowrap">
                               <span className="w-2 h-2 mr-1 bg-gray-500 rounded-full"></span>

@@ -17,6 +17,9 @@ const QuizHeader: React.FC<QuizHeaderProps> = ({
   onDeleteClick, 
   isProcessing 
 }) => {
+  // 세션 만료 여부 확인
+  const isSessionExpired = currentSession && currentSession.expiresAt && currentSession.expiresAt < Date.now();
+  
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start mb-2 sm:mb-4">
       <div className="mb-2 sm:mb-0 w-full">
@@ -25,10 +28,17 @@ const QuizHeader: React.FC<QuizHeaderProps> = ({
             <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
               <h1 className="text-2xl font-bold text-purple-700 break-words overflow-hidden">{quiz.title}</h1>
               {currentSession ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
-                  <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
-                  활동 켜짐
-                </span>
+                isSessionExpired ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 whitespace-nowrap">
+                    <span className="w-2 h-2 mr-1 bg-orange-500 rounded-full"></span>
+                    만료됨
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
+                    <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+                    활동 켜짐
+                  </span>
+                )
               ) : (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 whitespace-nowrap">
                   <span className="w-2 h-2 mr-1 bg-gray-500 rounded-full"></span>

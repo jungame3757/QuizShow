@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, LogIn, Loader2, Send, User } from 'lucide-react';
+import { LogIn, Loader2, Send, User, Brain } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { auth, rtdb } from '../../firebase/config';
@@ -22,7 +22,7 @@ const JoinQuiz: React.FC = () => {
   
   // Firebase 인증 상태 확인
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (_user) => {
       setAuthChecked(true);
     });
     
@@ -92,6 +92,27 @@ const JoinQuiz: React.FC = () => {
       
       if (!userId) {
         throw new Error('사용자 인증 정보가 없습니다.');
+      }
+      
+      // 세션이 만료되었는지 다시 확인
+      const sessionRef = ref(rtdb, `sessions/${sessionToUse.sessionId}`);
+      const sessionSnapshot = await get(sessionRef);
+      
+      if (!sessionSnapshot.exists()) {
+        throw new Error('세션 정보를 찾을 수 없습니다.');
+      }
+      
+      const sessionData = sessionSnapshot.val();
+      
+      // 세션이 만료되었는지 확인
+      const now = Date.now();
+      if (sessionData.expiresAt && sessionData.expiresAt < now) {
+        throw new Error('만료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
+      }
+      
+      // 세션이 종료되었는지 확인
+      if (sessionData.endedAt && sessionData.endedAt < now) {
+        throw new Error('이미 종료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
       }
       
       // 참가자 상태 업데이트 (isActive를 true로)
@@ -165,6 +186,22 @@ const JoinQuiz: React.FC = () => {
       
       // 세션 데이터 저장
       const sessionDataValue = sessionSnapshot.val();
+      
+      // 세션이 만료되었는지 확인
+      const now = Date.now();
+      if (sessionDataValue.expiresAt && sessionDataValue.expiresAt < now) {
+        setError('만료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
+        setLoading(false);
+        return;
+      }
+      
+      // 세션이 종료되었는지 확인
+      if (sessionDataValue.endedAt && sessionDataValue.endedAt < now) {
+        setError('이미 종료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
+        setLoading(false);
+        return;
+      }
+      
       const sessionInfo = {
         sessionId: sessionId,
         code: sessionDataValue.code,
@@ -220,6 +257,27 @@ const JoinQuiz: React.FC = () => {
         return;
       }
       
+      // 세션이 만료되었는지 다시 확인
+      const sessionRef = ref(rtdb, `sessions/${sessionData.sessionId}`);
+      const sessionSnapshot = await get(sessionRef);
+      
+      if (!sessionSnapshot.exists()) {
+        throw new Error('세션 정보를 찾을 수 없습니다.');
+      }
+      
+      const sessionDataValue = sessionSnapshot.val();
+      
+      // 세션이 만료되었는지 확인
+      const now = Date.now();
+      if (sessionDataValue.expiresAt && sessionDataValue.expiresAt < now) {
+        throw new Error('만료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
+      }
+      
+      // 세션이 종료되었는지 확인
+      if (sessionDataValue.endedAt && sessionDataValue.endedAt < now) {
+        throw new Error('이미 종료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
+      }
+      
       const userId = auth.currentUser?.uid || 'anonymous_' + Date.now();
       
       // 참가자 정보 저장 (Realtime Database)
@@ -236,17 +294,9 @@ const JoinQuiz: React.FC = () => {
       await set(participantRef, participantData);
       
       // 세션의 참가자 수 업데이트
-      const sessionRef = ref(rtdb, `sessions/${sessionData.sessionId}`);
-      const sessionSnapshot = await get(sessionRef);
-      
-      if (sessionSnapshot.exists()) {
-        const currentData = sessionSnapshot.val();
-        const currentCount = currentData.participantCount || 0;
-        
-        await update(sessionRef, {
-          participantCount: currentCount + 1
-        });
-      }
+      await update(sessionRef, {
+        participantCount: sessionDataValue.participantCount + 1 || 1
+      });
       
       // 참여 정보 로컬 스토리지에 저장
       localStorage.setItem('quizParticipation', JSON.stringify({
@@ -264,11 +314,6 @@ const JoinQuiz: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // 뒤로가기 (닉네임 단계에서 코드 단계로)
-  const handleBackToCode = () => {
-    setStep('code');
   };
 
   // URL에 코드 정보 업데이트
@@ -473,6 +518,23 @@ const JoinQuiz: React.FC = () => {
               </>
             )}
           </div>
+        </div>
+      </div>
+      
+      {/* Made by 콰직 Footer */}
+      <div 
+        className="mt-8 mb-4 text-center cursor-pointer"
+        onClick={() => navigate('/')}
+      >
+        <div className="bg-white bg-opacity-90 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full shadow-md border border-teal-100">
+          <img 
+            src="/assets/logo/logo-light.svg" 
+            alt="콰직 로고" 
+            className="w-5 h-5" 
+          />
+          <p className="text-teal-700 font-medium text-sm hover:text-teal-500 transition-colors">
+            made with 콰직
+          </p>
         </div>
       </div>
     </div>
