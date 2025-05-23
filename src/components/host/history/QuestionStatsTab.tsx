@@ -80,13 +80,22 @@ const QuestionStatsTab: React.FC<QuestionStatsTabProps> = ({
                 <span className="font-medium text-lg text-purple-700">문제 {index + 1}</span>
                 <p className="text-gray-800 mt-2 mb-4 text-lg">{question.text}</p>
                 
+                {/* 정답 정보가 없는 경우 경고 메시지 표시 */}
+                {(question.correctAnswer === undefined || question.correctAnswer === null) && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ 이 문제의 정답 정보가 누락되었습니다. 정답 표시가 되지 않습니다.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-4 mt-4">
                   <h4 className="font-medium text-gray-700">답변 선택 비율 (총 {totalResponses}명 응답)</h4>
                   <div className="space-y-4">
                     {question.options.map((option, optIndex) => {
                       const count = optionCounts[optIndex];
                       const percentage = totalResponses > 0 ? (count / totalResponses) * 100 : 0;
-                      const isCorrect = optIndex === question.correctAnswer;
+                      const isCorrect = optIndex === question.correctAnswer && question.correctAnswer !== undefined;
               
                       return (
                         <div key={optIndex} className="relative">

@@ -90,7 +90,8 @@ export const useQuizLogic = (quizId: string | undefined) => {
   
   const [questionOrder, setQuestionOrder] = useState<number[]>([]);
   
-  const [shuffledOptions, setShuffledOptions] = useState<Record<number, { options: string[], mapping: number[] }>>({});
+  // 현재 문제의 섞인 선택지와 매핑 정보를 저장
+  const [currentShuffledOptions, setCurrentShuffledOptions] = useState<{ options: string[], mapping: number[] } | null>(null);
 
   // 로컬 스토리지에서 참가자 정보 확인
   useEffect(() => {
@@ -216,9 +217,6 @@ export const useQuizLogic = (quizId: string | undefined) => {
           } else {
             setQuestionOrder(Array.from({ length: quizData.questions.length }, (_, i) => i));
           }
-          
-          // 각 문제의 보기 문항을 무작위로 섞기
-          shuffleAllQuestionOptions(quizData.questions);
           
           // 4. 현재 문제 인덱스 설정
           if (participantData.answers && Object.keys(participantData.answers).length > 0) {
@@ -347,43 +345,54 @@ export const useQuizLogic = (quizId: string | undefined) => {
     };
   }, [quiz, currentQuestionIndex, selectedAnswer, showResult, showQuizEnd, quizStarted, session]);
 
-  // 문제의 모든 보기 문항을 섞는 함수
-  const shuffleAllQuestionOptions = (questions: Question[]) => {
-    const shuffledOptionsData: Record<number, { options: string[], mapping: number[] }> = {};
+  // 개별 문제의 선택지를 섞는 함수 (매번 새롭게 섞음)
+  const shuffleCurrentQuestionOptions = (question: Question) => {
+    const originalOptions = [...question.options];
+    const shuffledOptions = [...originalOptions];
+    const mapping: number[] = Array(originalOptions.length).fill(-1);
     
-    questions.forEach((question, questionIndex) => {
-      const originalOptions = [...question.options];
-      const shuffledOptions = [...originalOptions];
-      const mapping: number[] = Array(originalOptions.length).fill(-1);
-      
-      for (let i = shuffledOptions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
-      }
-      
-      originalOptions.forEach((option, origIndex) => {
-        const shuffledIndex = shuffledOptions.indexOf(option);
-        mapping[origIndex] = shuffledIndex;
-      });
-      
-      shuffledOptionsData[questionIndex] = {
-        options: shuffledOptions,
-        mapping: mapping
-      };
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`문제 ${questionIndex} 섞기 결과:`, {
-          originalOptions,
-          shuffledOptions,
-          mapping,
-          correctAnswer: question.correctAnswer,
-          mappedCorrectAnswer: mapping[question.correctAnswer]
-        });
-      }
+    // Fisher-Yates 셔플 알고리즘
+    for (let i = shuffledOptions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+    }
+    
+    // 매핑 배열 생성: mapping[원본인덱스] = 섞인위치인덱스
+    originalOptions.forEach((option, origIndex) => {
+      const shuffledIndex = shuffledOptions.indexOf(option);
+      mapping[origIndex] = shuffledIndex;
     });
     
-    setShuffledOptions(shuffledOptionsData);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('문제 선택지 섞기 결과:', {
+        originalOptions,
+        shuffledOptions,
+        mapping,
+        correctAnswer: question.correctAnswer,
+        mappedCorrectAnswer: mapping[question.correctAnswer]
+      });
+    }
+    
+    return {
+      options: shuffledOptions,
+      mapping: mapping
+    };
   };
+
+  // 현재 문제의 선택지 섞기 (문제가 바뀔 때마다 실행)
+  useEffect(() => {
+    if (!quiz || !quiz.questions || !quizStarted || currentQuestionIndex >= quiz.questions.length) return;
+    
+    const realQuestionIndex = questionOrder[currentQuestionIndex] !== undefined 
+      ? questionOrder[currentQuestionIndex] 
+      : currentQuestionIndex;
+    
+    const currentQuestion = quiz.questions[realQuestionIndex];
+    if (currentQuestion) {
+      const shuffleResult = shuffleCurrentQuestionOptions(currentQuestion);
+      setCurrentShuffledOptions(shuffleResult);
+    }
+  }, [quiz, quizStarted, currentQuestionIndex, questionOrder]);
 
   // 퀴즈 다시 풀기 기능
   const resetQuiz = async () => {
@@ -432,8 +441,6 @@ export const useQuizLogic = (quizId: string | undefined) => {
           [indices[i], indices[j]] = [indices[j], indices[i]];
         }
         setQuestionOrder(indices);
-        
-        shuffleAllQuestionOptions(quiz.questions);
       }
       
       setCurrentQuestionIndex(0);
@@ -442,6 +449,7 @@ export const useQuizLogic = (quizId: string | undefined) => {
       setShowResult(false);
       setShowQuizEnd(false);
       setQuizStarted(false);
+      setCurrentShuffledOptions(null); // 현재 섞인 선택지 초기화
       window.scrollTo(0, 0);
       
       setTimeout(() => {
@@ -475,9 +483,17 @@ export const useQuizLogic = (quizId: string | undefined) => {
         ? questionOrder[currentQuestionIndex] 
         : currentQuestionIndex;
       
+      // 원본 인덱스 계산: 섞인 인덱스를 원본 인덱스로 변환
+      let originalAnswerIndex = answerIndex;
+      if (currentShuffledOptions && answerIndex >= 0) {
+        // 매핑을 역으로 찾아서 원본 인덱스 구하기
+        const reversedMapping = currentShuffledOptions.mapping;
+        originalAnswerIndex = reversedMapping.indexOf(answerIndex);
+      }
+      
       const answerData = {
         questionIndex: realQuestionIndex,
-        answerIndex: answerIndex,
+        answerIndex: originalAnswerIndex, // 원본 인덱스 저장
         isCorrect: isCorrect,
         points: points,
         answeredAt: Date.now()
@@ -529,8 +545,8 @@ export const useQuizLogic = (quizId: string | undefined) => {
       문제번호: realQuestionIndex,
       정답데이터여부: currentQuestion.hasOwnProperty('correctAnswer'),
       정답인덱스: currentQuestion.correctAnswer,
-      섞인옵션여부: !!shuffledOptions[realQuestionIndex],
-      매핑: shuffledOptions[realQuestionIndex]?.mapping
+      섞인옵션여부: !!currentShuffledOptions,
+      매핑: currentShuffledOptions?.mapping
     });
     
     // correctAnswer 속성이 없을 때 처리
@@ -539,8 +555,8 @@ export const useQuizLogic = (quizId: string | undefined) => {
       submitAnswer(index, true);
     } else {
       // 정답 데이터가 있는 경우 정상 처리
-      if (shuffledOptions[realQuestionIndex]) {
-        const correctUIIndex = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
+      if (currentShuffledOptions) {
+        const correctUIIndex = currentShuffledOptions.mapping[currentQuestion.correctAnswer];
         isCorrect = index === correctUIIndex;
         
         if (process.env.NODE_ENV === 'development') {
@@ -550,7 +566,7 @@ export const useQuizLogic = (quizId: string | undefined) => {
             변환된정답UI인덱스: correctUIIndex,
             정답여부: isCorrect,
             선택한답안: answer,
-            정답텍스트: shuffledOptions[realQuestionIndex].options[correctUIIndex]
+            정답텍스트: currentShuffledOptions.options[correctUIIndex]
           });
         }
       } else {
@@ -650,11 +666,12 @@ export const useQuizLogic = (quizId: string | undefined) => {
     
     const currentQuestion = quiz.questions[realQuestionIndex];
     
-    const currentQuestionOptions = shuffledOptions[realQuestionIndex]?.options || currentQuestion.options;
+    // 현재 섞인 선택지가 없으면 원본 선택지 사용
+    const currentQuestionOptions = currentShuffledOptions?.options || currentQuestion.options;
     
     let currentQuestionCorrectAnswer = currentQuestion.correctAnswer;
-    if (shuffledOptions[realQuestionIndex]) {
-      currentQuestionCorrectAnswer = shuffledOptions[realQuestionIndex].mapping[currentQuestion.correctAnswer];
+    if (currentShuffledOptions) {
+      currentQuestionCorrectAnswer = currentShuffledOptions.mapping[currentQuestion.correctAnswer];
     }
     
     return {
@@ -683,7 +700,7 @@ export const useQuizLogic = (quizId: string | undefined) => {
     isLoadingRankings,
     questionKey,
     questionOrder,
-    shuffledOptions,
+    currentShuffledOptions,
     handleStartQuiz,
     handleSelectAnswer,
     handleTimeUp,

@@ -524,7 +524,7 @@ const JoinQuiz: React.FC = () => {
       {/* Made by 콰직 Footer */}
       <div 
         className="mt-8 mb-4 text-center cursor-pointer"
-        onClick={() => navigate('/')}
+        onClick={() => window.open('/', '_blank')}
       >
         <div className="bg-white bg-opacity-90 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full shadow-md border border-teal-100">
           <img 

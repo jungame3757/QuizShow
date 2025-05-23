@@ -20,7 +20,8 @@ import {
   Answer,
   SessionOptions,
   createSessionWithQuizData,
-  getQuizDataForClient
+  getQuizDataForClient,
+  getAnswersForClient
 } from '../firebase/sessionService';
 import { saveSessionHistory } from '../firebase/sessionHistoryService';
 import { getQuizById } from '../firebase/quizService';
@@ -468,24 +469,39 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 퀴즈 데이터를 RTDB에서 가져오기 시도
+      // 호스트가 세션을 종료할 때는 정답 정보가 포함된 전체 퀴즈 데이터를 사용해야 함
+      // RTDB에서 정답 정보를 포함한 퀴즈 데이터를 재구성
       let quiz;
       try {
-        // 먼저 RTDB에서 세션에 저장된 퀴즈 데이터 확인
+        // RTDB에서 정답 정보를 포함한 퀴즈 데이터를 재구성
         const rtdbQuizData = await getQuizDataForClient(sessionId);
+        const answersData = await getAnswersForClient(sessionId);
         
-        if (rtdbQuizData) {
-          // RTDB에 저장된 퀴즈 데이터 사용
-          console.log('RTDB에서 퀴즈 데이터를 찾았습니다.');
+        if (rtdbQuizData && answersData) {
+          // 클라이언트용 퀴즈 데이터에 정답 정보 추가
+          console.log('RTDB에서 퀴즈 데이터와 정답 데이터를 모두 찾았습니다.');
+          quiz = {
+            ...rtdbQuizData,
+            questions: rtdbQuizData.questions.map((question: any, index: number) => {
+              const answerData = answersData.find((a: any) => a.questionIndex === index);
+              return {
+                ...question,
+                correctAnswer: answerData ? answerData.correctAnswer : 0
+              };
+            })
+          };
+        } else if (rtdbQuizData) {
+          // 정답 데이터가 없으면 클라이언트용 데이터만 사용 (백업)
+          console.log('RTDB에서 퀴즈 데이터만 찾았습니다. 정답 정보가 누락될 수 있습니다.');
           quiz = rtdbQuizData;
         } else {
-          // 기존 방식으로 Firestore에서 가져오기
+          // 기존 방식으로 Firestore에서 가져오기 (정답 정보 포함)
           console.log('Firestore에서 퀴즈 데이터 로드 시도...');
           quiz = await getQuizById(session.quizId);
         }
       } catch (quizError) {
-        console.error('RTDB에서 퀴즈 데이터 로드 실패:', quizError);
-        // Firestore 폴백
+        console.error('퀴즈 데이터 로드 실패:', quizError);
+        // Firestore 폴백 (정답 정보 포함)
         quiz = await getQuizById(session.quizId);
       }
       

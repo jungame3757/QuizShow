@@ -67,6 +67,23 @@ const QuizContainer: React.FC<QuizContainerProps> = ({
             />
           </div>
         </div>
+        
+        {/* Made by 콰직 Footer */}
+        <div 
+          className="mt-8 mb-4 text-center cursor-pointer"
+          onClick={() => window.open('/', '_blank')}
+        >
+          <div className="bg-white bg-opacity-90 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full shadow-md border border-teal-100">
+            <img 
+              src="/assets/logo/logo-light.svg" 
+              alt="콰직 로고" 
+              className="w-5 h-5" 
+            />
+            <p className="text-teal-700 font-medium text-sm hover:text-teal-500 transition-colors">
+              made with 콰직
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
