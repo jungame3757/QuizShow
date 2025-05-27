@@ -339,7 +339,7 @@ const ActivityHistory: React.FC = () => {
                 return (
                   <div 
                     key={history.id}
-                    className="bg-white p-0 relative overflow-hidden transform transition-all duration-300 hover:-translate-y-1"
+                    className="bg-white p-0 relative overflow-hidden transform transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                     style={{
                       boxShadow: `0 3px 0 ${colorCode}50`,
                       border: `2px solid ${colorCode}`,
