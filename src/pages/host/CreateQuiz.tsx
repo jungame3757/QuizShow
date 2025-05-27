@@ -326,7 +326,7 @@ const CreateQuiz: React.FC = () => {
           <Button 
             onClick={handleCreateQuiz}
             variant="primary"
-            disabled={!title || questions.length === 0 || isSubmitting || quizLoading || sessionLoading}
+            disabled={isSubmitting}
             className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center"
             style={{
               boxShadow: '0 3px 0 rgba(0,0,0,0.8)',

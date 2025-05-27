@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Clock, Eye, CalendarClock, Shuffle, UserCheck, Plus, Minus } from 'lucide-react';
+import { Settings, Clock, Eye, CalendarClock, Shuffle, UserCheck, Plus, Minus, Users } from 'lucide-react';
 import { Quiz } from '../../../types';
 
 // 세션 설정 타입 정의

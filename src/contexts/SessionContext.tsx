@@ -209,6 +209,32 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('유효하지 않은 세션 코드입니다.');
       }
       
+      // 세션 데이터 가져오기 (참가자 수 확인을 위해)
+      const sessionData = await getSession(sessionId);
+      
+      if (!sessionData) {
+        throw new Error('세션을 찾을 수 없습니다.');
+      }
+      
+      // 현재 참가자 수 확인
+      const currentParticipants = await new Promise<Record<string, Participant>>((resolve) => {
+        const unsubscribe = subscribeToParticipants(sessionId, (participantsData) => {
+          unsubscribe();
+          resolve(participantsData || {});
+        });
+      });
+      
+      const participantCount = Object.keys(currentParticipants).length;
+      const maxParticipants = sessionData.maxParticipants || 50;
+      
+      // 이미 참가한 사용자인지 확인
+      const isAlreadyParticipant = currentParticipants[currentUser.uid];
+      
+      // 최대 참가자 수 초과 확인 (이미 참가한 사용자는 제외)
+      if (!isAlreadyParticipant && participantCount >= maxParticipants) {
+        throw new Error(`참가자 인원이 가득찼습니다.`);
+      }
+      
       // 참가자 추가
       await addParticipant(sessionId, currentUser.uid, name);
       

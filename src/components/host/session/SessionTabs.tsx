@@ -14,6 +14,7 @@ interface SessionTabsProps {
   onCopySessionCode: () => void;
   onCopyJoinUrl: () => void;
   isSessionExpired?: boolean;
+  currentSession?: any;
 }
 
 const SessionTabs: React.FC<SessionTabsProps> = ({
@@ -26,8 +27,12 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   isCopied,
   onCopySessionCode,
   onCopyJoinUrl,
-  isSessionExpired = false
+  isSessionExpired = false,
+  currentSession
 }) => {
+  const currentParticipantCount = Object.keys(participants).length;
+  const maxParticipants = currentSession?.maxParticipants || 50;
+
   return (
     <div className="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
       <div className="flex border-b border-gray-200">
@@ -44,11 +49,9 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
             <Users size={18} className="sm:mr-2" /> 
             <span className="text-xs sm:text-base mt-1 sm:mt-0">
               참가자
-              {Object.keys(participants).length > 0 && (
-                <span className="inline-flex items-center justify-center ml-1 w-5 h-5 text-xs font-medium text-white bg-purple-600 rounded-full">
-                  {Object.keys(participants).length}
-                </span>
-              )}
+              <span className="inline-flex items-center justify-center ml-1 px-2 py-0.5 text-xs font-medium text-white bg-purple-600 rounded-full">
+                {currentParticipantCount}/{maxParticipants}
+              </span>
             </span>
           </div>
         </button>
@@ -79,6 +82,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
             onCopySessionCode={onCopySessionCode}
             onCopyJoinUrl={onCopyJoinUrl}
             isSessionExpired={isSessionExpired}
+            currentSession={currentSession}
           />
         )}
         

@@ -256,7 +256,7 @@ const MyQuizzes: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4 sm:mb-6 relative">
           <div className="flex justify-between items-center p-4 sm:p-6">
-            <h1 className="text-xl sm:text-3xl font-bold text-purple-700">내 퀴즈 목록</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-purple-700">내 퀴즈 목록</h1>
             {!loading && quizzes.length > 0 && (
               <button 
                 onClick={loadQuizzes} 

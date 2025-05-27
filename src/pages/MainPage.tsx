@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wand, Lightbulb, User, Settings, Medal } from 'lucide-react';
+import { Wand, Lightbulb, User, Settings, Medal, Apple } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
@@ -151,7 +151,10 @@ const MainPage: React.FC = () => {
         
         <main className="py-12">
           <h2 className="text-3xl font-bold text-center mt-10 mb-5 text-[#783ae8] leading-tight">
-            퀴즈를 사과 깨물듯 쉽게 <br /> <span style={{ fontFamily: 'SBAggroB', fontSize: '3rem' }}>콰직!🍎</span>
+            퀴즈를 사과 깨물듯 쉽게 <br /> 
+            <span style={{ fontFamily: 'SBAggroB', fontSize: '3rem' }} className="flex items-center justify-center gap-2">
+              콰직!<Apple size={48} className="text-red-500 -translate-y-1.5" fill="currentColor" />
+            </span>
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

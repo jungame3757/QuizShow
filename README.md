@@ -72,6 +72,18 @@ RTDB는 실시간으로 동기화되어야 하는 세션 관련 데이터를 주
     *   `randomizeQuestions`: (Boolean) 질문 순서 무작위 여부
     *   `singleAttempt`: (Boolean) 참가자 답변 시도 횟수 제한 여부 (한 번만 가능)
     *   `questionTimeLimit`: (Number) 각 질문당 풀이 제한 시간 (초 단위)
+    *   `maxParticipants`: (Number) 세션당 최대 참가자 수 (기본값: 50명)
+
+### 세션 설정 옵션
+
+세션 생성 시 사용할 수 있는 옵션들입니다. 모든 옵션은 선택사항이며 기본값이 제공됩니다.
+
+*   `SessionOptions`: 세션 생성 시 전달할 수 있는 설정 옵션
+    *   `expiresIn`: (Number, Optional) 세션 유효 기간 (밀리초 단위, 기본값: 24시간)
+    *   `randomizeQuestions`: (Boolean, Optional) 질문 순서 무작위 여부 (기본값: false)
+    *   `singleAttempt`: (Boolean, Optional) 참가자 답변 시도 횟수 제한 (기본값: true - 한 번만 가능)
+    *   `questionTimeLimit`: (Number, Optional) 각 질문당 풀이 제한 시간 (초 단위, 기본값: 30초)
+    *   `maxParticipants`: (Number, Optional) 세션당 최대 참가자 수 (기본값: 50명, 최소: 5명)
 
 ### 세션 코드 인덱스
 
@@ -122,4 +134,5 @@ RTDB는 실시간으로 동기화되어야 하는 세션 관련 데이터를 주
 
 *   위 구조는 현재 코드 분석을 통해 파악된 내용이며, 실제 구현과 약간의 차이가 있을 수 있습니다.
 *   `Timestamp`는 Firestore의 타임스탬프 객체를, `Unix Timestamp`는 숫자 형태의 타임스탬프(밀리초)를 의미할 수 있습니다.
-*   일부 RTDB 경로는 `sessionService.ts` 등의 파일에서 동적으로 생성될 수 있습니다. 
+*   일부 RTDB 경로는 `sessionService.ts` 등의 파일에서 동적으로 생성될 수 있습니다.
+*   **참가자 수 제한**: 세션당 최대 50명까지 참가할 수 있으며, 호스트가 5명~50명 사이에서 조정 가능합니다. 제한 초과 시 새로운 참가자는 적절한 오류 메시지와 함께 참가가 거부됩니다. 

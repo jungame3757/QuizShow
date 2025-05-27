@@ -621,30 +621,92 @@ const QuizResults: React.FC<QuizResultsProps> = ({
 
   // 퀴즈 결과 공유하기 함수
   const handleShareResults = async () => {
-    // 공유할 텍스트 생성
-    const challengeText = userRank === 1 
-      ? `내가 1등을 차지했어요! 이 기록을 깰 수 있을까요?` 
-      : `${rankings.length}명 중 ${userRank}등을 기록했어요. 더 좋은 기록에 도전해보세요!`;
+    // 퍼센트 순위 계산
+    const percentile = Math.round(((rankings.length - userRank + 1) / rankings.length) * 100);
+    
+    // 등급 계산 함수 - 실제 게임 티어 시스템과 동일하게 수정
+    const getGrade = (_percentile: number, rank: number) => {
+      // 실제 게임의 getTierInfo 로직과 동일하게 적용
+      const rankPercentile = rankings.length > 0 ? (rank / rankings.length) * 100 : 0;
+      
+      if (rankPercentile <= 10 || rank === 1) {
+        return { grade: '다이아몬드', emoji: '💎', color: 'diamond', imagePath: '/og-images/diamond.png' };
+      }
+      if (rankPercentile <= 25) {
+        return { grade: '플래티넘', emoji: '🏆', color: 'platinum', imagePath: '/og-images/platinum.png' };
+      }
+      if (rankPercentile <= 50) {
+        return { grade: '골드', emoji: '🥇', color: 'gold', imagePath: '/og-images/gold.png' };
+      }
+      if (rankPercentile <= 75) {
+        return { grade: '실버', emoji: '🥈', color: 'silver', imagePath: '/og-images/silver.png' };
+      }
+      return { grade: '브론즈', emoji: '🥉', color: 'bronze', imagePath: '/og-images/bronze.png' };
+    };
+    
+    const gradeInfo = getGrade(percentile, userRank);
     
     // 초대 코드가 있으면 해당 코드 사용
     const shareInviteCode = inviteCode;
     
-    const shareText = `[퀴즈쇼] ${quiz.title}\n\n${participant.nickname}님의 결과\n▶ 점수: ${participant.score}점\n▶ 순위: ${userRank}/${rankings.length}\n\n${challengeText}\n\n지금 도전하기: ${window.location.origin}/join?code=${shareInviteCode}`;
+    const shareText = `Score ${participant.score} by ${participant.nickname}]\n\n🎯 지금 도전하기!\n${window.location.origin}/join?code=${shareInviteCode}`.trim();
     
-    // 공유 API 사용 시도
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `퀴즈쇼 - ${quiz.title} 결과`,
-          text: shareText,
-        });
-      } catch (error) {
-        // 공유 API 사용 실패 시 클립보드에 복사
+    // 티어별 이미지 가져오기 및 공유
+    try {
+      // 이미지 파일을 fetch로 가져오기
+      const imageResponse = await fetch(gradeInfo.imagePath);
+      const imageBlob = await imageResponse.blob();
+      
+      // File 객체로 변환
+      const imageFile = new File([imageBlob], `${gradeInfo.color}-tier.png`, {
+        type: 'image/png',
+      });
+      
+      // 공유 API 사용 시도 (이미지 포함)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+        try {
+          await navigator.share({
+            title: `퀴즈쇼 - ${quiz.title} 결과`,
+            text: shareText,
+            files: [imageFile],
+          });
+          return; // 성공적으로 공유되면 여기서 종료
+        } catch (error) {
+          console.log('이미지 포함 공유 실패, 텍스트만 공유 시도:', error);
+        }
+      }
+      
+      // 이미지 포함 공유가 실패하거나 지원되지 않는 경우, 텍스트만 공유 시도
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `퀴즈쇼 - ${quiz.title} 결과`,
+            text: shareText,
+          });
+          return;
+        } catch (error) {
+          console.log('텍스트 공유 실패, 클립보드 복사로 fallback:', error);
+        }
+      }
+      
+      // 공유 API를 지원하지 않거나 실패한 경우 클립보드에 복사
+      await copyToClipboard(shareText);
+      
+    } catch (error) {
+      console.error('이미지 로드 실패:', error);
+      // 이미지 로드 실패 시 텍스트만 공유
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `퀴즈쇼 - ${quiz.title} 결과`,
+            text: shareText,
+          });
+        } catch (shareError) {
+          await copyToClipboard(shareText);
+        }
+      } else {
         await copyToClipboard(shareText);
       }
-    } else {
-      // 공유 API를 지원하지 않는 경우 클립보드에 복사
-      await copyToClipboard(shareText);
     }
   };
   

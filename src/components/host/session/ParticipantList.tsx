@@ -35,6 +35,7 @@ interface ParticipantListProps {
   onCopySessionCode?: () => void;
   onCopyJoinUrl?: () => void;
   isSessionExpired?: boolean; // 세션 만료 여부 추가
+  currentSession?: any; // 세션 정보 추가
 }
 
 const ParticipantList: React.FC<ParticipantListProps> = ({ 
@@ -45,7 +46,8 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
   isCopied = false,
   onCopySessionCode = () => {}, 
   onCopyJoinUrl = () => {},
-  isSessionExpired = false
+  isSessionExpired = false,
+  currentSession
 }) => {
   // 상세 정보를 확장할 참가자 ID 추적
   const [expandedParticipantId, setExpandedParticipantId] = useState<string | null>(null);
@@ -131,16 +133,16 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
     // 세션이 만료되었거나 세션 코드가 없는 경우 표시하지 않음
     if (isSessionExpired || !sessionCode) return null;
     
+    const maxParticipants = currentSession?.maxParticipants || 50;
+    
     return (
       <div className="mb-5">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xl font-semibold text-gray-800">
             참가자 초대 및 목록
-            {sortedParticipants.length > 0 && (
-              <span className="ml-2 text-base font-normal text-gray-500">
-                (총 {sortedParticipants.length}명)
-              </span>
-            )}
+            <span className="ml-2 text-base font-normal text-gray-500">
+              (총 {sortedParticipants.length}/{maxParticipants}명)
+            </span>
           </h3>
         </div>
 
@@ -224,11 +226,9 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
         <div className="mb-4">
           <h3 className="text-xl font-semibold text-gray-800">
             참가자 목록
-            {sortedParticipants.length > 0 && (
-              <span className="ml-2 text-base font-normal text-gray-500">
-                (총 {sortedParticipants.length}명)
-              </span>
-            )}
+            <span className="ml-2 text-base font-normal text-gray-500">
+              (총 {sortedParticipants.length}/{currentSession?.maxParticipants || 50}명)
+            </span>
           </h3>
         </div>
       )}

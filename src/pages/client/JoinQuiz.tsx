@@ -6,10 +6,12 @@ import Input from '../../components/ui/Input';
 import { auth, rtdb } from '../../firebase/config';
 import { ref, get, set, update } from 'firebase/database';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { useSession } from '../../contexts/SessionContext';
 
 const JoinQuiz: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { joinSession } = useSession();
   
   const [step, setStep] = useState<'code' | 'nickname'>('code');
   const [inviteCode, setInviteCode] = useState('');
@@ -92,27 +94,6 @@ const JoinQuiz: React.FC = () => {
       
       if (!userId) {
         throw new Error('사용자 인증 정보가 없습니다.');
-      }
-      
-      // 세션이 만료되었는지 다시 확인
-      const sessionRef = ref(rtdb, `sessions/${sessionToUse.sessionId}`);
-      const sessionSnapshot = await get(sessionRef);
-      
-      if (!sessionSnapshot.exists()) {
-        throw new Error('세션 정보를 찾을 수 없습니다.');
-      }
-      
-      const sessionData = sessionSnapshot.val();
-      
-      // 세션이 만료되었는지 확인
-      const now = Date.now();
-      if (sessionData.expiresAt && sessionData.expiresAt < now) {
-        throw new Error('만료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
-      }
-      
-      // 세션이 종료되었는지 확인
-      if (sessionData.endedAt && sessionData.endedAt < now) {
-        throw new Error('이미 종료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
       }
       
       // 참가자 상태 업데이트 (isActive를 true로)
@@ -251,63 +232,25 @@ const JoinQuiz: React.FC = () => {
     try {
       setLoading(true);
       
-      if (!sessionData || !sessionData.sessionId) {
-        setError('세션 정보가 없습니다.');
+      if (!sessionData || !sessionData.code) {
+        setError('세션 정보가 없습니다. 다시 시도해주세요.');
         setLoading(false);
         return;
       }
       
-      // 세션이 만료되었는지 다시 확인
-      const sessionRef = ref(rtdb, `sessions/${sessionData.sessionId}`);
-      const sessionSnapshot = await get(sessionRef);
-      
-      if (!sessionSnapshot.exists()) {
-        throw new Error('세션 정보를 찾을 수 없습니다.');
-      }
-      
-      const sessionDataValue = sessionSnapshot.val();
-      
-      // 세션이 만료되었는지 확인
-      const now = Date.now();
-      if (sessionDataValue.expiresAt && sessionDataValue.expiresAt < now) {
-        throw new Error('만료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
-      }
-      
-      // 세션이 종료되었는지 확인
-      if (sessionDataValue.endedAt && sessionDataValue.endedAt < now) {
-        throw new Error('이미 종료된 퀴즈 세션입니다. 다른 코드를 사용해주세요.');
-      }
-      
-      const userId = auth.currentUser?.uid || 'anonymous_' + Date.now();
-      
-      // 참가자 정보 저장 (Realtime Database)
-      const participantRef = ref(rtdb, `participants/${sessionData.sessionId}/${userId}`);
-      const participantData = {
-        id: userId,
-        name: nickname.trim(),
-        joinedAt: Date.now(),
-        isActive: true,
-        score: 0,
-        quizId: sessionData.quizId
-      };
-      
-      await set(participantRef, participantData);
-      
-      // 세션의 참가자 수 업데이트
-      await update(sessionRef, {
-        participantCount: sessionDataValue.participantCount + 1 || 1
-      });
+      // SessionContext의 joinSession 사용 (최대 참가자 수 제한 포함)
+      const sessionId = await joinSession(sessionData.code, nickname.trim());
       
       // 참여 정보 로컬 스토리지에 저장
       localStorage.setItem('quizParticipation', JSON.stringify({
         quizId: sessionData.quizId,
-        sessionId: sessionData.sessionId,
-        participantId: userId,
+        sessionId: sessionId,
+        participantId: auth.currentUser?.uid,
         nickname: nickname.trim()
       }));
       
-      // 플레이 페이지로 이동 - sessionId를 사용하여 올바른 경로로 이동
-      navigate(`/play/${sessionData.sessionId}`);
+      // 플레이 페이지로 이동
+      navigate(`/play/${sessionId}`);
     } catch (err: any) {
       console.error('퀴즈 참여 오류:', err);
       setError(err.message || '퀴즈 참여에 실패했습니다');

@@ -5,14 +5,31 @@
     
     "sessions": {
       ".read": "auth !== null",
-      ".write": "auth !== null && !data.exists() && newData.exists()",
+      ".write": false,
       
       "$sessionId": {
         ".read": "auth !== null",
-        ".write": "auth !== null && (!data.exists() || data.child('hostId').val() === auth.uid || newData.child('hostId').val() === auth.uid || (newData.child('participantCount').exists() && data.child('participantCount').exists() && newData.child('participantCount').val() === data.child('participantCount').val() + 1))",
+        ".write": "auth !== null && (!data.exists() || data.child('hostId').val() === auth.uid)",
         
         "participantCount": {
+          ".write": "auth !== null",
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        
+        "currentQuestion": {
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+        },
+        
+        "startedAt": {
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+        },
+        
+        "endedAt": {
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+        },
+        
+        "maxParticipants": {
+          ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 50"
         },
         
         "expiresAt": {

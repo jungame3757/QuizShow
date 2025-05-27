@@ -26,6 +26,7 @@ export interface Session {
   randomizeQuestions: boolean;
   singleAttempt: boolean;
   questionTimeLimit: number;
+  maxParticipants: number;
 }
 
 export interface Participant {
@@ -68,6 +69,7 @@ export interface SessionOptions {
   randomizeQuestions?: boolean; // 문제 무작위 출제 여부
   singleAttempt?: boolean; // 참가자 시도 횟수 제한 (true: 한 번만, false: 여러 번 가능)
   questionTimeLimit?: number; // 문제 풀이 제한 시간 (초 단위)
+  maxParticipants?: number; // 최대 참가자 수
 }
 
 // 세션 생성 함수
@@ -103,7 +105,8 @@ export const createSession = async (quizId: string, hostId: string, options?: Se
       expiresAt,
       randomizeQuestions: options?.randomizeQuestions || false,
       singleAttempt: options?.singleAttempt !== undefined ? options.singleAttempt : true,
-      questionTimeLimit: options?.questionTimeLimit || 30
+      questionTimeLimit: options?.questionTimeLimit || 30,
+      maxParticipants: options?.maxParticipants || 50
     };
     
     // 세션 데이터 저장
@@ -160,7 +163,8 @@ export const createSessionWithQuizData = async (
       expiresAt,
       randomizeQuestions: options?.randomizeQuestions || false,
       singleAttempt: options?.singleAttempt !== undefined ? options.singleAttempt : true,
-      questionTimeLimit: options?.questionTimeLimit || 30
+      questionTimeLimit: options?.questionTimeLimit || 30,
+      maxParticipants: options?.maxParticipants || 50
     };
     
     // 클라이언트용 퀴즈 데이터 - 정답 제외

@@ -736,6 +736,7 @@ const SessionQuiz: React.FC = () => {
             onCopySessionCode={copySessionCode}
             onCopyJoinUrl={copyJoinUrl}
             isSessionExpired={isSessionExpired}
+            currentSession={currentSession}
           />
         )}
 
