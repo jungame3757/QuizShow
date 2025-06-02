@@ -82,7 +82,7 @@ export interface RoguelikeGameSession {
   completed: boolean;
   currentGameState: GameState;
   waitingForReward: boolean;
-  startedAt: number;
+  startedAt?: number;
   completedAt?: number;
   pendingAnswer?: {
     questionIndex: number;
@@ -91,6 +91,12 @@ export interface RoguelikeGameSession {
     timeSpent: number;
     stageType: string;
   };
+  eliteLastQuestionData?: {
+    questionIndex: number;
+    answer: string | number;
+    isCorrect: boolean;
+    questionType: 'multiple-choice' | 'short-answer';
+  }; // 엘리트 스테이지 마지막 문제 답변 데이터
 }
 
 export interface RoguelikeAnswer {

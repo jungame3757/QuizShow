@@ -731,40 +731,84 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
     }
   }, [_sessionId]);
 
-  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0, eliteAnswers?: Array<{questionIndex: number, answerIndex?: number, answerText?: string}>) => {
+  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer'}>) => {
     if (!gameSession || !currentStage || !quiz) return;
 
-    // 엘리트 스테이지 개별 문제 처리 확인
-    const isEliteIndividualQuestion = currentStage.type === 'elite' && answerText && answerText.includes('엘리트 문제');
+    // 엘리트 스테이지 개별 문제 처리 확인 - 더 정확한 조건으로 수정
+    const isEliteIndividualQuestion = currentStage.type === 'elite' && (
+      (answerText && answerText.includes('[엘리트개별문제]')) ||
+      timeSpent === -1 // 특별한 timeSpent 값으로도 구분
+    );
     
     if (isEliteIndividualQuestion) {
-      // 엘리트 스테이지의 개별 문제는 활동 데이터 저장하지 않음 (전체 완료 시에만 저장)
-      return;
-    }
-
-    // 엘리트 스테이지는 RoguelikeEliteStage에서 자체 관리하므로 여기서는 전체 결과만 처리
-    if (currentStage.type === 'elite') {
-      // 개별 문제 답변 처리
-      if (eliteAnswers && eliteAnswers.length === 1) {
-        // 개별 문제 답변 저장
-        const answerInfo = eliteAnswers[0];
-        const answerData = answerInfo.answerIndex !== undefined 
-          ? { answerIndex: answerInfo.answerIndex } 
-          : { answerText: answerInfo.answerText || '' };
+      console.log('엘리트 개별 문제 답변 감지됨. 활동 데이터만 저장하고 스테이지 상태는 변경하지 않음.', {
+        answerIndex,
+        answerText,
+        timeSpent
+      });
+      
+      // 개별 문제 답변 저장을 위한 uploadActivityData 호출
+      if (_sessionId) {
+        // answerText에서 실제 답변과 questionIndex 추출
+        let realAnswerText = answerText;
+        let extractedQuestionIndex = currentStage.questions[0]; // 기본값
+        
+        if (answerText && answerText.includes('[엘리트개별문제:')) {
+          // questionIndex 추출
+          const indexMatch = answerText.match(/\[엘리트개별문제:(\d+)\]/);
+          if (indexMatch) {
+            extractedQuestionIndex = parseInt(indexMatch[1], 10);
+          }
+          
+          // 실제 답변 추출
+          if (answerText.includes('] 답변: ')) {
+            realAnswerText = answerText.split('] 답변: ')[1];
+          } else if (answerText.includes('] 시간초과')) {
+            realAnswerText = '';
+          }
+        }
+        
+        const answerData = answerIndex !== undefined 
+          ? { answerIndex } 
+          : { answerText: realAnswerText || '' };
 
         await uploadActivityData(
           gameSession.userId,
           gameSession.quizId,
-          answerInfo.questionIndex,
+          extractedQuestionIndex, // 추출된 정확한 questionIndex 사용
           answerData,
-          true, // 개별 문제는 항상 정답으로 처리 (검증은 클라이언트에서 완료)
+          true, // 개별 문제는 클라이언트에서 검증 완료
           0, // 개별 문제는 0점
-          timeSpent,
+          Math.abs(timeSpent), // 음수를 양수로 변환
           currentStage.type
         );
         
-        console.log('엘리트 개별 문제 답변 저장:', answerInfo);
-        return; // 개별 문제는 여기서 종료
+        console.log('엘리트 개별 문제 답변 저장 완료:', { 
+          extractedQuestionIndex, 
+          answerData, 
+          realAnswerText 
+        });
+      }
+      
+      return; // 개별 문제는 여기서 종료, 스테이지 상태 변경 없음
+    }
+
+    // 엘리트 스테이지는 RoguelikeEliteStage에서 자체 관리하므로 여기서는 전체 결과만 처리
+    if (currentStage.type === 'elite') {
+      // 마지막 문제 답변 데이터가 있는 경우 저장
+      if (eliteAnswers && eliteAnswers.length === 1) {
+        const lastQuestionData = eliteAnswers[0];
+        
+        // 마지막 문제 답변을 gameSession에 임시 저장 (보상 선택 시 사용)
+        setGameSession(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            eliteLastQuestionData: lastQuestionData // 마지막 문제 데이터 저장
+          };
+        });
+        
+        console.log('엘리트 마지막 문제 답변 데이터 세션에 저장:', lastQuestionData);
       }
       
       // 스테이지 완료 처리 (onStageComplete에서 호출)
@@ -1165,6 +1209,35 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       });
     }
 
+    // 엘리트 스테이지인 경우 마지막 문제 점수 업데이트
+    if (currentStage?.type === 'elite' && gameSession.eliteLastQuestionData && _sessionId) {
+      const lastQuestionData = gameSession.eliteLastQuestionData;
+      
+      // 실제 마지막 문제의 답변 데이터로 업로드
+      const answerData = lastQuestionData.questionType === 'multiple-choice'
+        ? { answerIndex: lastQuestionData.answer as number }
+        : { answerText: lastQuestionData.answer as string };
+      
+      uploadActivityData(
+        gameSession.userId,
+        gameSession.quizId,
+        lastQuestionData.questionIndex,
+        answerData,
+        lastQuestionData.isCorrect,
+        points, // 보상 점수로 업데이트
+        0, // timeSpent는 0으로 설정
+        'elite'
+      ).then(() => {
+        console.log('엘리트 마지막 문제 점수 업데이트 완료:', { 
+          questionIndex: lastQuestionData.questionIndex, 
+          answerData,
+          points 
+        });
+      }).catch(error => {
+        console.error('엘리트 마지막 문제 점수 업데이트 실패:', error);
+      });
+    }
+
     setGameSession(prev => {
       if (!prev) return null;
       return {
@@ -1173,13 +1246,14 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
         currentGameState: 'map-selection',
         waitingForReward: false,
         pendingAnswer: undefined, // 활동 데이터 업로드 완료 후 초기화
+        eliteLastQuestionData: undefined, // 엘리트 마지막 문제 데이터도 초기화
       };
     });
 
     // 보상 선택 완료 메시지
     console.log(`보상 상자에서 ${points}점을 획득했습니다!`);
 
-  }, [gameSession, uploadActivityData, _sessionId]);
+  }, [gameSession, uploadActivityData, _sessionId, currentStage]);
 
   return {
     gameSession,

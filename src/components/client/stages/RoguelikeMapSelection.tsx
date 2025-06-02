@@ -17,10 +17,17 @@ import { PathChoice, MapPathType, RoguelikeStage, RoguelikeGameSession, Roulette
 
 // 커스텀 노드 컴포넌트
 const StartNode = ({ data }: { data: any }) => {
+  // StageNode와 동일한 비활성화 로직 적용
+  const { isActive = false, isCompleted = false, isFailed = false, onClick } = data;
+  const isClickable = isActive && !isCompleted && !isFailed;
+  
   return (
     <div className="relative">
       <Handle type="source" position={Position.Top} className="w-3 h-3 bg-green-500 border-2 border-white invisible" /> 
-      <div className={`w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-full shadow-lg border-3 ${data.isActive ? "ring-4 ring-offset-2 ring-green-500" : "border-green-300"} flex items-center justify-center transition-transform hover:scale-105`}>
+      <div 
+        className={`w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-full shadow-lg border-3 border-green-300 flex items-center justify-center ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+        onClick={() => { if (isClickable && onClick) onClick(); }}
+      >
         <div className="text-3xl">🚀</div>
       </div>
     </div>
@@ -28,7 +35,7 @@ const StartNode = ({ data }: { data: any }) => {
 };
 
 const StageNode = ({ data }: { data: any }) => {
-  const { stageType = 'normal', isActive = false, isCompleted = false, isFailed = false, onClick, label } = data;
+  const { stageType = 'normal', isActive = false, isCompleted = false, isFailed = false, onClick, label, isClickable: dataIsClickable } = data;
   const getStageInfo = (type: string) => {
     switch (type) {
       case 'elite': return { icon: '⚔️', title: '엘리트', bgClass: 'from-red-400 to-red-600', borderClass: 'border-red-300' };
@@ -38,7 +45,8 @@ const StageNode = ({ data }: { data: any }) => {
     }
   };
   const stageInfo = getStageInfo(stageType);
-  const isClickable = isActive && !isCompleted && !isFailed;
+  // data에서 전달받은 isClickable을 우선 사용
+  const isClickable = dataIsClickable !== undefined ? dataIsClickable : (isActive && !isCompleted && !isFailed);
 
   // 완료 상태에 따른 스타일 결정
   let statusRing = '';
@@ -291,7 +299,12 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
   }, [initialPlayerPosition]);
 
   const getActivatableNodes = useCallback((currentPos: string): string[] => {
-    return stageConnections[currentPos] || [];
+    const connections = stageConnections[currentPos] || [];
+    // 시작 노드만 활성화 대상에서 제외 (종료 노드는 룰렛 스테이지로 연결)
+    return connections.filter(nodeId => 
+      !nodeId.includes('start') && 
+      nodeId !== 'start'
+    );
   }, [stageConnections]);
 
   const handleNodeClickCallback = useCallback((nodeId: string, isNodeActive: boolean) => {
@@ -317,20 +330,27 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
     setNodes(prevNodes => prevNodes.map(n => {
       const isActive = getActivatableNodes(currentPlayerPosition).includes(n.id);
       const isCurrent = n.id === currentPlayerPosition;
+      const isStartNode = n.type === 'startNode' || n.id === 'start' || n.id.includes('start');
       // mapNodes에서 완료 상태와 실패 상태를 가져옴
       const nodeIsCompleted = n.data.isCompleted || false;
       const nodeIsFailed = n.data.isFailed || false;
+      // 시작 노드만 클릭 불가능
+      const isClickable = !isStartNode && isActive && !isCurrent && !nodeIsCompleted && !nodeIsFailed;
 
       return {
         ...n,
         data: {
           ...n.data,
-          // 완료된 노드는 활성화하지 않음, 현재 노드도 활성화하지 않음
-          isActive: isActive && !isCurrent && !nodeIsCompleted && !nodeIsFailed,
+          // 시작 노드만 강제로 비활성화
+          isActive: isStartNode ? false : isClickable,
           isCompleted: nodeIsCompleted,
           isFailed: nodeIsFailed,
-          onClick: () => handleNodeClickCallback(n.id, isActive && !isCurrent && !nodeIsCompleted && !nodeIsFailed)
-        }
+          onClick: isStartNode ? undefined : () => handleNodeClickCallback(n.id, isClickable),
+          // 클릭 가능 상태를 data에 포함
+          isClickable: isClickable
+        },
+        // 클릭 가능한 상태를 className에 반영
+        className: isClickable ? 'clickable-node' : 'non-clickable-node'
       };
     }));
 
@@ -482,8 +502,25 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
             .react-flow__edge:hover, 
             .react-flow__edge-path:hover, 
             .react-flow__background, 
-            .react-flow__selection, 
-            .react-flow * {
+            .react-flow__selection {
+              cursor: default !important;
+            }
+            
+            /* 클릭 가능한 노드만 포인터 커서 표시 */
+            .react-flow__node.clickable-node {
+              cursor: pointer !important;
+            }
+            
+            .react-flow__node.clickable-node:hover {
+              cursor: pointer !important;
+            }
+
+            /* 클릭 불가능한 노드는 기본 커서 */
+            .react-flow__node.non-clickable-node {
+              cursor: default !important;
+            }
+
+            .react-flow__node.non-clickable-node:hover {
               cursor: default !important;
             }
           `}</style>

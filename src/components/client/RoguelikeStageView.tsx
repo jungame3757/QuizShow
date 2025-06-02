@@ -95,9 +95,22 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
   const eliteQuestions = getEliteQuestions();
 
   // 엘리트 스테이지 완료 핸들러
-  const handleEliteStageComplete = async (success: boolean, correctCount: number) => {
-    // 엘리트 스테이지 완료 처리
-    await onSubmitAnswer(success ? 1 : 0, `엘리트 스테이지 ${success ? '성공' : '실패'}: ${correctCount}문제 정답`);
+  const handleEliteStageComplete = async (
+    success: boolean, 
+    correctCount: number, 
+    lastQuestionAnswerData?: {
+      questionIndex: number;
+      answer: string | number;
+      isCorrect: boolean;
+      questionType: 'multiple-choice' | 'short-answer';
+    } | null
+  ) => {
+    // 엘리트 스테이지 완료 처리 - 마지막 문제 답변 데이터도 함께 전달
+    await onSubmitAnswer(
+      success ? 1 : 0, 
+      `엘리트 스테이지 ${success ? '성공' : '실패'}: ${correctCount}문제 정답`,
+      0
+    );
   };
 
   // 모닥불 스테이지 건너뛰기 핸들러
