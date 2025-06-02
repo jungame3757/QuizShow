@@ -11,6 +11,11 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    // 퀴즈 소유자 확인 함수 (ownerId 필드 사용)
+    function isQuizOwner(resourceData) {
+      return request.auth.uid == resourceData.ownerId;
+    }
+    
     // 기본적으로 모든 접근 거부
     match /{document=**} {
       allow read, write: if false;
@@ -24,10 +29,11 @@ service cloud.firestore {
       // 퀴즈 컬렉션
       match /quizzes/{quizId} {
         // 사용자는 자신의 퀴즈만 생성, 수정, 삭제 가능
-        allow create: if isSignedIn() && isOwner(userId);
-        // 퀴즈 소유자만 읽기 가능하도록 수정
-        allow read: if isSignedIn() && isOwner(userId);
-        allow update, delete: if isSignedIn() && isOwner(userId);
+        allow create: if isSignedIn() && isOwner(userId) && 
+          request.resource.data.ownerId == request.auth.uid;
+        // 퀴즈 소유자만 읽기 가능
+        allow read: if isSignedIn() && (isOwner(userId) || isQuizOwner(resource.data));
+        allow update, delete: if isSignedIn() && isOwner(userId) && isQuizOwner(resource.data);
       }
       
       // 세션 히스토리 컬렉션
@@ -40,11 +46,11 @@ service cloud.firestore {
     
     // collectionGroup 쿼리를 위한 규칙 수정
     match /{path=**}/quizzes/{quizId} {
-      // 퀴즈 소유자만 읽을 수 있게 변경하고, 세션 참가를 위한 공개 퀴즈 읽기 규칙 추가
+      // 퀴즈 소유자 또는 세션 참가를 위한 공개 퀴즈 읽기 허용
       allow read: if isSignedIn() && (
-        // 퀴즈가 저장된 경로에서 userId를 추출하여 소유자 확인
-        request.auth.uid == resource.data.ownerId || 
-        // 세션 참가를 위한 공개 퀴즈인 경우 읽기 허용
+        // 퀴즈 소유자인 경우
+        isQuizOwner(resource.data) || 
+        // 활성 상태이고 공개된 퀴즈인 경우 (세션 참가용)
         (resource.data.isActive == true && resource.data.isPublic == true)
       );
     }

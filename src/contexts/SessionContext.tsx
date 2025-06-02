@@ -14,6 +14,8 @@ import {
   subscribeToAnswers,
   getSessionsByHostId,
   getSessionsByQuizId,
+  getActiveSessionCountByHostId,
+  hasActiveSessionForQuiz,
   Session,
   Participant,
   QuestionStatus,
@@ -60,6 +62,10 @@ interface SessionContextType {
   // 호스트 세션 관리
   loadSessionsForHost: () => Promise<Session[]>;
   getSessionsByQuizId: (quizId: string) => Promise<Session[]>;
+  
+  // 새로운 유틸리티 함수들
+  getActiveSessionCount: () => Promise<number>;
+  checkActiveSessionForQuiz: (quizId: string) => Promise<string | null>;
 }
 
 const initialState: SessionContextType = {
@@ -84,7 +90,10 @@ const initialState: SessionContextType = {
   resetSessionState: () => {},
   
   loadSessionsForHost: async () => [],
-  getSessionsByQuizId: async () => []
+  getSessionsByQuizId: async () => [],
+  
+  getActiveSessionCount: async () => 0,
+  checkActiveSessionForQuiz: async () => null
 };
 
 const SessionContext = createContext<SessionContextType>(initialState);
@@ -439,11 +448,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       // 정답 여부에 따른 점수 계산 (간단한 로직)
       const score = isCorrect ? 100 : 0;
       
+      // 답변 데이터 형태 결정 (숫자면 객관식, 문자열이면 주관식/의견)
+      const answerData = !isNaN(Number(answer)) 
+        ? { answerIndex: Number(answer) }
+        : { answerText: answer };
+      
       await submitAnswer(
         sessionId,
         questionIndex,
         currentUser.uid,
-        answer,
+        answerData,
         isCorrect,
         score
       );
@@ -601,6 +615,37 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     console.log('세션 상태가 초기화되었습니다.');
   };
   
+  // 새로운 유틸리티 함수들
+  const getActiveSessionCount = async (): Promise<number> => {
+    if (!currentUser) {
+      throw new Error('로그인이 필요합니다.');
+    }
+    
+    try {
+      setError(null);
+      return await getActiveSessionCountByHostId(currentUser.uid);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '활성 세션 수 가져오는데 실패했습니다.';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+  
+  const checkActiveSessionForQuiz = async (quizId: string): Promise<string | null> => {
+    if (!currentUser) {
+      throw new Error('로그인이 필요합니다.');
+    }
+    
+    try {
+      setError(null);
+      return await hasActiveSessionForQuiz(currentUser.uid, quizId);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '활성 세션 확인에 실패했습니다.';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+  
   return (
     <SessionContext.Provider
       value={{
@@ -620,7 +665,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         resetSessionState,
         loadSessionsForHost,
         loadSessionById,
-        getSessionsByQuizId: getQuizSessions
+        getSessionsByQuizId: getQuizSessions,
+        getActiveSessionCount,
+        checkActiveSessionForQuiz
       }}
     >
       {children}

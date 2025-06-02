@@ -29,7 +29,8 @@ const DEFAULT_SESSION_SETTINGS: SessionSettings = {
   expiresIn: 24 * 60 * 60 * 1000, // 24시간
   randomizeQuestions: false,
   singleAttempt: true,
-  questionTimeLimit: 30 // 30초
+  questionTimeLimit: 30, // 30초
+  gameMode: 'normal' // 기본값은 일반 모드
 };
 
 const SessionQuiz: React.FC = () => {
@@ -334,7 +335,18 @@ const SessionQuiz: React.FC = () => {
       setError(null);
       console.log('세션 생성 시작:', quizId, sessionSettings);
       
-      // 이미 로드된 퀴즈 데이터를 직접 전달
+      // 로그라이크 모드 호환성 확인
+      if (sessionSettings.gameMode === 'roguelike') {
+        const hasMultipleChoice = quiz.questions.some((q: any) => q.type === 'multiple-choice');
+        const hasShortAnswer = quiz.questions.some((q: any) => q.type === 'short-answer');
+        
+        if (!hasMultipleChoice && !hasShortAnswer) {
+          setError('이 퀴즈는 로그라이크 모드에 적합하지 않습니다. 객관식 또는 주관식 문제가 필요합니다.');
+          return;
+        }
+      }
+      
+      // 세션 생성 (일반 모드와 로그라이크 모드 공통)
       const sessionId = await createSessionForQuiz(quizId, sessionSettings, quiz);
       console.log('세션 생성 완료:', sessionId);
       

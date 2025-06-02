@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, CheckCircle, XCircle, ChevronDown, ChevronUp, Copy, Check, LinkIcon } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { QuestionType } from '../../../types';
 
 // Realtime Database의 참가자 구조에 맞는 타입 정의
 interface RealtimeParticipant {
@@ -12,7 +13,9 @@ interface RealtimeParticipant {
   quizId?: string;
   answers?: Record<string, {
     questionIndex: number;
-    answerIndex: number;
+    answerIndex?: number; // 객관식용
+    answerText?: string; // 주관식/의견용
+    answer?: string; // 호환성을 위한 필드
     isCorrect: boolean;
     points: number;
     answeredAt: number;
@@ -24,8 +27,9 @@ interface ParticipantListProps {
   quiz?: {
     questions: Array<{
       text: string;
-      options: string[];
-      correctAnswer: number;
+      type?: QuestionType;
+      options?: string[];
+      correctAnswer?: number;
     }>;
   };
   // 초대 관련 props 추가
@@ -59,6 +63,16 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
   // 점수 내림차순 정렬
   const sortedParticipants = participantArray.sort((a, b) => b.score - a.score);
 
+  // 확장된 참가자가 여전히 존재하는지 확인하고, 없으면 상태 초기화
+  useEffect(() => {
+    if (expandedParticipantId) {
+      const participantExists = participants[expandedParticipantId];
+      if (!participantExists) {
+        setExpandedParticipantId(null);
+      }
+    }
+  }, [participants, expandedParticipantId]);
+
   // 답변 확장/접기 토글
   const toggleExpand = (participantId: string) => {
     if (expandedParticipantId === participantId) {
@@ -82,30 +96,49 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
       <div className="space-y-2 py-2">
         {sortedAnswers.map((answer) => {
           const questionNumber = answer.questionIndex + 1;
-          const questionText = quiz?.questions[answer.questionIndex]?.text || `문제 ${questionNumber}`;
+          const question = quiz?.questions[answer.questionIndex];
+          const questionText = question?.text || `문제 ${questionNumber}`;
+          const questionType = question?.type || 'multiple-choice';
           
           // 선택한 답변 텍스트 가져오기
-          let selectedOption = `선택지 ${answer.answerIndex + 1}`;
-          if (quiz?.questions[answer.questionIndex]?.options) {
-            const options = quiz.questions[answer.questionIndex].options;
-            if (answer.answerIndex >= 0 && answer.answerIndex < options.length) {
-              selectedOption = options[answer.answerIndex];
+          let selectedAnswer = '';
+          
+          if (questionType === 'multiple-choice') {
+            // 객관식 처리
+            const answerIndex = answer.answerIndex ?? (answer.answer ? parseInt(answer.answer) : -1);
+            if (answerIndex >= 0 && question?.options && answerIndex < question.options.length) {
+              selectedAnswer = `${answerIndex + 1}. ${question.options[answerIndex]}`;
+            } else {
+              selectedAnswer = `선택지 ${answerIndex + 1}`;
             }
+          } else {
+            // 주관식/의견 수집 처리
+            selectedAnswer = answer.answerText || answer.answer || '답변 없음';
           }
 
           return (
             <div key={answer.questionIndex} className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-gray-700">
+                <div className="flex-1 mr-3">
+                  <p className="font-medium text-gray-700 mb-1">
                     {questionNumber}. {questionText}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    선택한 답변: {selectedOption}
-                  </p>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">
+                      {questionType === 'multiple-choice' ? '선택한 답변: ' : 
+                       questionType === 'short-answer' ? '제출한 답변: ' : 
+                       '의견: '}
+                    </span>
+                    <span className="break-words">{selectedAnswer}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  {answer.isCorrect ? (
+                <div className="flex flex-col items-end flex-shrink-0">
+                  {questionType === 'opinion' ? (
+                    <div className="flex items-center text-blue-600">
+                      <CheckCircle size={16} className="mr-1" />
+                      <span className="font-medium">참여</span>
+                    </div>
+                  ) : answer.isCorrect ? (
                     <div className="flex items-center text-green-600">
                       <CheckCircle size={16} className="mr-1" />
                       <span className="font-medium">정답</span>
@@ -134,6 +167,7 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
     if (isSessionExpired || !sessionCode) return null;
     
     const maxParticipants = currentSession?.maxParticipants || 50;
+    const isRoguelikeMode = currentSession?.gameMode === 'roguelike';
     
     return (
       <div className="mb-5">

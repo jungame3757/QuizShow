@@ -33,7 +33,7 @@ const Button: React.FC<ButtonProps> = ({
   
   const widthStyles = fullWidth ? 'w-full' : '';
   
-  const disabledStyles = props.disabled ? 'opacity-60 cursor-not-allowed' : 'transform hover:scale-105';
+  const disabledStyles = props.disabled ? 'opacity-60 cursor-not-allowed' : '';
   
   return (
     <button

@@ -17,10 +17,11 @@ import { db } from './config';
 import { Session } from './sessionService';
 import { Quiz } from '../types';
 
-// 세션 기록용 Answer 타입 정의
+// 세션 기록용 Answer 타입 정의 - 새로운 문제 형식 지원
 export interface Answer {
   questionIndex: number;
-  answerIndex: number;
+  answerIndex?: number; // 객관식용 (선택사항)
+  answerText?: string; // 주관식/의견용 (선택사항)
   isCorrect: boolean;
   points: number;
   answeredAt: number;
@@ -86,24 +87,130 @@ export const saveSessionHistory = async (
       title: quiz.title || title // quiz.title이 없으면 전달받은 title 사용
     };
 
-    // participants에서 quizId 필드 제거
+    // participants에서 undefined 필드 제거
     const cleanedParticipants: Record<string, Participant> = {};
     Object.entries(participants).forEach(([key, participant]) => {
-      // participant를 복사하고 quizId 필드 제거
-      const { quizId, ...cleanedParticipant } = participant as any;
+      // participant를 복사하고 undefined 필드들을 제거
+      const participantAny = participant as any; // 타입 확장을 위한 캐스팅
+      const cleanedParticipant: any = {};
+      
+      // 기본 필드들만 복사하고 undefined 체크
+      if (participant.id !== undefined) cleanedParticipant.id = participant.id;
+      if (participant.name !== undefined) cleanedParticipant.name = participant.name;
+      if (participant.joinedAt !== undefined) cleanedParticipant.joinedAt = participant.joinedAt;
+      if (participant.isActive !== undefined) cleanedParticipant.isActive = participant.isActive;
+      if (participant.score !== undefined) cleanedParticipant.score = participant.score;
+      
+      // answers가 있고 undefined가 아닌 경우에만 추가
+      if (participantAny.answers && typeof participantAny.answers === 'object') {
+        const cleanedAnswers: Record<string, any> = {};
+        Object.entries(participantAny.answers).forEach(([answerKey, answer]) => {
+          if (answer && typeof answer === 'object') {
+            const answerAny = answer as any; // 타입 확장을 위한 캐스팅
+            const cleanedAnswer: any = {};
+            if (answerAny.questionIndex !== undefined) cleanedAnswer.questionIndex = answerAny.questionIndex;
+            if (answerAny.answerIndex !== undefined) cleanedAnswer.answerIndex = answerAny.answerIndex;
+            if (answerAny.answerText !== undefined) cleanedAnswer.answerText = answerAny.answerText;
+            if (answerAny.isCorrect !== undefined) cleanedAnswer.isCorrect = answerAny.isCorrect;
+            if (answerAny.points !== undefined) cleanedAnswer.points = answerAny.points;
+            if (answerAny.answeredAt !== undefined) cleanedAnswer.answeredAt = answerAny.answeredAt;
+            
+            // 최소한의 필수 필드가 있는 경우에만 추가
+            if (cleanedAnswer.questionIndex !== undefined && cleanedAnswer.isCorrect !== undefined) {
+              cleanedAnswers[answerKey] = cleanedAnswer;
+            }
+          }
+        });
+        
+        if (Object.keys(cleanedAnswers).length > 0) {
+          cleanedParticipant.answers = cleanedAnswers;
+        }
+      }
+      
+      // attempts가 있고 undefined가 아닌 경우에만 추가
+      if (participantAny.attempts && Array.isArray(participantAny.attempts)) {
+        const cleanedAttempts = participantAny.attempts.filter((attempt: any) => {
+          return attempt && 
+                 attempt.answers && 
+                 typeof attempt.answers === 'object' &&
+                 attempt.score !== undefined &&
+                 attempt.completedAt !== undefined;
+        }).map((attempt: any) => {
+          const cleanedAttemptAnswers: Record<string, any> = {};
+          Object.entries(attempt.answers).forEach(([answerKey, answer]) => {
+            if (answer && typeof answer === 'object') {
+              const answerAny = answer as any; // 타입 확장을 위한 캐스팅
+              const cleanedAnswer: any = {};
+              if (answerAny.questionIndex !== undefined) cleanedAnswer.questionIndex = answerAny.questionIndex;
+              if (answerAny.answerIndex !== undefined) cleanedAnswer.answerIndex = answerAny.answerIndex;
+              if (answerAny.answerText !== undefined) cleanedAnswer.answerText = answerAny.answerText;
+              if (answerAny.isCorrect !== undefined) cleanedAnswer.isCorrect = answerAny.isCorrect;
+              if (answerAny.points !== undefined) cleanedAnswer.points = answerAny.points;
+              if (answerAny.answeredAt !== undefined) cleanedAnswer.answeredAt = answerAny.answeredAt;
+              
+              if (cleanedAnswer.questionIndex !== undefined && cleanedAnswer.isCorrect !== undefined) {
+                cleanedAttemptAnswers[answerKey] = cleanedAnswer;
+              }
+            }
+          });
+          
+          return {
+            answers: cleanedAttemptAnswers,
+            score: attempt.score,
+            completedAt: attempt.completedAt
+          };
+        });
+        
+        if (cleanedAttempts.length > 0) {
+          cleanedParticipant.attempts = cleanedAttempts;
+        }
+      }
+      
       cleanedParticipants[key] = cleanedParticipant;
     });
 
+    // quiz 객체에서도 undefined 필드 제거
+    const cleanedQuiz: any = {};
+    if (quizWithId.id !== undefined) cleanedQuiz.id = quizWithId.id;
+    if (quizWithId.title !== undefined) cleanedQuiz.title = quizWithId.title;
+    if (quizWithId.description !== undefined) cleanedQuiz.description = quizWithId.description;
+    if (quizWithId.questions && Array.isArray(quizWithId.questions)) {
+      cleanedQuiz.questions = quizWithId.questions.filter(q => q && typeof q === 'object').map(question => {
+        const questionAny = question as any; // 타입 확장을 위한 캐스팅
+        const cleanedQuestion: any = {};
+        if (question.text !== undefined) cleanedQuestion.text = question.text;
+        if (question.type !== undefined) cleanedQuestion.type = question.type;
+        if (question.options && Array.isArray(question.options)) {
+          cleanedQuestion.options = question.options.filter(opt => opt !== undefined);
+        }
+        if (question.correctAnswer !== undefined) cleanedQuestion.correctAnswer = question.correctAnswer;
+        if (question.correctAnswerText !== undefined) cleanedQuestion.correctAnswerText = question.correctAnswerText;
+        if (question.additionalAnswers && Array.isArray(question.additionalAnswers)) {
+          cleanedQuestion.additionalAnswers = question.additionalAnswers.filter(ans => ans !== undefined);
+        }
+        if (questionAny.points !== undefined) cleanedQuestion.points = questionAny.points;
+        if (questionAny.timeLimit !== undefined) cleanedQuestion.timeLimit = questionAny.timeLimit;
+        if (questionAny.answerMatchType !== undefined) cleanedQuestion.answerMatchType = questionAny.answerMatchType;
+        return cleanedQuestion;
+      });
+    }
+    if (quizWithId.createdAt !== undefined) cleanedQuiz.createdAt = quizWithId.createdAt;
+    if (quizWithId.updatedAt !== undefined) cleanedQuiz.updatedAt = quizWithId.updatedAt;
+
     // 세션 기록 데이터 생성 (title은 quiz.title로 통일)
-    const sessionHistory: Omit<SessionHistory, 'id'> = {
+    const sessionHistory: any = {
       hostId: session.hostId,
-      title: quizWithId.title,
+      title: cleanedQuiz.title,
       participantCount: session.participantCount,
       startedAt,
-      endedAt,
       participants: cleanedParticipants,
-      quiz: quizWithId
+      quiz: cleanedQuiz
     };
+
+    // endedAt은 null이 아닌 경우에만 추가
+    if (endedAt !== null) {
+      sessionHistory.endedAt = endedAt;
+    }
 
     // 사용자별 하위 컬렉션에 세션 기록 추가
     const sessionHistoriesRef = collection(db, getUserSessionHistoriesPath(session.hostId));

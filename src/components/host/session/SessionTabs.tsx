@@ -74,6 +74,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
       <div className="p-6">
         {activeTab === 'participants' && (
           <ParticipantList 
+            key={`participants-${sessionCode}`}
             participants={participants} 
             quiz={quiz}
             sessionCode={sessionCode}
@@ -87,7 +88,11 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         )}
         
         {activeTab === 'progress' && (
-          <QuizProgress quiz={quiz} participants={participants} />
+          <QuizProgress 
+            key={`progress-${sessionCode}`}
+            quiz={quiz} 
+            participants={participants} 
+          />
         )}
       </div>
     </div>

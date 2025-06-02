@@ -285,7 +285,13 @@ const RankingTab: React.FC<RankingTabProps> = ({
                                 }
                                 
                                 const isCorrect = answer && answer.isCorrect;
-                                const hasAnswer = answer && answer.answerIndex >= 0;
+                                const hasAnswer = answer && (
+                                  (answer.answerIndex !== undefined && answer.answerIndex >= 0) || 
+                                  (answer.answerText && answer.answerText.trim() !== '')
+                                );
+                                
+                                // 문제 타입 확인
+                                const questionType = question.type || 'multiple-choice';
                                 
                                 // 시도별 정답 여부 수집
                                 const attemptResults: AttemptResult[] = [];
@@ -318,7 +324,11 @@ const RankingTab: React.FC<RankingTabProps> = ({
                                               {answer.points}점
                                             </div>
                                             <div className="mt-1">
-                                              {isCorrect ? (
+                                              {questionType === 'opinion' ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                  참여
+                                                </span>
+                                              ) : isCorrect ? (
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                   정답
                                                 </span>
@@ -343,42 +353,93 @@ const RankingTab: React.FC<RankingTabProps> = ({
                                       <div className="flex-grow">
                                         <p className="font-medium text-gray-800 mb-3">{question.text}</p>
                                         
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          {question.options.map((option, optIndex) => {
-                                            const isSelected = hasAnswer && answer?.answerIndex === optIndex;
-                                            const isCorrectOption = optIndex === question.correctAnswer;
-                                            
-                                            return (
-                                              <div 
-                                                key={optIndex} 
-                                                className={`text-sm rounded-md p-2.5 border ${
-                                                  isSelected && isCorrectOption ? 'bg-green-100 border-green-300 text-green-800' :
-                                                  isSelected ? 'bg-red-100 border-red-300 text-red-800' :
-                                                  isCorrectOption ? 'bg-green-50 border-green-200 text-green-700' :
-                                                  'bg-gray-50 border-gray-200 text-gray-600'
-                                                }`}
-                                              >
+                                        {/* 문제 타입별 답변 표시 */}
+                                        {questionType === 'multiple-choice' && question.options ? (
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {question.options.map((option, optIndex) => {
+                                              const isSelected = hasAnswer && answer?.answerIndex === optIndex;
+                                              const isCorrectOption = optIndex === question.correctAnswer;
+                                              
+                                              return (
+                                                <div 
+                                                  key={optIndex} 
+                                                  className={`text-sm rounded-md p-2.5 border ${
+                                                    isSelected && isCorrectOption ? 'bg-green-100 border-green-300 text-green-800' :
+                                                    isSelected ? 'bg-red-100 border-red-300 text-red-800' :
+                                                    isCorrectOption ? 'bg-green-50 border-green-200 text-green-700' :
+                                                    'bg-gray-50 border-gray-200 text-gray-600'
+                                                  }`}
+                                                >
+                                                  <div className="flex items-start">
+                                                    <div className="mr-2 mt-0.5">
+                                                      {isSelected && isCorrectOption && (
+                                                        <CheckCircle size={16} className="text-green-700" />
+                                                      )}
+                                                      {isSelected && !isCorrectOption && (
+                                                        <XCircle size={16} className="text-red-700" />
+                                                      )}
+                                                      {!isSelected && isCorrectOption && (
+                                                        <CheckCircle size={16} className="text-green-600 opacity-70" />
+                                                      )}
+                                                      {!isSelected && !isCorrectOption && (
+                                                        <span className="w-4 h-4 inline-block text-center">{optIndex + 1}</span>
+                                                      )}
+                                                    </div>
+                                                    <span className={isCorrectOption ? 'font-medium' : ''}>{option}</span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ) : (
+                                          // 주관식 또는 의견 수집인 경우
+                                          <div className="space-y-3">
+                                            {hasAnswer && answer && (
+                                              <div className={`p-3 rounded-md border ${
+                                                questionType === 'opinion' ? 'bg-blue-50 border-blue-200' :
+                                                isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                                              }`}>
                                                 <div className="flex items-start">
                                                   <div className="mr-2 mt-0.5">
-                                                    {isSelected && isCorrectOption && (
-                                                      <CheckCircle size={16} className="text-green-700" />
-                                                    )}
-                                                    {isSelected && !isCorrectOption && (
-                                                      <XCircle size={16} className="text-red-700" />
-                                                    )}
-                                                    {!isSelected && isCorrectOption && (
-                                                      <CheckCircle size={16} className="text-green-600 opacity-70" />
-                                                    )}
-                                                    {!isSelected && !isCorrectOption && (
-                                                      <span className="w-4 h-4 inline-block text-center">{optIndex + 1}</span>
+                                                    {questionType === 'opinion' ? (
+                                                      <CheckCircle size={16} className="text-blue-600" />
+                                                    ) : isCorrect ? (
+                                                      <CheckCircle size={16} className="text-green-600" />
+                                                    ) : (
+                                                      <XCircle size={16} className="text-red-600" />
                                                     )}
                                                   </div>
-                                                  <span className={isCorrectOption ? 'font-medium' : ''}>{option}</span>
+                                                  <div className="flex-1">
+                                                    <span className={`font-medium ${
+                                                      questionType === 'opinion' ? 'text-blue-800' :
+                                                      isCorrect ? 'text-green-800' : 'text-red-800'
+                                                    }`}>
+                                                      {questionType === 'multiple-choice' ? '선택한 답변: ' :
+                                                       questionType === 'short-answer' ? '제출한 답변: ' :
+                                                       '제출한 의견: '}
+                                                    </span>
+                                                    <span className="text-gray-700 break-words">
+                                                      {answer.answerText || `선택지 ${(answer.answerIndex || 0) + 1}`}
+                                                    </span>
+                                                  </div>
                                                 </div>
                                               </div>
-                                            );
-                                          })}
-                                        </div>
+                                            )}
+                                            
+                                            {questionType === 'short-answer' && (
+                                              <div className="text-sm text-gray-600">
+                                                <span className="font-medium">정답: </span>
+                                                <span>{question.correctAnswerText || '정답 정보 없음'}</span>
+                                                {question.additionalAnswers && question.additionalAnswers.length > 0 && (
+                                                  <div className="mt-1">
+                                                    <span className="font-medium">추가 인정 답안: </span>
+                                                    <span>{question.additionalAnswers.join(', ')}</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </div>

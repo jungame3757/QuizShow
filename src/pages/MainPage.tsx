@@ -252,9 +252,9 @@ const MainPage: React.FC = () => {
               <span className="text-xl text-[#783ae8]" style={{ fontFamily: 'SBAggroB' }}>콰직</span>
             </div>
             <div className="flex justify-center gap-6 text-sm mt-2">
-              <Link to="#" className="text-gray-500 hover:text-purple-600 transition-colors">이용약관</Link>
-              <Link to="#" className="text-gray-500 hover:text-purple-600 transition-colors">개인정보처리방침</Link>
-              <Link to="#" className="text-gray-500 hover:text-purple-600 transition-colors">도움말</Link>
+              <Link to="/terms" className="text-gray-500 hover:text-purple-600 transition-colors">이용약관</Link>
+              <Link to="/privacy" className="text-gray-500 hover:text-purple-600 transition-colors">개인정보처리방침</Link>
+              <Link to="/help" className="text-gray-500 hover:text-purple-600 transition-colors">도움말</Link>
             </div>
           </div>
         </footer>

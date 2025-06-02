@@ -151,33 +151,43 @@ const SessionHistoryDetail: React.FC = () => {
     if (!sessionHistory) return { totalResponses: 0, optionCounts: [] };
     const { participants, quiz } = sessionHistory;
     const question = quiz.questions[questionIndex];
+    const questionType = question.type || 'multiple-choice';
+    
+    // 객관식이 아닌 경우 빈 배열 반환 (QuestionStatsTab에서 별도 처리)
+    if (questionType !== 'multiple-choice' || !question.options) {
+      return { totalResponses: 0, optionCounts: [] };
+    }
+    
     let totalResponses = 0;
     const optionCounts = new Array(question.options.length).fill(0);
+    
     Object.values(participants ?? {}).forEach((participant) => {
       const extParticipant = participant as unknown as ExtendedParticipant;
       if (mode === 'latest') {
         if (extParticipant.answers) {
           const answers = Object.values(extParticipant.answers);
           const answer = answers.find(a => a.questionIndex === questionIndex);
-          if (answer && answer.answerIndex >= 0) {
+          if (answer && answer.answerIndex !== undefined && answer.answerIndex >= 0 && answer.answerIndex < optionCounts.length) {
             optionCounts[answer.answerIndex]++;
             totalResponses++;
           }
         }
       } else {
+        // 현재 답변
         if (extParticipant.answers) {
           const answers = Object.values(extParticipant.answers);
           const answer = answers.find(a => a.questionIndex === questionIndex);
-          if (answer && answer.answerIndex >= 0) {
+          if (answer && answer.answerIndex !== undefined && answer.answerIndex >= 0 && answer.answerIndex < optionCounts.length) {
             optionCounts[answer.answerIndex]++;
             totalResponses++;
           }
         }
+        // 모든 시도 포함
         if (extParticipant.attempts) {
           extParticipant.attempts.forEach(attempt => {
             const answers = Object.values(attempt.answers);
             const answer = answers.find(a => a.questionIndex === questionIndex);
-            if (answer && answer.answerIndex >= 0) {
+            if (answer && answer.answerIndex !== undefined && answer.answerIndex >= 0 && answer.answerIndex < optionCounts.length) {
               optionCounts[answer.answerIndex]++;
               totalResponses++;
             }
@@ -192,16 +202,33 @@ const SessionHistoryDetail: React.FC = () => {
   const calculateCorrectRate = () => {
     if (!sessionHistory) return 0;
     const { participants, quiz } = sessionHistory;
-    const totalQuestions = quiz.questions.length * Object.keys(participants ?? {}).length;
+    
+    // 점수가 있는 문제들만 계산 (의견 수집 제외)
+    const scorableQuestions = quiz.questions.filter(q => {
+      const questionType = q.type || 'multiple-choice';
+      return questionType !== 'opinion';
+    });
+    
+    if (scorableQuestions.length === 0) return 0;
+    
+    const totalQuestions = scorableQuestions.length * Object.keys(participants ?? {}).length;
     let correctAnswers = 0;
+    
     Object.values(participants ?? {}).forEach((participant) => {
       const extParticipant = participant as unknown as ExtendedParticipant;
       if (extParticipant.answers) {
         Object.values(extParticipant.answers).forEach(answer => {
-          if (answer.isCorrect) correctAnswers++;
+          // 해당 답변이 점수가 있는 문제에 대한 것인지 확인
+          const question = quiz.questions[answer.questionIndex];
+          const questionType = question?.type || 'multiple-choice';
+          
+          if (questionType !== 'opinion' && answer.isCorrect) {
+            correctAnswers++;
+          }
         });
       }
     });
+    
     return totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
   };
   

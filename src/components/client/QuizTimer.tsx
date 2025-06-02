@@ -6,6 +6,10 @@ interface QuizTimerProps {
 }
 
 const QuizTimer: React.FC<QuizTimerProps> = ({ timerPercentage, timeLeft }) => {
+  if (timeLeft === null) {
+    return null;
+  }
+
   return (
     <div className="bg-gray-100 h-2 rounded-full mb-3 overflow-hidden">
       <div 

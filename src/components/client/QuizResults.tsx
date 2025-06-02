@@ -3,21 +3,7 @@ import { Link } from 'react-router-dom';
 import { Trophy, Medal, User, RefreshCw, Award, LogOut, AlertTriangle, Share2, Gem, Sparkle } from 'lucide-react';
 import Button from '../ui/Button';
 import confetti from 'canvas-confetti';
-
-interface Question {
-  text: string;
-  options: string[];
-  correctAnswer: number;
-}
-
-interface Quiz {
-  id?: string;
-  title: string;
-  description?: string;
-  questions: Question[];
-  createdAt?: string;
-  status?: 'waiting' | 'active' | 'completed';
-}
+import { Quiz } from '../../types';
 
 interface Answer {
   questionIndex: number;

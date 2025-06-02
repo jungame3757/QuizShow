@@ -1,7 +1,16 @@
+export type QuestionType = 'multiple-choice' | 'short-answer' | 'opinion';
+export type AnswerMatchType = 'exact' | 'contains';
+
 export interface Question {
+  id?: string;
+  type: QuestionType;
   text: string;
-  options: string[];
-  correctAnswer: number;
+  options?: string[]; // 객관식용
+  correctAnswer?: number; // 객관식용 (인덱스)
+  correctAnswerText?: string; // 주관식용
+  additionalAnswers?: string[]; // 추가 정답들
+  answerMatchType?: AnswerMatchType; // 정답 인정 방식
+  isAnonymous?: boolean; // 익명 수집 여부
 }
 
 export interface Quiz {

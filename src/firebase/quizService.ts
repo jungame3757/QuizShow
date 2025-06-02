@@ -27,6 +27,9 @@ interface FirestoreQuiz {
   questions: Question[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  ownerId: string; // Firestore 규칙에서 요구하는 필드
+  isActive?: boolean; // 활성 상태
+  isPublic?: boolean; // 공개 여부
 }
 
 // Firestore Quiz를 앱에서 사용하는 Quiz 타입으로 변환
@@ -69,26 +72,42 @@ const convertFirestoreQuizToQuiz = (firestoreQuiz: FirestoreQuiz & { id: string 
   // 질문 배열이 없는 경우 빈 배열로 초기화
   const questions = Array.isArray(firestoreQuiz.questions) 
     ? firestoreQuiz.questions.map(q => {
-        const options = Array.isArray(q.options) ? q.options : [];
-        let correctAnswerIndex = 0;
+        // ID가 없는 경우 생성
+        const questionId = q.id || Math.random().toString(36).substring(2, 9);
         
-        if (typeof q.correctAnswer === 'number') {
-          // 이미 숫자 형태라면 그대로 사용
-          correctAnswerIndex = q.correctAnswer;
-        } else if (q.correctAnswer !== undefined && options.length > 0) {
-          // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
-          const correctAnswerStr = String(q.correctAnswer);
-          const index = options.findIndex(opt => String(opt) === correctAnswerStr);
-          if (index !== -1) {
-            correctAnswerIndex = index;
+        // 기본 질문 객체
+        const baseQuestion: Question = {
+          id: questionId,
+          type: q.type || 'multiple-choice',
+          text: q.text || '문제',
+        };
+        
+        // 문제 형식별 필드 처리
+        if (q.type === 'multiple-choice') {
+          const options = Array.isArray(q.options) ? q.options : [];
+          let correctAnswerIndex = 0;
+          
+          if (typeof q.correctAnswer === 'number') {
+            correctAnswerIndex = q.correctAnswer;
+          } else if (q.correctAnswer !== undefined && options.length > 0) {
+            const correctAnswerStr = String(q.correctAnswer);
+            const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+            if (index !== -1) {
+              correctAnswerIndex = index;
+            }
           }
+          
+          baseQuestion.options = options;
+          baseQuestion.correctAnswer = correctAnswerIndex;
+        } else if (q.type === 'short-answer') {
+          baseQuestion.correctAnswerText = q.correctAnswerText || '';
+          baseQuestion.additionalAnswers = Array.isArray(q.additionalAnswers) ? q.additionalAnswers : [];
+          baseQuestion.answerMatchType = q.answerMatchType || 'exact';
+        } else if (q.type === 'opinion') {
+          baseQuestion.isAnonymous = q.isAnonymous || false;
         }
         
-        return {
-          text: q.text || '문제',
-          options: options,
-          correctAnswer: correctAnswerIndex,
-        };
+        return baseQuestion;
       })
     : [];
 
@@ -194,30 +213,48 @@ export const createQuiz = async (quiz: Omit<Quiz, 'id'>, userId: string): Promis
       description: quiz.description || '',
       questions: Array.isArray(quiz.questions) 
         ? quiz.questions.map(q => {
-            const options = Array.isArray(q.options) ? q.options : [];
-            let correctAnswerIndex = 0;
+            // 기본 질문 객체
+            const baseQuestion: any = {
+              id: q.id || Math.random().toString(36).substring(2, 9),
+              type: q.type || 'multiple-choice',
+              text: q.text || '문제',
+            };
+            
+            // 문제 형식별 필드 처리
+            if (q.type === 'multiple-choice') {
+              const options = Array.isArray(q.options) ? q.options : [];
+              let correctAnswerIndex = 0;
 
-            if (typeof q.correctAnswer === 'number') {
-              // 이미 숫자 형태라면 그대로 사용
-              correctAnswerIndex = q.correctAnswer;
-            } else if (q.correctAnswer !== undefined && options.length > 0) {
-              // correctAnswer가 문자열이거나 다른 형태라면 문자열로 변환하여 비교
-              const correctAnswerStr = String(q.correctAnswer);
-              const index = options.findIndex(opt => String(opt) === correctAnswerStr);
-              if (index !== -1) {
-                correctAnswerIndex = index;
+              if (typeof q.correctAnswer === 'number') {
+                correctAnswerIndex = q.correctAnswer;
+              } else if (q.correctAnswer !== undefined && options.length > 0) {
+                const correctAnswerStr = String(q.correctAnswer);
+                const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+                if (index !== -1) {
+                  correctAnswerIndex = index;
+                }
               }
+              
+              baseQuestion.options = options;
+              baseQuestion.correctAnswer = correctAnswerIndex;
+            } else if (q.type === 'short-answer') {
+              baseQuestion.correctAnswerText = q.correctAnswerText || '';
+              if (q.additionalAnswers && q.additionalAnswers.length > 0) {
+                baseQuestion.additionalAnswers = q.additionalAnswers;
+              }
+              baseQuestion.answerMatchType = q.answerMatchType || 'exact';
+            } else if (q.type === 'opinion') {
+              baseQuestion.isAnonymous = q.isAnonymous || false;
             }
             
-            return {
-              text: q.text || '문제',
-              options: options,
-              correctAnswer: correctAnswerIndex,
-            };
+            return baseQuestion;
           })
         : [],
       createdAt: Timestamp.fromDate(new Date(quiz.createdAt || new Date())),
       updatedAt: serverTimestamp(),
+      ownerId: userId, // Firestore 규칙에서 요구하는 필드
+      isActive: true, // 활성 상태로 설정
+      isPublic: false, // 기본적으로 비공개
     };
     
     // 변경: 사용자 하위 컬렉션에 퀴즈 저장
@@ -308,9 +345,47 @@ export const updateQuiz = async (quizId: string, updates: Partial<Quiz>, userId:
     if (updates.title !== undefined) updateData.title = updates.title || '제목 없음';
     if (updates.description !== undefined) updateData.description = updates.description || '';
     
-    // questions 필드 처리 - 항상 배열 형태로 저장
+    // questions 필드 처리 - 새로운 Question 타입 지원
     if (updates.questions !== undefined) {
-      updateData.questions = Array.isArray(updates.questions) ? updates.questions : [];
+      updateData.questions = Array.isArray(updates.questions) 
+        ? updates.questions.map(q => {
+            // 기본 질문 객체
+            const baseQuestion: any = {
+              id: q.id || Math.random().toString(36).substring(2, 9),
+              type: q.type || 'multiple-choice',
+              text: q.text || '문제',
+            };
+            
+            // 문제 형식별 필드 처리
+            if (q.type === 'multiple-choice') {
+              const options = Array.isArray(q.options) ? q.options : [];
+              let correctAnswerIndex = 0;
+
+              if (typeof q.correctAnswer === 'number') {
+                correctAnswerIndex = q.correctAnswer;
+              } else if (q.correctAnswer !== undefined && options.length > 0) {
+                const correctAnswerStr = String(q.correctAnswer);
+                const index = options.findIndex(opt => String(opt) === correctAnswerStr);
+                if (index !== -1) {
+                  correctAnswerIndex = index;
+                }
+              }
+              
+              baseQuestion.options = options;
+              baseQuestion.correctAnswer = correctAnswerIndex;
+            } else if (q.type === 'short-answer') {
+              baseQuestion.correctAnswerText = q.correctAnswerText || '';
+              if (q.additionalAnswers && q.additionalAnswers.length > 0) {
+                baseQuestion.additionalAnswers = q.additionalAnswers;
+              }
+              baseQuestion.answerMatchType = q.answerMatchType || 'exact';
+            } else if (q.type === 'opinion') {
+              baseQuestion.isAnonymous = q.isAnonymous || false;
+            }
+            
+            return baseQuestion;
+          })
+        : [];
     }
     
     await updateDoc(quizRef, updateData);

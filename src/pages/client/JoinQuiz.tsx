@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Loader2, Send, User, Brain } from 'lucide-react';
+import { LogIn, Loader2, Send, User } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { auth, rtdb } from '../../firebase/config';
-import { ref, get, set, update } from 'firebase/database';
+import { ref, get, update } from 'firebase/database';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { useSession } from '../../contexts/SessionContext';
 
@@ -110,8 +110,13 @@ const JoinQuiz: React.FC = () => {
         nickname: participantToUse.name
       }));
       
-      // 플레이 페이지로 이동
-      navigate(`/play/${sessionToUse.sessionId}`);
+      // 로그라이크 모드인 경우 로그라이크 페이지로 이동
+      if (sessionToUse.gameMode === 'roguelike') {
+        navigate(`/roguelike/${sessionToUse.quizId}`);
+      } else {
+        // 일반 모드는 플레이 페이지로 이동
+        navigate(`/play/${sessionToUse.sessionId}`);
+      }
     } catch (err: any) {
       console.error('퀴즈 재참여 오류:', err);
       setError(err.message || '퀴즈 재참여에 실패했습니다');
@@ -188,7 +193,8 @@ const JoinQuiz: React.FC = () => {
         code: sessionDataValue.code,
         quizId: sessionDataValue.quizId,
         hostId: sessionDataValue.hostId,
-        participantCount: sessionDataValue.participantCount || 0
+        participantCount: sessionDataValue.participantCount || 0,
+        gameMode: sessionDataValue.gameMode || 'normal'
       };
       setSessionData(sessionInfo);
       
@@ -200,7 +206,28 @@ const JoinQuiz: React.FC = () => {
         setExistingParticipant(participant);
         setNickname(participant.name);
         
-        // 직접 데이터를 전달하여 즉시 입장하기
+        // 로그라이크 모드인 경우 로그라이크 페이지로 리다이렉트
+        if (sessionDataValue.gameMode === 'roguelike') {
+          // 참가자 상태 업데이트 (isActive를 true로)
+          const participantRef = ref(rtdb, `participants/${sessionId}/${auth.currentUser?.uid}`);
+          await update(participantRef, {
+            isActive: true
+          });
+          
+          // 참여 정보 로컬 스토리지에 저장
+          localStorage.setItem('quizParticipation', JSON.stringify({
+            quizId: sessionInfo.quizId,
+            sessionId: sessionInfo.sessionId,
+            participantId: auth.currentUser?.uid,
+            nickname: participant.name
+          }));
+          
+          // 로그라이크 페이지로 이동
+          navigate(`/roguelike/${sessionInfo.quizId}`);
+          return;
+        }
+        
+        // 일반 모드는 기존대로 플레이 페이지로
         await handleDirectJoin(participant, sessionInfo);
         return;
       }
@@ -249,8 +276,13 @@ const JoinQuiz: React.FC = () => {
         nickname: nickname.trim()
       }));
       
-      // 플레이 페이지로 이동
-      navigate(`/play/${sessionId}`);
+      // 로그라이크 모드인 경우 로그라이크 페이지로 이동
+      if (sessionData.gameMode === 'roguelike') {
+        navigate(`/roguelike/${sessionData.quizId}`);
+      } else {
+        // 일반 모드는 플레이 페이지로 이동
+        navigate(`/play/${sessionId}`);
+      }
     } catch (err: any) {
       console.error('퀴즈 참여 오류:', err);
       setError(err.message || '퀴즈 참여에 실패했습니다');

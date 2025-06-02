@@ -255,6 +255,7 @@ export const QuizProvider = ({ children }: { children: ReactNode }) => {
       
       // 새 문제 만들기
       const newQuestion: Question = {
+        type: question.type || 'multiple-choice',
         text: question.text.trim(),
         options: Array.isArray(question.options) ? 
           question.options.map(opt => opt.trim()) : 

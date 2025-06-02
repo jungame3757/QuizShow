@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Check, X, Edit, Wand } from 'lucide-react';
+import { Plus, Check, X, Edit, Wand, Target, Edit3, MessageSquare, ArrowUp, ArrowDown } from 'lucide-react';
 import { useQuiz } from '../../contexts/QuizContext';
 import { useSession } from '../../contexts/SessionContext';
+import { Question } from '../../types';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import QuestionForm from '../../components/host/create/QuestionForm';
@@ -13,12 +14,12 @@ import Breadcrumb from '../../components/ui/Breadcrumb';
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();
-  const { createQuiz, error: quizError, loading: quizLoading } = useQuiz();
-  const { createSessionForQuiz, loading: sessionLoading, error: sessionError } = useSession();
+  const { createQuiz, error: quizError } = useQuiz();
+  const { createSessionForQuiz, error: sessionError } = useSession();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -74,11 +75,21 @@ const CreateQuiz: React.FC = () => {
           title: title.trim(),
           description: description.trim(),
           questions: questions.map(q => ({
-            id: Math.random().toString(36).substring(2, 9),
+            id: q.id || Math.random().toString(36).substring(2, 9),
+            type: q.type,
             text: q.text,
-            options: Array.isArray(q.options) ? q.options : [],
-            correctAnswer: q.correctAnswer,
-            correctAnswerIndex: q.correctAnswerIndex,
+            ...(q.type === 'multiple-choice' && {
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+            }),
+            ...(q.type === 'short-answer' && {
+              correctAnswerText: q.correctAnswerText,
+              additionalAnswers: q.additionalAnswers,
+              answerMatchType: q.answerMatchType,
+            }),
+            ...(q.type === 'opinion' && {
+              isAnonymous: q.isAnonymous,
+            }),
           })),
           createdAt: new Date().toISOString()
         });
@@ -118,13 +129,13 @@ const CreateQuiz: React.FC = () => {
     }
   };
   
-  const handleAddQuestion = (question: any) => {
+  const handleAddQuestion = (question: Question) => {
     setQuestions(prev => [...prev, question]);
     setIsAddingQuestion(false);
     setError('');
   };
   
-  const handleUpdateQuestion = (question: any) => {
+  const handleUpdateQuestion = (question: Question) => {
     if (editingQuestionIndex !== null) {
       setQuestions(prev => 
         prev.map((q, i) => i === editingQuestionIndex ? question : q)
@@ -139,6 +150,135 @@ const CreateQuiz: React.FC = () => {
 
   const handleEditQuestion = (index: number) => {
     setEditingQuestionIndex(index);
+  };
+
+  // 문제 순서 변경 함수들
+  const moveQuestionUp = (index: number) => {
+    if (index > 0) {
+      const newQuestions = [...questions];
+      [newQuestions[index - 1], newQuestions[index]] = [newQuestions[index], newQuestions[index - 1]];
+      setQuestions(newQuestions);
+    }
+  };
+
+  const moveQuestionDown = (index: number) => {
+    if (index < questions.length - 1) {
+      const newQuestions = [...questions];
+      [newQuestions[index], newQuestions[index + 1]] = [newQuestions[index + 1], newQuestions[index]];
+      setQuestions(newQuestions);
+    }
+  };
+
+  // 문제 형식별 아이콘과 색상 반환
+  const getQuestionTypeDisplay = (question: Question) => {
+    switch (question.type) {
+      case 'multiple-choice':
+        return { 
+          icon: Target, 
+          label: '객관식', 
+          color: 'bg-blue-100 text-blue-700',
+          borderColor: 'border-blue-200',
+          frameColor: 'bg-blue-50 border-blue-200'
+        };
+      case 'short-answer':
+        return { 
+          icon: Edit3, 
+          label: '주관식', 
+          color: 'bg-green-100 text-green-700',
+          borderColor: 'border-green-200',
+          frameColor: 'bg-green-50 border-green-200'
+        };
+      case 'opinion':
+        return { 
+          icon: MessageSquare, 
+          label: '의견 수집', 
+          color: 'bg-orange-100 text-orange-700',
+          borderColor: 'border-orange-200',
+          frameColor: 'bg-orange-50 border-orange-200'
+        };
+      default:
+        return { 
+          icon: Target, 
+          label: '객관식', 
+          color: 'bg-blue-100 text-blue-700',
+          borderColor: 'border-blue-200',
+          frameColor: 'bg-blue-50 border-blue-200'
+        };
+    }
+  };
+
+  // borderColor 클래스에서 실제 색상 코드를 반환하는 함수
+  const getColorCode = (borderColorClass: string) => {
+    const colorMap: { [key: string]: string } = {
+      'border-blue-200': '#93C5FD',
+      'border-green-200': '#86EFAC',
+      'border-orange-200': '#FED7AA',
+    };
+    return colorMap[borderColorClass] || '#93C5FD'; // 기본값은 파란색
+  };
+
+  // 문제 미리보기 렌더링
+  const renderQuestionPreview = (question: Question) => {
+    const { frameColor } = getQuestionTypeDisplay(question);
+    
+    return (
+      <div className={`${frameColor} rounded-md p-2 sm:p-3 w-full border`}>
+        {question.type === 'multiple-choice' && question.options && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            {question.options.map((option: string, optIdx: number) => (
+              <div key={optIdx} className="flex items-center">
+                {question.correctAnswer === optIdx ? (
+                  <div className="flex items-center px-2 py-1 bg-green-50 border border-green-200 rounded-md text-green-700 w-full">
+                    <Check size={14} className="mr-1 flex-shrink-0" /> 
+                    <span className="truncate text-sm">{option}</span>
+                  </div>
+                ) : (
+                  <div className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-600 ml-4 w-full truncate text-sm">
+                    {option}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {question.type === 'short-answer' && (
+          <div className="space-y-2">
+            <div className="bg-green-50 border border-green-200 rounded-md p-2">
+              <div className="text-xs text-green-600 mb-1">정답:</div>
+              <div className="text-sm text-green-700 font-medium">{question.correctAnswerText}</div>
+            </div>
+            
+            {question.additionalAnswers && question.additionalAnswers.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-2">
+                <div className="text-xs text-green-600 mb-1">추가 정답:</div>
+                <div className="text-sm text-green-700">
+                  {question.additionalAnswers.join(', ')}
+                </div>
+              </div>
+            )}
+            
+            <div className="text-xs text-gray-500">
+              정답 인정: {question.answerMatchType === 'exact' ? '정확히 일치' : '정답 단어 포함'}
+            </div>
+          </div>
+        )}
+        
+        {question.type === 'opinion' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-md p-2">
+            <div className="text-xs text-orange-600 mb-1">설정:</div>
+            <div className="space-y-1 text-sm text-orange-700">
+              {question.isAnonymous && (
+                <div>• 익명 수집</div>
+              )}
+              {!question.isAnonymous && (
+                <div>• 기본 설정</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -196,11 +336,15 @@ const CreateQuiz: React.FC = () => {
         <div className="bg-white rounded-xl shadow-md p-3 mb-3">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-base sm:text-lg font-bold text-purple-700">문제</h2>
+            <div className="text-xs text-gray-500">
+              총 {questions.length}개 문제
+            </div>
           </div>
           
           {questions.length === 0 && !isAddingQuestion && (
             <div className="text-center py-4 sm:py-6 bg-purple-50 rounded-lg">
               <p className="text-gray-600 mb-2 sm:mb-3 text-sm">아직 추가된 문제가 없습니다</p>
+              <p className="text-xs text-gray-500 mb-3">객관식, 주관식, 의견 수집 등 다양한 형식의 문제를 만들 수 있습니다</p>
               <Button 
                 onClick={() => setIsAddingQuestion(true)}
                 variant="primary"
@@ -214,79 +358,106 @@ const CreateQuiz: React.FC = () => {
           
           {questions.length > 0 && (
             <div className="space-y-2 mb-2">
-              {questions.map((question, index) => (
-                <div 
-                  key={index} 
-                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-purple-100"
-                >
-                  {editingQuestionIndex === index ? (
-                    <div className="border-l-4 border-blue-500 pl-3 p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-sm font-medium text-blue-700">문제 {index + 1} 수정</h3>
-                        <button 
-                          onClick={() => setEditingQuestionIndex(null)}
-                          className="text-gray-500 hover:text-gray-700"
-                          aria-label="수정 취소"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                      <QuestionForm 
-                        initialData={question}
-                        onSave={handleUpdateQuestion}
-                        onCancel={() => setEditingQuestionIndex(null)}
-                        maxOptions={4}
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="inline-block px-2 py-0.5 bg-purple-200 rounded-md font-medium text-purple-800 text-xs">문제 {index + 1}</div>
-                        <div className="flex space-x-2">
+              {questions.map((question, index) => {
+                const { icon: Icon, label, color, borderColor } = getQuestionTypeDisplay(question);
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`bg-white rounded-lg overflow-hidden border ${borderColor} transform transition-all duration-300 hover:-translate-y-1`}
+                    style={{
+                      boxShadow: `0 3px 0 ${getColorCode(borderColor)}`,
+                      background: 'linear-gradient(to bottom right, #fff, #fafaff)',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseOver={(e) => {
+                      const colorCode = getColorCode(borderColor);
+                      e.currentTarget.style.boxShadow = `0 5px 0 ${colorCode}`;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      const colorCode = getColorCode(borderColor);
+                      e.currentTarget.style.boxShadow = `0 3px 0 ${colorCode}`;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {editingQuestionIndex === index ? (
+                      <div className="border-l-4 border-blue-500 pl-3 p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-sm font-medium text-blue-700">문제 {index + 1} 수정</h3>
                           <button 
-                            onClick={() => handleEditQuestion(index)}
-                            className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-colors"
-                            aria-label="문제 수정"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button 
-                            onClick={() => handleRemoveQuestion(index)}
-                            className="w-7 h-7 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
-                            aria-label="문제 삭제"
+                            onClick={() => setEditingQuestionIndex(null)}
+                            className="text-gray-500 hover:text-gray-700"
+                            aria-label="수정 취소"
                           >
                             <X size={14} />
                           </button>
                         </div>
+                        <QuestionForm 
+                          initialData={question}
+                          onSave={handleUpdateQuestion}
+                          onCancel={() => setEditingQuestionIndex(null)}
+                          maxOptions={4}
+                        />
                       </div>
-                      
-                      <div className="text-gray-800 text-sm sm:text-base font-medium line-clamp-1 mb-2">{question.text}</div>
-                      <div className="bg-purple-50 rounded-md p-2 sm:p-3 w-full border border-purple-100">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                          {question.options.map((option: string, optIdx: number) => (
-                            <div key={optIdx} className="flex items-center">
-                              {question.correctAnswerIndex === optIdx ? (
-                                <div className="flex items-center px-2 py-1 bg-green-50 border border-green-200 rounded-md text-green-700 w-full">
-                                  <Check size={14} className="mr-1 flex-shrink-0" /> 
-                                  <span className="truncate text-sm">{option}</span>
-                                </div>
-                              ) : (
-                                <div className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-600 ml-4 w-full truncate text-sm">
-                                  {option}
-                                </div>
-                              )}
+                    ) : (
+                      <div className="p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded-md font-medium text-gray-700 text-xs">
+                              문제 {index + 1}
                             </div>
-                          ))}
+                            <div className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${color}`}>
+                              <Icon size={12} className="mr-1" />
+                              {label}
+                            </div>
+                          </div>
+                          <div className="flex space-x-1">
+                            {/* 순서 변경 버튼들 */}
+                            <button 
+                              onClick={() => moveQuestionUp(index)}
+                              disabled={index === 0}
+                              className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition-colors disabled:opacity-30"
+                              aria-label="위로 이동"
+                            >
+                              <ArrowUp size={12} />
+                            </button>
+                            <button 
+                              onClick={() => moveQuestionDown(index)}
+                              disabled={index === questions.length - 1}
+                              className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition-colors disabled:opacity-30"
+                              aria-label="아래로 이동"
+                            >
+                              <ArrowDown size={12} />
+                            </button>
+                            <button 
+                              onClick={() => handleEditQuestion(index)}
+                              className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-colors"
+                              aria-label="문제 수정"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveQuestion(index)}
+                              className="w-7 h-7 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
+                              aria-label="문제 삭제"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
                         </div>
+                        
+                        <div className="text-gray-800 text-sm sm:text-base font-medium line-clamp-1 mb-2">{question.text}</div>
+                        {renderQuestionPreview(question)}
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
           
-          {questions.length > 0 && !isAddingQuestion && !editingQuestionIndex && (
+          {questions.length > 0 && !isAddingQuestion && (
             <div className="flex justify-center mt-3">
               <Button 
                 onClick={() => setIsAddingQuestion(true)}

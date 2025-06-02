@@ -5,18 +5,7 @@ import Input from '../ui/Input';
 import { ref, update } from 'firebase/database';
 import { rtdb } from '../../firebase/config';
 import { Link } from 'react-router-dom';
-
-interface Question {
-  text: string;
-  options: string[];
-  correctAnswer: number;
-}
-
-interface Quiz {
-  title: string;
-  description?: string;
-  questions: Question[];
-}
+import { Quiz } from '../../types';
 
 interface Participant {
   id: string;

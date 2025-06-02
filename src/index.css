@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React Flow CSS */
+@import 'reactflow/dist/style.css';
+
 @layer utilities {
   .animate-bounce-subtle {
     animation: bounce-subtle 3s infinite;
@@ -46,6 +49,17 @@
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9) rotate(var(--rotation, 0deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(var(--rotation, 0deg));
   }
 }
 

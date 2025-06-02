@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import QuizLoading from '../../components/client/QuizLoading';
 import QuizError from '../../components/client/QuizError';
 import QuizContainer from '../../components/client/QuizContainer';
@@ -9,7 +9,6 @@ import { useQuizLogic } from '../../components/client/useQuizLogic';
 
 const PlayQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
-  const navigate = useNavigate();
   const {
     quiz,
     session,
@@ -26,6 +25,9 @@ const PlayQuiz: React.FC = () => {
     timerPercentage,
     rankings,
     isLoadingRankings,
+    otherOpinions,
+    serverValidationResult,
+    currentShuffledOptions,
     handleStartQuiz,
     handleSelectAnswer,
     resetQuiz,
@@ -48,12 +50,21 @@ const PlayQuiz: React.FC = () => {
     
     // 답변을 QuizResults 컴포넌트 형식에 맞게 변환
     const formattedAnswers = Object.values(displayAnswers).map((answer: any) => {
-      // 인덱스로 저장된 답변을 텍스트로 변환
       const questionIndex = answer.questionIndex;
       const question = quiz.questions[questionIndex];
-      const answerText = answer.answerIndex >= 0 && answer.answerIndex < question.options.length 
-        ? question.options[answer.answerIndex] 
-        : '';
+      
+      let answerText = '';
+      
+      // 문제 형식에 따라 답변 텍스트 생성
+      if (question.type === 'multiple-choice' && question.options) {
+        // 객관식: 선택한 인덱스를 텍스트로 변환
+        if (answer.answerIndex >= 0 && answer.answerIndex < question.options.length) {
+          answerText = question.options[answer.answerIndex];
+        }
+      } else if (question.type === 'short-answer' || question.type === 'opinion') {
+        // 주관식/의견 수집: 텍스트 답변 사용
+        answerText = answer.answerText || answer.answer || '';
+      }
         
       return {
         questionIndex: answer.questionIndex,
@@ -127,6 +138,9 @@ const PlayQuiz: React.FC = () => {
       selectedAnswerIndex={selectedAnswerIndex}
       showResult={showResult}
       onSelectAnswer={handleSelectAnswer}
+      otherOpinions={otherOpinions}
+      serverValidationResult={serverValidationResult}
+      currentShuffledOptions={currentShuffledOptions}
     />
   );
 };

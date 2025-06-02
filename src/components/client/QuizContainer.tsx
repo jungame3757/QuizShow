@@ -2,12 +2,7 @@ import React from 'react';
 import QuizHeader from './QuizHeader';
 import QuizTimer from './QuizTimer';
 import QuizQuestion from './QuizQuestion';
-
-interface Question {
-  text: string;
-  options: string[];
-  correctAnswer: number;
-}
+import { Question } from '../../types';
 
 interface QuizContainerProps {
   currentQuestionIndex: number;
@@ -20,6 +15,9 @@ interface QuizContainerProps {
   selectedAnswerIndex: number | null;
   showResult: boolean;
   onSelectAnswer: (answer: string, index: number) => void;
+  otherOpinions?: string[]; // 다른 참가자들의 의견
+  serverValidationResult?: { isCorrect: boolean; points: number } | null;
+  currentShuffledOptions?: { options: string[], mapping: number[] } | null;
 }
 
 const QuizContainer: React.FC<QuizContainerProps> = ({
@@ -32,12 +30,15 @@ const QuizContainer: React.FC<QuizContainerProps> = ({
   selectedAnswer,
   selectedAnswerIndex,
   showResult,
-  onSelectAnswer
+  onSelectAnswer,
+  otherOpinions,
+  serverValidationResult,
+  currentShuffledOptions
 }) => {
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-[#F0FFFD] via-[#E6FFFC] to-[#E0FFFA] p-4 flex flex-col">
       <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col">
-        <div className="bg-white rounded-2xl p-4 flex flex-col"
+        <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0"
           style={{
             boxShadow: '0 3px 0 rgba(20, 184, 166, 0.5)',
             border: '2px solid #0D9488',
@@ -56,15 +57,20 @@ const QuizContainer: React.FC<QuizContainerProps> = ({
             timerPercentage={timerPercentage}
           />
           
-          <div className="flex-1 overflow-auto">
-            <QuizQuestion 
-              question={question}
-              selectedAnswer={selectedAnswer}
-              selectedAnswerIndex={selectedAnswerIndex}
-              onSelectAnswer={onSelectAnswer} 
-              showResult={showResult}
-              disabled={showResult || timeLeft === 0}
-            />
+          <div className="flex-1 min-h-0">
+            <div className="h-full overflow-y-auto" style={{ paddingBottom: '20px' }}>
+              <QuizQuestion 
+                question={question}
+                selectedAnswer={selectedAnswer}
+                selectedAnswerIndex={selectedAnswerIndex}
+                onSelectAnswer={onSelectAnswer} 
+                showResult={showResult}
+                disabled={showResult || timeLeft === 0}
+                otherOpinions={otherOpinions}
+                serverValidationResult={serverValidationResult}
+                currentShuffledOptions={currentShuffledOptions}
+              />
+            </div>
           </div>
         </div>
         

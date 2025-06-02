@@ -48,11 +48,23 @@
         ".write": "auth !== null",
         "public": {
           ".read": "auth !== null",
-          ".write": "auth !== null"
+          ".write": "auth !== null",
+          "questions": {
+            "$questionIndex": {
+              "type": {
+                ".validate": "newData.isString() && (newData.val() === 'multiple-choice' || newData.val() === 'short-answer' || newData.val() === 'opinion')"
+              }
+            }
+          }
         },
         "answers": {
           ".read": "auth !== null",
-          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid"
+          ".write": "auth !== null && root.child('sessions').child($sessionId).child('hostId').val() === auth.uid",
+          "$questionIndex": {
+            "type": {
+              ".validate": "newData.isString() && (newData.val() === 'multiple-choice' || newData.val() === 'short-answer' || newData.val() === 'opinion')"
+            }
+          }
         }
       }
     },
@@ -91,15 +103,22 @@
     
     "sessionAnswers": {
       ".read": "auth !== null",
+      ".write": "auth !== null",
       
-      "$sessionId": {
-        ".write": "auth !== null",
-        
-        "$questionIndex": {
-          ".write": "auth !== null",
-          
-          "$userId": {
-            ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid)"
+      "$sessionQuestionId": {
+        "$userId": {
+          ".write": "auth !== null && auth.uid === $userId",
+          "answer": {
+            ".validate": "newData.isString()"
+          },
+          "answeredAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "isCorrect": {
+            ".validate": "newData.isBoolean()"
+          },
+          "score": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
           }
         }
       }
@@ -123,7 +142,19 @@
         ".write": "auth !== null",
         
         "$userId": {
-          ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid)"
+          ".write": "auth !== null && (auth.uid === $userId || root.child('sessions').child($sessionId).child('hostId').val() === auth.uid || $sessionId.contains('_roguelike'))",
+          "score": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "attempts": {
+            ".write": "auth !== null && auth.uid === $userId"
+          },
+          "mode": {
+            ".write": "auth !== null && auth.uid === $userId"
+          },
+          "lastActivity": {
+            ".write": "auth !== null && auth.uid === $userId"
+          }
         }
       }
     }
