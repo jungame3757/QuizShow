@@ -21,6 +21,7 @@ const RoguelikeCampfireStage: React.FC<RoguelikeCampfireStageProps> = ({
   gameSession
 }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [submittedOpinion, setSubmittedOpinion] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [selectedBuff, setSelectedBuff] = useState<string | null>(null);
@@ -85,28 +86,17 @@ const RoguelikeCampfireStage: React.FC<RoguelikeCampfireStageProps> = ({
     
     setIsSubmitting(true);
     setSelectedAnswer(answer);
+    setSubmittedOpinion(answer);
     setShowResult(true);
 
     // 의견 문제는 항상 정답으로 처리
     setServerValidationResult({ isCorrect: true, points: 25 }); // 의견 제출 보상 점수
 
-    try {
-      // 서버로 의견 데이터 전송
-      await onAnswer(undefined, answer);
-      
-      // 의견 제출 완료 후 버프 선택 화면으로 이동
-      setTimeout(() => {
-        setShowBuffSelection(true);
-        setIsSubmitting(false); // 제출 상태 해제
-      }, 2000);
-    } catch (error) {
-      console.error('의견 제출 실패:', error);
-      // 오류 발생 시에도 버프 선택 화면으로 이동
-      setTimeout(() => {
-        setShowBuffSelection(true);
-        setIsSubmitting(false);
-      }, 2000);
-    }
+    // 의견 제출 완료 후 즉시 버프 선택 화면으로 이동 (onAnswer 호출하지 않음)
+    setTimeout(() => {
+      setShowBuffSelection(true);
+      setIsSubmitting(false); // 제출 상태 해제
+    }, 1500); // 1.5초로 단축하여 더 빠르게 버프 선택으로 이동
   };
 
   const handleBuffSelect = async (buffId: string) => {
@@ -116,21 +106,22 @@ const RoguelikeCampfireStage: React.FC<RoguelikeCampfireStageProps> = ({
       // 버프 선택 처리
       onSelectBuff(buffId);
       
-      // 버프 선택을 활동 데이터로 기록
+      // 버프 선택 완료 후 스테이지 완료 처리 (실제 의견 내용만 전송)
       setTimeout(async () => {
         try {
-          await onAnswer(undefined, `모닥불 완료: ${buffId} 버프 선택`);
+          await onAnswer(undefined, submittedOpinion || '');
         } catch (error) {
-          console.error('버프 선택 활동 데이터 업로드 실패:', error);
-          // 오류가 발생해도 스테이지는 완료 처리
+          console.error('의견 데이터 업로드 실패:', error);
+          // 오류가 발생해도 onAnswer는 호출해서 다음 스테이지로 이동
+          await onAnswer(undefined, submittedOpinion || '의견 제출 실패');
         }
-      }, 2000); // 2초로 늘려서 충분한 시간 확보
+      }, 1500); // 1.5초 후 스테이지 완료
     } catch (error) {
       console.error('버프 선택 처리 실패:', error);
       // 오류 발생 시에도 스테이지 완료 처리
       setTimeout(async () => {
         try {
-          await onAnswer(undefined, `모닥불 완료: ${buffId} 버프 선택 (오류 발생)`);
+          await onAnswer(undefined, submittedOpinion || '의견 제출 실패');
         } catch (answerError) {
           console.error('답안 제출 실패:', answerError);
         }

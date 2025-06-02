@@ -152,7 +152,9 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
             {currentStage.type === 'elite' && eliteQuestions.length > 0 && (
               <RoguelikeEliteStage
                 questions={eliteQuestions}
+                questionIndices={currentStage.questions.slice(0, 3)}
                 timeLeft={timeLeft}
+                onAnswer={onSubmitAnswer}
                 onStageComplete={handleEliteStageComplete}
                 gameSession={gameSession}
               />

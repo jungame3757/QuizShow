@@ -731,7 +731,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
     }
   }, [_sessionId]);
 
-  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0) => {
+  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0, eliteAnswers?: Array<{questionIndex: number, answerIndex?: number, answerText?: string}>) => {
     if (!gameSession || !currentStage || !quiz) return;
 
     // 엘리트 스테이지 개별 문제 처리 확인
@@ -744,48 +744,33 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
 
     // 엘리트 스테이지는 RoguelikeEliteStage에서 자체 관리하므로 여기서는 전체 결과만 처리
     if (currentStage.type === 'elite') {
-      // answerIndex가 1이면 성공, 0이면 실패 (RoguelikeStageView에서 전달)
-      const isSuccess = answerIndex === 1;
-      const correctCount = isSuccess ? 3 : (answerIndex || 0); // 성공시 3개, 실패시 실제 맞춘 개수
-      
-      // [규칙 2] 엘리트 스테이지 - 성공시에만 특별 보상, 실패시 점수 없음
-      let points = 0;
-      if (isSuccess) {
-        // 엘리트 성공시 다양한 보상 중 랜덤 선택
-        const rewardType = Math.random();
-        if (rewardType < 0.3) {
-          // 30% 확률 - 현재 점수 2배
-          points = gameSession.baseScore;
-        } else if (rewardType < 0.6) {
-          // 30% 확률 - 고정 높은 점수
-          points = 1200 + Math.floor(Math.random() * 800); // 1200~2000점
-        } else {
-          // 40% 확률 - 중간 점수
-          points = 800 + Math.floor(Math.random() * 400); // 800~1200점
-        }
-      }
-      
-      // 엘리트 스테이지 완료 시 실제 획득한 보상 점수로 활동 데이터 업로드
-      try {
-        const representativeQuestionIndex = currentStage.questions[0];
-        const answerData = { answerText: `엘리트 스테이지 완료: ${isSuccess ? '성공' : '실패'} (${correctCount}/3 정답)` };
-        
+      // 개별 문제 답변 처리
+      if (eliteAnswers && eliteAnswers.length === 1) {
+        // 개별 문제 답변 저장
+        const answerInfo = eliteAnswers[0];
+        const answerData = answerInfo.answerIndex !== undefined 
+          ? { answerIndex: answerInfo.answerIndex } 
+          : { answerText: answerInfo.answerText || '' };
+
         await uploadActivityData(
           gameSession.userId,
           gameSession.quizId,
-          representativeQuestionIndex,
+          answerInfo.questionIndex,
           answerData,
-          isSuccess,
-          points, // 실제 획득한 보상 점수
+          true, // 개별 문제는 항상 정답으로 처리 (검증은 클라이언트에서 완료)
+          0, // 개별 문제는 0점
           timeSpent,
           currentStage.type
         );
         
-        console.log('엘리트 스테이지 완료 활동 데이터 업로드:', { isSuccess, correctCount, rewardPoints: points });
-      } catch (error) {
-        console.error('엘리트 스테이지 완료 활동 데이터 업로드 실패:', error);
+        console.log('엘리트 개별 문제 답변 저장:', answerInfo);
+        return; // 개별 문제는 여기서 종료
       }
-
+      
+      // 스테이지 완료 처리 (onStageComplete에서 호출)
+      const isSuccess = answerIndex === 1;
+      const correctCount = isSuccess ? 3 : (answerIndex || 0);
+      
       const newAnswer: RoguelikeAnswer = {
         questionIndex: currentStage.questions[0], // 대표 문제 인덱스
         stageType: currentStage.type,
@@ -802,14 +787,14 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
         if (!prev) return null;
         return {
           ...prev,
-          baseScore: prev.baseScore + points, // 엘리트 보상은 여기서 추가
+          baseScore: prev.baseScore, // 엘리트 보상은 보상 상자 선택 시에만 추가
           correctAnswers: prev.correctAnswers + correctCount,
           totalQuestions: prev.totalQuestions + 3,
           currentStreak: isSuccess ? prev.currentStreak + 3 : 0,
           maxStreak: Math.max(prev.maxStreak, isSuccess ? prev.currentStreak + 3 : prev.currentStreak),
-          // 엘리트 성공시 추가 보상 상자 없이 바로 맵 선택, 실패시도 바로 맵 선택
-          currentGameState: 'map-selection',
-          waitingForReward: false,
+          // 엘리트 성공시 보상 상자 표시, 실패시 바로 맵 선택
+          currentGameState: isSuccess ? 'reward-box' : 'map-selection',
+          waitingForReward: isSuccess,
           currentPlayerNodeId: prev.currentPlayerNodeId,
         };
       });
@@ -819,7 +804,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
         const updatedStageInfo = { 
           ...mapGeneratedStages[currentPlayerNodeId], 
           completed: true, 
-          score: (mapGeneratedStages[currentPlayerNodeId].score || 0) + points 
+          score: mapGeneratedStages[currentPlayerNodeId].score || 0 // 엘리트 보상은 보상 상자 선택 시에만 추가
         };
         setMapGeneratedStages(prevStages => ({
             ...prevStages,
@@ -842,7 +827,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
         }));
       }
 
-      console.log(`엘리트 스테이지 ${isSuccess ? '성공' : '실패'}! 보상 점수: ${points}, 정답 수: ${correctCount}`);
+      console.log(`엘리트 스테이지 ${isSuccess ? '성공' : '실패'}! 정답 수: ${correctCount}`);
       return;
     }
 

@@ -92,36 +92,82 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
     const sortedAnswers = Object.values(participant.answers)
       .sort((a, b) => a.questionIndex - b.questionIndex);
 
+    // 동일한 문제와 답변을 묶어서 처리
+    const groupedAnswers = new Map<string, {
+      questionIndex: number;
+      answerKey: string;
+      isCorrect: boolean;
+      points: number;
+      count: number;
+      answeredAt: number;
+    }>();
+
+    sortedAnswers.forEach((answer) => {
+      const question = quiz?.questions[answer.questionIndex];
+      const questionType = question?.type || 'multiple-choice';
+      
+      // 선택한 답변 텍스트 가져오기
+      let selectedAnswer = '';
+      
+      if (questionType === 'multiple-choice') {
+        // 객관식 처리
+        const answerIndex = answer.answerIndex ?? (answer.answer ? parseInt(answer.answer) : -1);
+        if (answerIndex >= 0 && question?.options && answerIndex < question.options.length) {
+          selectedAnswer = `${answerIndex + 1}. ${question.options[answerIndex]}`;
+        } else {
+          selectedAnswer = `선택지 ${answerIndex + 1}`;
+        }
+      } else {
+        // 주관식/의견 수집 처리
+        selectedAnswer = answer.answerText || answer.answer || '답변 없음';
+      }
+
+      // 그룹핑 키 생성 (문제 번호 + 답변 내용 + 정답 여부)
+      const groupKey = `${answer.questionIndex}_${selectedAnswer}_${answer.isCorrect}`;
+      
+      if (groupedAnswers.has(groupKey)) {
+        const existing = groupedAnswers.get(groupKey)!;
+        existing.count += 1;
+        existing.points += answer.points;
+        // 가장 최근 답변 시간으로 업데이트
+        if (answer.answeredAt > existing.answeredAt) {
+          existing.answeredAt = answer.answeredAt;
+        }
+      } else {
+        groupedAnswers.set(groupKey, {
+          questionIndex: answer.questionIndex,
+          answerKey: selectedAnswer,
+          isCorrect: answer.isCorrect,
+          points: answer.points,
+          count: 1,
+          answeredAt: answer.answeredAt
+        });
+      }
+    });
+
+    // 그룹화된 답변을 배열로 변환하고 문제 순서대로 정렬
+    const groupedAnswersArray = Array.from(groupedAnswers.values())
+      .sort((a, b) => a.questionIndex - b.questionIndex);
+
     return (
       <div className="space-y-2 py-2">
-        {sortedAnswers.map((answer) => {
-          const questionNumber = answer.questionIndex + 1;
-          const question = quiz?.questions[answer.questionIndex];
+        {groupedAnswersArray.map((answerGroup, index) => {
+          const questionNumber = answerGroup.questionIndex + 1;
+          const question = quiz?.questions[answerGroup.questionIndex];
           const questionText = question?.text || `문제 ${questionNumber}`;
           const questionType = question?.type || 'multiple-choice';
-          
-          // 선택한 답변 텍스트 가져오기
-          let selectedAnswer = '';
-          
-          if (questionType === 'multiple-choice') {
-            // 객관식 처리
-            const answerIndex = answer.answerIndex ?? (answer.answer ? parseInt(answer.answer) : -1);
-            if (answerIndex >= 0 && question?.options && answerIndex < question.options.length) {
-              selectedAnswer = `${answerIndex + 1}. ${question.options[answerIndex]}`;
-            } else {
-              selectedAnswer = `선택지 ${answerIndex + 1}`;
-            }
-          } else {
-            // 주관식/의견 수집 처리
-            selectedAnswer = answer.answerText || answer.answer || '답변 없음';
-          }
 
           return (
-            <div key={answer.questionIndex} className="bg-white rounded-lg p-3 shadow-sm">
+            <div key={`${answerGroup.questionIndex}_${index}`} className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex justify-between items-start">
                 <div className="flex-1 mr-3">
                   <p className="font-medium text-gray-700 mb-1">
                     {questionNumber}. {questionText}
+                    {answerGroup.count > 1 && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {answerGroup.count}회 제출
+                      </span>
+                    )}
                   </p>
                   <div className="text-sm text-gray-600">
                     <span className="font-medium">
@@ -129,8 +175,17 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
                        questionType === 'short-answer' ? '제출한 답변: ' : 
                        '의견: '}
                     </span>
-                    <span className="break-words">{selectedAnswer}</span>
+                    <span className="break-words">{answerGroup.answerKey}</span>
                   </div>
+                  {answerGroup.count > 1 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      마지막 제출: {new Date(answerGroup.answeredAt).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-end flex-shrink-0">
                   {questionType === 'opinion' ? (
@@ -138,7 +193,7 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
                       <CheckCircle size={16} className="mr-1" />
                       <span className="font-medium">참여</span>
                     </div>
-                  ) : answer.isCorrect ? (
+                  ) : answerGroup.isCorrect ? (
                     <div className="flex items-center text-green-600">
                       <CheckCircle size={16} className="mr-1" />
                       <span className="font-medium">정답</span>
@@ -150,7 +205,12 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
                     </div>
                   )}
                   <p className="text-sm text-purple-600 font-medium mt-1">
-                    +{answer.points} 점
+                    +{answerGroup.points} 점
+                    {answerGroup.count > 1 && (
+                      <span className="text-xs text-gray-500 block">
+                        (총 {answerGroup.count}회)
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>

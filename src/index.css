@@ -1,9 +1,9 @@
+/* React Flow CSS */
+@import 'reactflow/dist/style.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* React Flow CSS */
-@import 'reactflow/dist/style.css';
 
 @layer utilities {
   .animate-bounce-subtle {

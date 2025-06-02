@@ -119,15 +119,17 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       const isCorrect = index === question.correctAnswer;
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
       
-      try {
-        // 서버로 답안 전송 (즉시)
-        await onAnswer(index);
-      } catch (error) {
-        console.error('답변 제출 실패:', error);
-        setIsSubmitting(false);
-        setShowResult(false);
-        setServerValidationResult(null);
-      }
+      // 피드백을 2초간 보여준 후 서버로 답안 전송
+      setTimeout(async () => {
+        try {
+          await onAnswer(index);
+        } catch (error) {
+          console.error('답변 제출 실패:', error);
+          setIsSubmitting(false);
+          setShowResult(false);
+          setServerValidationResult(null);
+        }
+      }, 2000); // 2초 피드백 시간
     } else if (question.type === 'short-answer') {
       setSelectedAnswer(answer);
       setSelectedIndex(null);
@@ -137,15 +139,17 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       const isCorrect = validateShortAnswer(answer, question);
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
       
-      try {
-        // 서버로 답안 전송 (즉시)
-        await onAnswer(undefined, answer);
-      } catch (error) {
-        console.error('답변 제출 실패:', error);
-        setIsSubmitting(false);
-        setShowResult(false);
-        setServerValidationResult(null);
-      }
+      // 피드백을 2초간 보여준 후 서버로 답안 전송
+      setTimeout(async () => {
+        try {
+          await onAnswer(undefined, answer);
+        } catch (error) {
+          console.error('답변 제출 실패:', error);
+          setIsSubmitting(false);
+          setShowResult(false);
+          setServerValidationResult(null);
+        }
+      }, 2000); // 2초 피드백 시간
     }
   };
 
