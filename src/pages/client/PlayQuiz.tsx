@@ -90,6 +90,8 @@ const PlayQuiz: React.FC = () => {
         onResetQuiz={resetQuiz}
         inviteCode={session?.code}
         canRetry={session?.singleAttempt === false}
+        sessionId={session?.id}
+        currentUserId={participant.id}
       />
     );
   }

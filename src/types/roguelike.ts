@@ -41,17 +41,6 @@ export interface RoguelikeStage {
   selectedPath?: PathChoice;
 }
 
-export interface TemporaryBuff {
-  id: string;
-  name: string;
-  description: string;
-  effect: string;
-  icon: string;
-  active: boolean;
-  usesRemaining: number;
-  stackCount?: number; // 버프 스택 수 (선택적)
-}
-
 export interface ActivityBonus {
   correctAnswerBonus: number;    // 정답 개수 보너스
   streakBonus: number;          // 연속 정답 보너스
@@ -72,7 +61,6 @@ export interface RoguelikeGameSession {
   activityBonus: ActivityBonus;
   rouletteBonus: number;
   finalScore: number;
-  temporaryBuffs: TemporaryBuff[];
   correctAnswers: number;
   totalQuestions: number;
   maxStreak: number;
@@ -96,6 +84,7 @@ export interface RoguelikeGameSession {
     answer: string | number;
     isCorrect: boolean;
     questionType: 'multiple-choice' | 'short-answer';
+    timeSpent: number; // 실제 답변에 소요된 시간 추가
   }; // 엘리트 스테이지 마지막 문제 답변 데이터
 }
 
@@ -108,7 +97,6 @@ export interface RoguelikeAnswer {
   points: number;
   answeredAt: number;
   timeSpent: number; // 답변에 걸린 시간 (초)
-  buffApplied?: string; // 적용된 버프 ID
 }
 
 export interface RouletteResult {
@@ -125,45 +113,6 @@ export interface RoguelikeStats {
   averageScore: number;      // 평균 점수
   totalPlayTime: number;     // 총 플레이 시간 (분)
 }
-
-// 버프 아이템 정의
-export const TEMPORARY_BUFFS: Record<string, Omit<TemporaryBuff, 'active' | 'usesRemaining'>> = {
-  LUCKY_CLOVER: {
-    id: 'LUCKY_CLOVER',
-    name: '행운의 클로버',
-    description: '다음 기본 점수 +100점',
-    effect: 'normal_score_boost_100',
-    icon: '🍀'
-  },
-  LIGHTNING_BOOSTER: {
-    id: 'LIGHTNING_BOOSTER',
-    name: '번개 부스터',
-    description: '다음 엘리트 점수 +200점',
-    effect: 'elite_score_boost_200',
-    icon: '⚡'
-  },
-  FOCUS_ENHANCEMENT: {
-    id: 'FOCUS_ENHANCEMENT',
-    name: '집중력 향상',
-    description: '다음 문제 제한시간 +30초',
-    effect: 'time_extension_30',
-    icon: '🎯'
-  },
-  SAFETY_NET: {
-    id: 'SAFETY_NET',
-    name: '안전망',
-    description: '다음 오답 시에도 50점 획득',
-    effect: 'wrong_answer_points_50',
-    icon: '🛡️'
-  },
-  PASSION_BUFF: {
-    id: 'PASSION_BUFF',
-    name: '열정 버프',
-    description: '연속 정답 보너스 2배',
-    effect: 'streak_bonus_double',
-    icon: '🔥'
-  }
-};
 
 export const ROULETTE_MESSAGES = [
   '대박! 엄청난 보너스입니다!',

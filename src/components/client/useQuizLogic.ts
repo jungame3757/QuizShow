@@ -463,6 +463,73 @@ export const useQuizLogic = (quizId: string | undefined) => {
     try {
       if (!quizId || !userId) return;
       
+      // 현재 참가자 데이터를 시도 기록으로 저장
+      if (participant && participant.answers && Object.keys(participant.answers).length > 0) {
+        const participantRef = ref(rtdb, `participants/${quizId}/${userId}`);
+        const snapshot = await get(participantRef);
+        
+        if (snapshot.exists()) {
+          const participantData = snapshot.val();
+          
+          // 현재 데이터를 attempts 배열에 추가
+          const currentAttempt = {
+            answers: participantData.answers || {},
+            score: participantData.score || 0,
+            completedAt: Date.now()
+          };
+          
+          // 기존 attempts 가져오기 (없으면 빈 배열)
+          const existingAttempts = participantData.attempts || [];
+          
+          // 새로운 시도를 attempts에 추가
+          const updatedAttempts = [...existingAttempts, currentAttempt];
+          
+          // 참가자 데이터 업데이트 (현재 데이터 초기화 + attempts에 이전 데이터 저장)
+          const updatedParticipantData = {
+            id: participantData.id || userId,
+            name: participantData.name || '익명',
+            joinedAt: participantData.joinedAt || Date.now(),
+            isActive: true,
+            quizId: participantData.quizId || quizId,
+            score: 0, // 점수 초기화
+            answers: {}, // 답변 초기화
+            attempts: updatedAttempts // 이전 시도들 저장
+          };
+          
+          // undefined 값 제거 함수
+          const removeUndefinedValues = (obj: any): any => {
+            const cleaned: any = {};
+            for (const [key, value] of Object.entries(obj)) {
+              if (value !== undefined) {
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                  cleaned[key] = removeUndefinedValues(value);
+                } else {
+                  cleaned[key] = value;
+                }
+              }
+            }
+            return cleaned;
+          };
+          
+          const cleanedData = removeUndefinedValues(updatedParticipantData);
+          
+          await update(participantRef, cleanedData);
+          
+          console.log('일반 모드 - 이전 게임 데이터를 시도 기록으로 저장 완료:', {
+            currentScore: currentAttempt.score,
+            totalAttempts: updatedAttempts.length
+          });
+        }
+      } else {
+        // 기존 방식: 단순 초기화
+        const participantRef = ref(rtdb, `participants/${quizId}/${userId}`);
+        await update(participantRef, {
+          answers: {},
+          score: 0
+        });
+      }
+      
+      // 로컬 상태 초기화
       setSelectedAnswer(null);
       setSelectedAnswerIndex(null);
       setSelectedAnswerText(null);
@@ -477,13 +544,6 @@ export const useQuizLogic = (quizId: string | undefined) => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
       }
-      
-      // 참가자의 답변 데이터 초기화
-      const participantRef = ref(rtdb, `participants/${quizId}/${userId}`);
-      await update(participantRef, {
-        answers: {},
-        score: 0
-      });
       
       // 랭킹 업데이트
       await fetchRankings();

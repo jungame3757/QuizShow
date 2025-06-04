@@ -44,21 +44,21 @@ const RoguelikeQuiz: React.FC = () => {
     currentQuestionIndex,
     gameStarted,
     gameCompleted,
+    hasExistingData,
     answers,
     totalStages,
     initializeGame,
     submitAnswer,
-    selectTemporaryBuff,
-    spinRoulette,
-    resetGame,
-    calculateActivityBonus,
     selectMapPath,
     selectRewardBox,
     mapNodes,
     mapEdges,
     mapStageConnections,
     initialPlayerPosition,
-    currentPlayerNodeId
+    currentPlayerNodeId,
+    checkExistingData,
+    resetGameWithAttemptSave,
+    handleGameComplete
   } = useRoguelikeQuiz(quiz, currentUser?.uid || '', sessionId || undefined);
 
   // 로컬 스토리지에서 참가자 정보 확인
@@ -272,6 +272,19 @@ const RoguelikeQuiz: React.FC = () => {
     }
   }, [quizId, userId, navigate]);
 
+  // 퀴즈 로드 후 기존 데이터 확인
+  useEffect(() => {
+    if (quiz && sessionId && userId) {
+      checkExistingData().then(hasData => {
+        if (hasData) {
+          console.log('기존 완료된 게임 데이터가 발견되어 결과화면으로 이동합니다.');
+        } else {
+          console.log('새로운 게임을 시작합니다.');
+        }
+      });
+    }
+  }, [quiz, sessionId, userId, checkExistingData]);
+
   // 세션 생성 핸들러
   const handleCreateSession = async () => {
     if (!quizId || !currentUser || !quiz) return;
@@ -343,14 +356,69 @@ const RoguelikeQuiz: React.FC = () => {
 
   // 로그라이크 게임 세션을 QuizResults 형식으로 변환하는 함수
   const convertRoguelikeToQuizResults = () => {
-    if (!gameSession || !userId) return null;
+    if (!userId) return null;
 
-    // 참가자 정보 생성 (로그라이크는 개인 게임이므로 본인만)
+    // 기존 데이터가 있는 경우 별도 처리
+    if (hasExistingData && !gameSession) {
+      // 로컬스토리지에서 참가자 정보 가져오기
+      let nickname = '나';
+      let score = 0;
+      
+      try {
+        const storedParticipation = localStorage.getItem('quizParticipation');
+        if (storedParticipation) {
+          const participation = JSON.parse(storedParticipation);
+          if (participation.nickname) {
+            nickname = participation.nickname;
+          }
+        }
+      } catch (err) {
+        console.error('닉네임 가져오기 실패:', err);
+      }
+
+      // 답변 데이터에서 점수 계산
+      if (answers && answers.length > 0) {
+        score = answers.reduce((total, answer) => total + (answer.points || 0), 0);
+      }
+
+      const participant = {
+        id: userId,
+        quizId: quiz?.id || '',
+        nickname,
+        score,
+        answers: answers.map(answer => ({
+          questionIndex: answer.questionIndex,
+          answer: answer.answerIndex?.toString() || answer.answerText || '',
+          isCorrect: answer.isCorrect,
+          points: answer.points,
+          answeredAt: new Date(answer.answeredAt).toISOString()
+        })),
+        joinedAt: new Date().toISOString()
+      };
+
+      const rankings = [{
+        id: userId,
+        name: nickname,
+        score,
+        isCurrentUser: true
+      }];
+
+      return { participant, rankings };
+    }
+
+    // 기존 gameSession이 있는 경우 처리
+    if (!gameSession) return null;
+
+    // 세션에서 현재 사용자의 실제 참가자 데이터 가져오기
+    const currentParticipant = participants && participants[userId];
+    const actualScore = currentParticipant?.score || 0; // 세션에 저장된 실제 점수 사용
+
+    // 참가자 정보 생성
     const participant = {
       id: userId,
       quizId: quiz?.id || '',
       nickname: '나', // 기본 닉네임, 실제로는 로컬스토리지에서 가져올 수 있음
-      score: gameSession.finalScore,
+      score: actualScore, // 실제 참가자 점수 사용
       answers: gameSession.stages.flatMap(stage => 
         // 각 스테이지의 문제들에 대한 답변을 변환
         stage.questions.map(questionIndex => {
@@ -365,7 +433,7 @@ const RoguelikeQuiz: React.FC = () => {
           } : null;
         }).filter((item): item is NonNullable<typeof item> => item !== null)
       ),
-      joinedAt: new Date(gameSession.startedAt).toISOString()
+      joinedAt: new Date(gameSession.startedAt || Date.now()).toISOString()
     };
 
     // 닉네임을 로컬스토리지에서 가져오기
@@ -381,13 +449,26 @@ const RoguelikeQuiz: React.FC = () => {
       console.error('닉네임 가져오기 실패:', err);
     }
 
-    // 랭킹 정보 생성 (로그라이크는 개인 게임이므로 본인만 포함)
-    const rankings = [{
-      id: userId,
-      name: participant.nickname,
-      score: gameSession.finalScore,
-      isCurrentUser: true
-    }];
+    // 세션의 모든 참가자를 랭킹에 포함 (세션이 있는 경우)
+    let rankings = [];
+    
+    if (currentSession && participants && Object.keys(participants).length > 0) {
+      // 세션 참가자들이 있는 경우 모든 참가자 포함
+      rankings = Object.entries(participants).map(([id, participant]: [string, any]) => ({
+        id,
+        name: participant.name || '익명',
+        score: participant.score || 0,
+        isCurrentUser: id === userId
+      }));
+    } else {
+      // 개인 플레이인 경우 본인만 포함
+      rankings = [{
+        id: userId,
+        name: participant.nickname,
+        score: actualScore, // 실제 점수 사용
+        isCurrentUser: true
+      }];
+    }
 
     return {
       participant,
@@ -452,7 +533,7 @@ const RoguelikeQuiz: React.FC = () => {
   }
 
   // 게임 완료 후
-  if (gameCompleted && gameSession) {
+  if (gameCompleted && (gameSession || hasExistingData)) {
     const resultsData = convertRoguelikeToQuizResults();
     
     if (resultsData && quiz) {
@@ -463,11 +544,12 @@ const RoguelikeQuiz: React.FC = () => {
           rankings={resultsData.rankings}
           isLoadingRankings={false}
           onResetQuiz={() => {
-            resetGame();
-            initializeGame();
+            resetGameWithAttemptSave();
           }}
-          inviteCode={currentSession?.code}
+          inviteCode={currentSession?.code || undefined}
           canRetry={true}
+          sessionId={sessionId || undefined}
+          currentUserId={userId || undefined}
         />
       );
     }
@@ -523,10 +605,13 @@ const RoguelikeQuiz: React.FC = () => {
               currentSession={currentSession}
               participants={participants}
               totalStages={totalStages}
+              sessionId={currentSession?.id || undefined}
+              userId={userId || undefined}
               onSubmitAnswer={submitAnswer}
-              onSelectBuff={selectTemporaryBuff}
-              onSpinRoulette={spinRoulette}
+              onSelectBuff={() => {}}
+              onSpinRoulette={() => ({ multiplier: 1.0, bonusPoints: 0, message: 'Default' })}
               onSelectRewardBox={selectRewardBox}
+              onGameComplete={handleGameComplete}
             />
           )}
         </>

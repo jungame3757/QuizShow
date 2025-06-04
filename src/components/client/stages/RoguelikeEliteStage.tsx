@@ -5,25 +5,25 @@ import { Shield, Clock, Star, CheckCircle, XCircle } from 'lucide-react';
 import QuizQuestion from '../QuizQuestion';
 
 // State Machine: 단일 상태로 모든 상태 전환 관리
-type EliteStageState = 
-  | 'PLAYING'           // 문제 풀이 중
-  | 'SHOWING_RESULT'    // 답변 결과 표시 중
-  | 'MOVING_TO_NEXT'    // 다음 문제로 이동 중
-  | 'FAILED'            // 실패
-  | 'COMPLETED';        // 완전 완료 (성공/실패 모두 포함)
+type EliteStageState = 'PLAYING' | 'SHOWING_RESULT' | 'MOVING_TO_NEXT' | 'COMPLETED';
 
 interface RoguelikeEliteStageProps {
   questions: Question[];
   questionIndices: number[];
   timeLeft: number | null;
-  onAnswer: (answerIndex?: number, answerText?: string, timeSpent?: number) => Promise<void>;
-  onStageComplete: (success: boolean, correctCount: number, lastQuestionAnswerData?: {
-    questionIndex: number;
-    answer: string | number;
-    isCorrect: boolean;
-    questionType: 'multiple-choice' | 'short-answer';
-  } | null) => Promise<void>;
-  gameSession: RoguelikeGameSession;
+  onAnswer: (answerIndex?: number, answerText?: string, timeSpent?: number, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer', timeSpent: number}>) => Promise<void>;
+  onStageComplete: (
+    success: boolean, 
+    correctCount: number, 
+    lastQuestionAnswerData?: {
+      questionIndex: number;
+      answer: string | number;
+      isCorrect: boolean;
+      questionType: 'multiple-choice' | 'short-answer';
+      timeSpent: number;
+    } | null
+  ) => Promise<void>;
+  gameSession?: RoguelikeGameSession;
 }
 
 const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
@@ -43,17 +43,66 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number | null>(null);
   const [serverValidationResult, setServerValidationResult] = useState<{ isCorrect: boolean; points: number } | null>(null);
-  const [finalSuccess, setFinalSuccess] = useState(false); // 최종 성공 여부 저장
+  const [finalSuccess, setFinalSuccess] = useState<boolean>(false); // 최종 성공 여부 저장
   const [stageCompleted, setStageCompleted] = useState(false); // 스테이지 완료 처리 플래그
   const [lastQuestionAnswerData, setLastQuestionAnswerData] = useState<{
     questionIndex: number;
     answer: string | number;
     isCorrect: boolean;
     questionType: 'multiple-choice' | 'short-answer';
+    timeSpent: number;
   } | null>(null); // 마지막 문제 답변 데이터 저장
+  const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now()); // 문제 시작 시간 추가
+
+  // 선택지 섞기 시스템 추가
+  const [currentShuffledOptions, setCurrentShuffledOptions] = useState<{ options: string[], mapping: number[] } | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
+
+  // 선택지 순서 섞기 함수 (Fisher-Yates 알고리즘)
+  const shuffleCurrentQuestionOptions = (question: Question) => {
+    if (question.type !== 'multiple-choice' || !question.options) {
+      return null;
+    }
+    
+    const indices = Array.from({ length: question.options.length }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    
+    const shuffledOptions = indices.map(i => question.options![i]);
+    return { options: shuffledOptions, mapping: indices };
+  };
+
+  // 현재 문제 가져오기 (섞인 선택지 적용)
+  const getCurrentQuestion = () => {
+    if (!currentQuestion) return null;
+    
+    // 객관식이고 섞인 선택지가 있는 경우에만 적용
+    if (currentQuestion.type === 'multiple-choice' && currentShuffledOptions && currentQuestion.options) {
+      const currentQuestionOptions = currentShuffledOptions.options;
+      const correctAnswerIndex = currentQuestion.correctAnswer;
+      
+      // 원본 정답 인덱스를 섞인 UI 인덱스로 변환
+      let currentQuestionCorrectAnswer = correctAnswerIndex;
+      if (correctAnswerIndex !== undefined && currentShuffledOptions.mapping) {
+        currentQuestionCorrectAnswer = currentShuffledOptions.mapping.indexOf(correctAnswerIndex);
+      }
+      
+      return {
+        ...currentQuestion,
+        options: currentQuestionOptions,
+        correctAnswer: currentQuestionCorrectAnswer,
+        // 원본 인덱스도 포함하여 참조 가능하도록
+        originalCorrectAnswer: correctAnswerIndex
+      };
+    }
+    
+    // 다른 문제 형식이거나 섞인 선택지가 없으면 원본 그대로 반환
+    return currentQuestion;
+  };
 
   // 게임 상태 정보 계산
   const gameStats = React.useMemo(() => {
@@ -68,44 +117,26 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
     };
   }, [gameSession]);
 
-  // 보유 아이템/버프 정보 계산
-  const activeBuffs = React.useMemo(() => {
-    if (!gameSession?.temporaryBuffs) return [];
+  // 문제가 바뀔 때마다 선택지 순서 섞기
+  useEffect(() => {
+    if (!currentQuestion) return;
     
-    return gameSession.temporaryBuffs
-      .filter((buff: any) => buff.active)
-      .map((buff: any, index: number) => {
-        const stackCount = buff.stackCount || 1;
-        const stackText = stackCount > 1 ? ` x${stackCount}` : '';
-        
-        switch (buff.id) {
-          case 'PASSION_BUFF':
-            return { 
-              name: `🔥 열정${stackText}`, 
-              description: `연속 정답 보너스 × ${2 * stackCount}`,
-              stackCount 
-            };
-          case 'WISDOM_BUFF':
-            return { 
-              name: `🧠 지혜${stackText}`, 
-              description: `룰렛 완료 보너스 +${50 * stackCount}% 추가`,
-              stackCount 
-            };
-          case 'LUCK_BUFF':
-            return { 
-              name: `🍀 행운${stackText}`, 
-              description: `룰렛 고배수 확률 ${stackCount > 1 ? '크게 ' : ''}증가`,
-              stackCount 
-            };
-          default:
-            return { 
-              name: `${buff.name || '알 수 없음'}${stackText}`, 
-              description: buff.description || '',
-              stackCount 
-            };
-        }
-      });
-  }, [gameSession]);
+    const shuffledData = shuffleCurrentQuestionOptions(currentQuestion);
+    setCurrentShuffledOptions(shuffledData);
+    
+    // 선택 상태 초기화
+    setSelectedAnswer(null);
+    setSelectedAnswerIndex(null);
+    setServerValidationResult(null);
+    
+    console.log('엘리트 스테이지 - 선택지 섞기 완료:', {
+      questionIndex: currentQuestionIndex,
+      questionType: currentQuestion.type,
+      originalOptions: currentQuestion.options,
+      shuffledOptions: shuffledData?.options,
+      mapping: shuffledData?.mapping
+    });
+  }, [currentQuestionIndex, currentQuestion]);
 
   // 시간 종료 처리
   useEffect(() => {
@@ -113,6 +144,11 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
       handleTimeUp();
     }
   }, [timeLeft, stageState]);
+
+  // 문제 변경 시 시간 초기화
+  useEffect(() => {
+    setQuestionStartTime(Date.now());
+  }, [currentQuestionIndex, currentQuestion]);
 
   // COMPLETED 상태 시 onStageComplete 호출 (한 번만)
   useEffect(() => {
@@ -126,11 +162,11 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
         totalQuestions: questions.length,
         results,
         answers,
-        lastQuestionAnswerData
+        lastQuestionAnswerData,
       });
       
-      // 성공한 경우에만 마지막 문제 답변 데이터를 전달
-      onStageComplete(finalSuccess, correctCount, finalSuccess ? lastQuestionAnswerData : null);
+      // 성공/실패 모두 마지막 문제 답변 데이터를 전달 (점수는 성공 시에만)
+      onStageComplete(finalSuccess, correctCount, lastQuestionAnswerData);
     }
   }, [stageState, stageCompleted, finalSuccess, results, lastQuestionAnswerData]);
 
@@ -160,24 +196,25 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
         questionIndex,
         answer,
         isCorrect,
-        questionType: currentQuestion?.type
+        questionType: currentQuestion?.type,
+        questionId: currentQuestion?.id,
       });
       
       if (currentQuestion.type === 'multiple-choice' && typeof answer === 'number') {
         // 개별 문제 답변임을 표시하는 특별한 3번째 파라미터와 questionIndex 정보 포함
-        await onAnswer(answer, `[엘리트개별문제:${questionIndex}] 답변: ${answer}`, -1);
+        await onAnswer(answer, `[엘리트개별문제:${questionIndex}] 답변: ${answer}`, -1, []);
         console.log(`객관식 답변 저장 완료 - 문제 ${currentQuestionIndex + 1}`);
       } else if (currentQuestion.type === 'short-answer' && typeof answer === 'string') {
         // 개별 문제 답변임을 표시하는 특별한 answerText와 questionIndex 정보 포함
-        await onAnswer(undefined, `[엘리트개별문제:${questionIndex}] 답변: ${answer}`, -1);
+        await onAnswer(undefined, `[엘리트개별문제:${questionIndex}] 답변: ${answer}`, -1, []);
         console.log(`주관식 답변 저장 완료 - 문제 ${currentQuestionIndex + 1}`);
       } else {
         // 시간 초과나 빈 답변의 경우
         if (currentQuestion.type === 'multiple-choice') {
-          await onAnswer(-1, `[엘리트개별문제:${questionIndex}] 시간초과`, -1);
+          await onAnswer(-1, `[엘리트개별문제:${questionIndex}] 시간초과`, -1, []);
           console.log(`객관식 시간초과 답변 저장 완료 - 문제 ${currentQuestionIndex + 1}`);
         } else {
-          await onAnswer(undefined, `[엘리트개별문제:${questionIndex}] 시간초과`, -1);
+          await onAnswer(undefined, `[엘리트개별문제:${questionIndex}] 시간초과`, -1, []);
           console.log(`주관식 시간초과 답변 저장 완료 - 문제 ${currentQuestionIndex + 1}`);
         }
       }
@@ -227,15 +264,30 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
 
     // 문제 타입에 따라 선택된 답안 저장
     if (currentQuestion.type === 'multiple-choice') {
-      setSelectedAnswerIndex(index);
+      // 원본 인덱스로 변환
+      let originalAnswerIndex = index;
+      if (currentShuffledOptions && currentShuffledOptions.mapping) {
+        originalAnswerIndex = currentShuffledOptions.mapping[index];
+      }
+      
+      setSelectedAnswerIndex(originalAnswerIndex);
       setSelectedAnswer(answer);
       
-      // 정답 체크
-      const isCorrect = index === currentQuestion.correctAnswer;
+      // 정답 체크 (원본 인덱스 기준)
+      const isCorrect = originalAnswerIndex === currentQuestion.correctAnswer;
+      
+      console.log('엘리트 스테이지 - 객관식 답변 처리:', {
+        questionIndex: currentQuestionIndex,
+        userSelectedDisplayIndex: index,
+        originalAnswerIndex,
+        correctAnswerIndex: currentQuestion.correctAnswer,
+        isCorrect,
+        mapping: currentShuffledOptions?.mapping
+      });
       
       // 답변과 결과를 동시에 업데이트
       const newAnswers = [...answers];
-      newAnswers[currentQuestionIndex] = index;
+      newAnswers[currentQuestionIndex] = originalAnswerIndex; // 원본 인덱스로 저장
       setAnswers(newAnswers);
 
       const newResults = [...results];
@@ -248,8 +300,8 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
       // 답변 저장 처리 - 마지막 문제가 아닌 경우에만 즉시 저장
       if (!isLastQuestion) {
         try {
-          await saveCurrentQuestionAnswer(index, isCorrect);
-          console.log(`문제 ${currentQuestionIndex + 1} 답변 저장 완료:`, { index, isCorrect });
+          await saveCurrentQuestionAnswer(originalAnswerIndex, isCorrect);
+          console.log(`문제 ${currentQuestionIndex + 1} 답변 저장 완료:`, { originalAnswerIndex, isCorrect });
         } catch (error) {
           console.error(`문제 ${currentQuestionIndex + 1} 답변 저장 실패:`, error);
         }
@@ -257,11 +309,12 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
         // 마지막 문제인 경우 상태에 저장하고 보상 선택 시 함께 저장
         setLastQuestionAnswerData({
           questionIndex: questionIndices[currentQuestionIndex],
-          answer: index,
+          answer: originalAnswerIndex,
           isCorrect,
-          questionType: 'multiple-choice'
+          questionType: 'multiple-choice',
+          timeSpent: Date.now() - questionStartTime
         });
-        console.log(`마지막 문제 답변 데이터 저장 (보상 선택 시 업로드 예정):`, { index, isCorrect });
+        console.log(`마지막 문제 답변 데이터 저장 (보상 선택 시 업로드 예정):`, { originalAnswerIndex, isCorrect });
       }
       
       // 2초 후 상태 전환
@@ -327,7 +380,8 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
           questionIndex: questionIndices[currentQuestionIndex],
           answer: answer,
           isCorrect,
-          questionType: 'short-answer'
+          questionType: 'short-answer',
+          timeSpent: Date.now() - questionStartTime
         });
         console.log(`마지막 문제 답변 데이터 저장 (보상 선택 시 업로드 예정):`, { answer, isCorrect });
       }
@@ -454,24 +508,6 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
               <div className="text-xs text-gray-600">최대 🏆</div>
             </div>
           </div>
-
-          {/* 보유 아이템/버프 표시 */}
-          {activeBuffs.length > 0 && (
-            <div className="border-t border-red-200 pt-3">
-              <div className="text-xs text-gray-600 mb-2">🎒 보유 아이템</div>
-              <div className="flex flex-wrap gap-2">
-                {activeBuffs.map((buff: any, index: number) => (
-                  <div 
-                    key={index}
-                    className="bg-white px-2 py-1 rounded-full text-xs border border-red-300"
-                    title={buff.description}
-                  >
-                    {buff.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -529,13 +565,15 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
 
       {/* QuizQuestion 컴포넌트 사용 */}
       <QuizQuestion
-        question={currentQuestion}
+        key={currentQuestionIndex}
+        question={getCurrentQuestion() || currentQuestion}
         selectedAnswer={selectedAnswer}
         selectedAnswerIndex={selectedAnswerIndex}
         onSelectAnswer={handleSelectAnswer}
         showResult={stageState === 'SHOWING_RESULT' || stageState === 'MOVING_TO_NEXT'}
         disabled={stageState !== 'PLAYING'}
         serverValidationResult={serverValidationResult}
+        currentShuffledOptions={currentShuffledOptions}
       />
 
       {/* 안내 메시지 */}

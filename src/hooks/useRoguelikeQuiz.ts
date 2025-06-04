@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Node, Edge } from 'reactflow';
 import { Question, Quiz } from '../types';
 import { submitAnswer as submitAnswerToServer } from '../firebase/sessionService';
@@ -9,10 +9,10 @@ import {
   ActivityBonus,
   RouletteResult,
   ROULETTE_MESSAGES,
-  TemporaryBuff,
   RoguelikeStageType,
   GameState
 } from '../types/roguelike';
+import { rtdb } from '../firebase/config';
 
 export interface RoguelikeMapData {
   nodes: Node[];
@@ -509,6 +509,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
   const [answers, setAnswers] = useState<RoguelikeAnswer[]>([]);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [hasExistingData, setHasExistingData] = useState(false); // 기존 데이터 존재 여부
   
   const [mapNodes, setMapNodes] = useState<Node[]>([]);
   const [mapEdges, setMapEdges] = useState<Edge[]>([]);
@@ -572,7 +573,6 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       activityBonus: { correctAnswerBonus: 0, streakBonus: 0, speedBonus: 0, participationBonus: 0, completionBonus: 0, total: 0 },
       rouletteBonus: 0,
       finalScore: 0,
-      temporaryBuffs: [],
       correctAnswers: 0,
       totalQuestions: 0,
       maxStreak: 0,
@@ -582,7 +582,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       completed: false,
       currentGameState: 'map-selection',
       waitingForReward: false,
-      startedAt: Date.now()
+      startedAt: Date.now(),
     };
 
     setGameSession(newSession);
@@ -731,8 +731,44 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
     }
   }, [_sessionId]);
 
-  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer'}>) => {
+  const submitAnswer = useCallback(async (answerIndex?: number, answerText?: string, timeSpent: number = 0, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer', timeSpent: number}>) => {
     if (!gameSession || !currentStage || !quiz) return;
+
+    // 모닥불 스테이지 건너뛰기 처리
+    if (answerIndex === -1 && answerText === "CAMPFIRE_SKIP") {
+      console.log('모닥불 스테이지 건너뛰기 처리됨. 데이터 저장 없이 맵 선택으로 이동.');
+      
+      // 스테이지를 건너뛴 것으로 표시하고 맵 선택으로 이동
+      setGameSession(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          currentGameState: 'map-selection',
+          waitingForReward: false,
+        };
+      });
+
+      // 맵 노드를 건너뛴 것으로 표시 (완료도 실패도 아닌 상태)
+      if (mapGeneratedStages[currentPlayerNodeId]) {
+        setMapNodes(prevNodes => prevNodes.map(node => {
+          if (node.id === currentPlayerNodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                isCompleted: false,
+                isFailed: false,
+                // 건너뛴 노드임을 시각적으로 표시할 수 있도록 추가 속성
+                isSkipped: true
+              }
+            };
+          }
+          return node;
+        }));
+      }
+      
+      return; // 여기서 함수 종료, 더 이상 처리하지 않음
+    }
 
     // 엘리트 스테이지 개별 문제 처리 확인 - 더 정확한 조건으로 수정
     const isEliteIndividualQuestion = currentStage.type === 'elite' && (
@@ -795,7 +831,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
 
     // 엘리트 스테이지는 RoguelikeEliteStage에서 자체 관리하므로 여기서는 전체 결과만 처리
     if (currentStage.type === 'elite') {
-      // 마지막 문제 답변 데이터가 있는 경우 저장
+      // 마지막 문제 답변 데이터가 있는 경우 저장 (성공/실패 관계없이)
       if (eliteAnswers && eliteAnswers.length === 1) {
         const lastQuestionData = eliteAnswers[0];
         
@@ -814,6 +850,35 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       // 스테이지 완료 처리 (onStageComplete에서 호출)
       const isSuccess = answerIndex === 1;
       const correctCount = isSuccess ? 3 : (answerIndex || 0);
+      
+      // 실패한 경우 즉시 마지막 문제 데이터 업로드 (보상 상자가 없으므로)
+      if (!isSuccess && gameSession.eliteLastQuestionData && _sessionId) {
+        const lastQuestionData = gameSession.eliteLastQuestionData;
+        
+        const answerData = lastQuestionData.questionType === 'multiple-choice'
+          ? { answerIndex: lastQuestionData.answer as number }
+          : { answerText: lastQuestionData.answer as string };
+        
+        uploadActivityData(
+          gameSession.userId,
+          gameSession.quizId,
+          lastQuestionData.questionIndex,
+          answerData,
+          lastQuestionData.isCorrect,
+          0, // 실패 시 0점
+          lastQuestionData.timeSpent || 0,
+          'elite'
+        ).then(() => {
+          console.log('엘리트 실패 시 마지막 문제 활동 데이터 업로드 완료:', { 
+            questionIndex: lastQuestionData.questionIndex, 
+            answerData,
+            points: 0,
+            timeSpent: lastQuestionData.timeSpent
+          });
+        }).catch(error => {
+          console.error('엘리트 실패 시 마지막 문제 활동 데이터 업로드 실패:', error);
+        });
+      }
       
       const newAnswer: RoguelikeAnswer = {
         questionIndex: currentStage.questions[0], // 대표 문제 인덱스
@@ -840,6 +905,9 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
           currentGameState: isSuccess ? 'reward-box' : 'map-selection',
           waitingForReward: isSuccess,
           currentPlayerNodeId: prev.currentPlayerNodeId,
+          // 엘리트 스테이지는 pendingAnswer를 설정하지 않음
+          // 실패 시 eliteLastQuestionData 초기화 (업로드 완료 후)
+          eliteLastQuestionData: isSuccess ? prev.eliteLastQuestionData : undefined,
         };
       });
 
@@ -872,7 +940,7 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       }
 
       console.log(`엘리트 스테이지 ${isSuccess ? '성공' : '실패'}! 정답 수: ${correctCount}`);
-      return;
+      return; // 엘리트 스테이지는 여기서 종료, pendingAnswer 로직 건너뛰기
     }
 
     // 일반/모닥불 스테이지는 기존 로직 사용 (활동 데이터는 보상 획득 시에 저장)
@@ -945,21 +1013,9 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
       } else {
         // 스테이지 완료됨
         if (currentStage.type === 'campfire') {
-          // [규칙 3] 모닥불 스테이지는 점수 없음, 버프만 제공
-          // 모닥불 완료 시 0점으로 활동 데이터 업로드
-          if (prev.pendingAnswer) {
-            uploadActivityData(
-              prev.userId,
-              prev.quizId,
-              prev.pendingAnswer.questionIndex,
-              prev.pendingAnswer.answerData,
-              prev.pendingAnswer.isCorrect,
-              0, // 모닥불은 0점
-              prev.pendingAnswer.timeSpent,
-              prev.pendingAnswer.stageType
-            ).catch(error => console.error('모닥불 활동 데이터 업로드 실패:', error));
-          }
-          nextGameState = 'map-selection';
+          // 모닥불 스테이지도 보상 상자를 거치도록 변경
+          nextGameState = 'reward-box';
+          waitingForReward = true;
         } else if (currentStage.type === 'roulette' || currentPlayerNodeId === 'node-end') {
           // 룰렛 스테이지이거나 최종 노드면 게임 완료
           nextGameState = 'completed';
@@ -1056,160 +1112,11 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
     return false;
   };
 
-  const selectTemporaryBuff = useCallback((buffId: string) => {
-    console.log('Buff selected:', buffId);
-    
-    setGameSession(prev => {
-      if (!prev) return null;
-      
-      // 이미 같은 버프가 있는지 확인
-      const existingBuffIndex = prev.temporaryBuffs.findIndex(buff => buff.id === buffId);
-      
-      let updatedBuffs = [...prev.temporaryBuffs];
-      
-      if (existingBuffIndex >= 0) {
-        // 이미 있는 버프라면 스택 수 증가 (강화)
-        const existingBuff = updatedBuffs[existingBuffIndex];
-        updatedBuffs[existingBuffIndex] = {
-          ...existingBuff,
-          active: true,
-          usesRemaining: (existingBuff.usesRemaining || 3) + 2, // 2회 추가
-          stackCount: (existingBuff.stackCount || 1) + 1, // 스택 수 증가
-        };
-        console.log(`버프 강화: ${buffId}, 새로운 스택: ${updatedBuffs[existingBuffIndex].stackCount}`);
-      } else {
-        // 새로운 버프 추가
-        const newBuff: TemporaryBuff = {
-          id: buffId,
-          name: getBuffName(buffId),
-          description: getBuffDescription(buffId),
-          effect: getBuffEffect(buffId),
-          icon: getBuffIcon(buffId),
-          active: true,
-          usesRemaining: 3,
-          stackCount: 1, // 초기 스택 수
-        };
-        updatedBuffs.push(newBuff);
-        console.log(`새 버프 추가: ${buffId}`);
-      }
-      
-      return {
-        ...prev,
-        temporaryBuffs: updatedBuffs
-      };
-    });
-  }, []);
-
-  // 버프 정보 헬퍼 함수들
-  const getBuffName = (buffId: string): string => {
-    switch (buffId) {
-      case 'PASSION_BUFF': return '🔥 열정 버프';
-      case 'WISDOM_BUFF': return '🧠 지혜 버프';
-      case 'LUCK_BUFF': return '🍀 행운 버프';
-      default: return '알 수 없는 버프';
-    }
-  };
-
-  const getBuffDescription = (buffId: string): string => {
-    switch (buffId) {
-      case 'PASSION_BUFF': return '연속 정답 보너스가 2배로 증가합니다';
-      case 'WISDOM_BUFF': return '모든 정답에 추가 보너스 점수를 받습니다';
-      case 'LUCK_BUFF': return '최종 룰렛에서 높은 배수가 나올 확률이 증가합니다';
-      default: return '';
-    }
-  };
-
-  const getBuffEffect = (buffId: string): string => {
-    switch (buffId) {
-      case 'PASSION_BUFF': return '연속 정답 보너스 × 2';
-      case 'WISDOM_BUFF': return '정답당 +50점 추가';
-      case 'LUCK_BUFF': return '룰렛 고배수 확률 상승';
-      default: return '';
-    }
-  };
-
-  const getBuffIcon = (buffId: string): string => {
-    switch (buffId) {
-      case 'PASSION_BUFF': return '🔥';
-      case 'WISDOM_BUFF': return '🧠';
-      case 'LUCK_BUFF': return '🍀';
-      default: return '❓';
-    }
-  };
-
-  const spinRoulette = useCallback((): RouletteResult => {
-    const multiplier = (Math.floor(Math.random() * 5) + 1) * 0.5;
-    const message = ROULETTE_MESSAGES[Math.floor(Math.random() * ROULETTE_MESSAGES.length)];
-    const bonusPoints = Math.round((gameSession?.baseScore || 0) * (multiplier -1) ); 
-
-    setGameSession(prev => {
-        if (!prev) return null;
-        const finalScore = prev.baseScore + (prev.activityBonus?.total || 0) + bonusPoints;
-        return {
-            ...prev,
-            rouletteBonus: bonusPoints,
-            finalScore,
-            completed: true,
-            currentGameState: 'completed',
-            completedAt: Date.now()
-        }
-    });
-    setGameCompleted(true);
-    return { multiplier, bonusPoints, message };
-  }, [gameSession]);
-
-  const resetGame = useCallback(() => {
-    setGameSession(null);
-    setCurrentStage(null);
-    setCurrentQuestionNumericIndex(0);
-    setAnswers([]);
-    setGameStarted(false);
-    setGameCompleted(false);
-    setMapNodes([]);
-    setMapEdges([]);
-    setMapStageConnections({});
-    setMapGeneratedStages({});
-    setInitialPlayerPosition('start');
-    setCurrentPlayerNodeId('start');
-  }, []);
-
-  const calculateActivityBonus = useCallback((session: RoguelikeGameSession | null): ActivityBonus => {
-    if (!session) return { correctAnswerBonus: 0, streakBonus: 0, speedBonus: 0, participationBonus: 0, completionBonus: 0, total: 0 };
-    let bonus: ActivityBonus = {
-        correctAnswerBonus: session.correctAnswers * 10,
-        streakBonus: session.maxStreak * 50,
-        speedBonus: 0,
-        participationBonus: session.participatedInOpinion ? 200 : 0,
-        completionBonus: session.completed ? 500 : 0,
-        total: 0
-    };
-    bonus.total = bonus.correctAnswerBonus + bonus.streakBonus + bonus.speedBonus + bonus.participationBonus + bonus.completionBonus;
-    return bonus;
-  }, []);
-  
   const selectRewardBox = useCallback((points: number) => {
     console.log('Reward box selected, points:', points);
     if (!gameSession) return;
 
-    // 보상 획득 시 실제 점수로 활동 데이터 업로드
-    if (gameSession.pendingAnswer && _sessionId) {
-      uploadActivityData(
-        gameSession.userId,
-        gameSession.quizId,
-        gameSession.pendingAnswer.questionIndex,
-        gameSession.pendingAnswer.answerData,
-        gameSession.pendingAnswer.isCorrect,
-        points, // 실제 획득한 보상 점수
-        gameSession.pendingAnswer.timeSpent,
-        gameSession.pendingAnswer.stageType
-      ).then(() => {
-        console.log('보상 상자 활동 데이터 업로드 완료:', { points, isCorrect: gameSession.pendingAnswer?.isCorrect });
-      }).catch(error => {
-        console.error('보상 상자 활동 데이터 업로드 실패:', error);
-      });
-    }
-
-    // 엘리트 스테이지인 경우 마지막 문제 점수 업데이트
+    // 엘리트 스테이지인 경우 마지막 문제 데이터만 업로드
     if (currentStage?.type === 'elite' && gameSession.eliteLastQuestionData && _sessionId) {
       const lastQuestionData = gameSession.eliteLastQuestionData;
       
@@ -1225,24 +1132,48 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
         answerData,
         lastQuestionData.isCorrect,
         points, // 보상 점수로 업데이트
-        0, // timeSpent는 0으로 설정
+        lastQuestionData.timeSpent || 0, // 실제 timeSpent 사용
         'elite'
       ).then(() => {
-        console.log('엘리트 마지막 문제 점수 업데이트 완료:', { 
+        console.log('엘리트 마지막 문제 활동 데이터 업로드 완료:', { 
           questionIndex: lastQuestionData.questionIndex, 
           answerData,
-          points 
+          points,
+          timeSpent: lastQuestionData.timeSpent
         });
       }).catch(error => {
-        console.error('엘리트 마지막 문제 점수 업데이트 실패:', error);
+        console.error('엘리트 마지막 문제 활동 데이터 업로드 실패:', error);
+      });
+    } 
+    // 일반/모닥불 스테이지인 경우에만 pendingAnswer 업로드
+    else if (gameSession.pendingAnswer && _sessionId) {
+      uploadActivityData(
+        gameSession.userId,
+        gameSession.quizId,
+        gameSession.pendingAnswer.questionIndex,
+        gameSession.pendingAnswer.answerData,
+        gameSession.pendingAnswer.isCorrect,
+        gameSession.pendingAnswer.stageType === 'campfire' ? points : points, // 모닥불도 실제 곱셈 보상 점수로 업로드
+        gameSession.pendingAnswer.timeSpent,
+        gameSession.pendingAnswer.stageType
+      ).then(() => {
+        console.log(`${gameSession.pendingAnswer?.stageType} 스테이지 보상 상자 활동 데이터 업로드 완료:`, { points, isCorrect: gameSession.pendingAnswer?.isCorrect });
+      }).catch(error => {
+        console.error(`${gameSession.pendingAnswer?.stageType} 스테이지 보상 상자 활동 데이터 업로드 실패:`, error);
       });
     }
 
     setGameSession(prev => {
       if (!prev) return null;
+      
+      // 모닥불 스테이지는 곱셈 방식으로 현재 점수를 새로운 점수로 대체
+      const newScore = currentStage?.type === 'campfire' 
+        ? points // 모닥불: 곱셈 결과로 점수 대체
+        : prev.baseScore + points; // 일반/엘리트: 기존 점수에 추가
+      
       return {
         ...prev,
-        baseScore: prev.baseScore + points,
+        baseScore: newScore,
         currentGameState: 'map-selection',
         waitingForReward: false,
         pendingAnswer: undefined, // 활동 데이터 업로드 완료 후 초기화
@@ -1255,6 +1186,164 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
 
   }, [gameSession, uploadActivityData, _sessionId, currentStage]);
 
+  // 기존 데이터 확인 및 로드
+  const checkExistingData = useCallback(async () => {
+    if (!_sessionId || !userId) return false;
+
+    try {
+      const { ref, get } = await import('firebase/database');
+      const participantRef = ref(rtdb, `participants/${_sessionId}/${userId}`);
+      const snapshot = await get(participantRef);
+      
+      if (snapshot.exists()) {
+        const participantData = snapshot.val();
+        console.log('기존 참가자 데이터 발견:', participantData);
+        
+        // 완료된 게임이 있는지 확인
+        if (participantData.score && participantData.answers) {
+          setHasExistingData(true);
+          setGameCompleted(true);
+          setGameStarted(true); // 게임 시작 상태도 설정
+          
+          // 기존 답변 데이터를 answers에 로드
+          const answersArray = Object.values(participantData.answers || {}) as RoguelikeAnswer[];
+          setAnswers(answersArray);
+          
+          // 점수 정보로 게임 세션 복원
+          if (quiz) {
+            const restoredSession: RoguelikeGameSession = {
+              id: `${userId}_restored_${Date.now()}`,
+              userId,
+              quizId: quiz.id || '',
+              stages: [],
+              currentPlayerNodeId: 'node-end',
+              baseScore: participantData.score,
+              activityBonus: { correctAnswerBonus: 0, streakBonus: 0, speedBonus: 0, participationBonus: 0, completionBonus: 0, total: 0 },
+              rouletteBonus: 0,
+              finalScore: participantData.score,
+              correctAnswers: answersArray.filter((a: any) => a.isCorrect).length,
+              totalQuestions: answersArray.length,
+              maxStreak: 0,
+              currentStreak: 0,
+              averageAnswerTime: 0,
+              participatedInOpinion: false,
+              completed: true,
+              currentGameState: 'completed',
+              waitingForReward: false,
+              startedAt: participantData.joinedAt || Date.now(),
+            };
+            
+            setGameSession(restoredSession);
+          }
+          
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('기존 데이터 확인 중 오류:', error);
+      return false;
+    }
+  }, [_sessionId, userId, quiz]);
+
+  // 현재 데이터를 시도 기록으로 저장하고 새 게임 시작
+  const resetGameWithAttemptSave = useCallback(async () => {
+    if (!_sessionId || !userId || !gameSession) {
+      console.log('게임 재시작 - 필수 데이터 없음');
+      initializeGame();
+      return;
+    }
+
+    try {
+      const { ref, get, set, push } = await import('firebase/database');
+      const participantRef = ref(rtdb, `participants/${_sessionId}/${userId}`);
+      const snapshot = await get(participantRef);
+      
+      if (snapshot.exists()) {
+        const participantData = snapshot.val();
+        
+        // 현재 데이터를 attempts 배열에 추가
+        const currentAttempt = {
+          answers: participantData.answers || {},
+          score: participantData.score || 0,
+          completedAt: Date.now()
+        };
+        
+        // 기존 attempts 가져오기 (없으면 빈 배열)
+        const existingAttempts = participantData.attempts || [];
+        
+        // 새로운 시도를 attempts에 추가
+        const updatedAttempts = [...existingAttempts, currentAttempt];
+        
+        // 참가자 데이터 업데이트 (현재 데이터 초기화 + attempts에 이전 데이터 저장)
+        const updatedParticipantData = {
+          id: participantData.id || userId, // id가 없으면 userId 사용
+          name: participantData.name || '익명', // name이 없으면 기본값 사용
+          joinedAt: participantData.joinedAt || Date.now(), // joinedAt이 없으면 현재 시간 사용
+          isActive: true,
+          quizId: participantData.quizId || gameSession.quizId || '', // quizId 추가
+          score: 0, // 점수 초기화
+          answers: {}, // 답변 초기화
+          attempts: updatedAttempts // 이전 시도들 저장
+        };
+        
+        // undefined 값 제거 함수
+        const removeUndefinedValues = (obj: any): any => {
+          const cleaned: any = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                cleaned[key] = removeUndefinedValues(value);
+              } else {
+                cleaned[key] = value;
+              }
+            }
+          }
+          return cleaned;
+        };
+        
+        const cleanedData = removeUndefinedValues(updatedParticipantData);
+        
+        await set(participantRef, cleanedData);
+        
+        console.log('이전 게임 데이터를 시도 기록으로 저장 완료:', {
+          currentScore: currentAttempt.score,
+          totalAttempts: updatedAttempts.length
+        });
+      }
+      
+      // 상태 초기화 및 새 게임 시작
+      setHasExistingData(false);
+      setGameCompleted(false);
+      setAnswers([]);
+      initializeGame();
+      
+    } catch (error) {
+      console.error('시도 기록 저장 중 오류:', error);
+      // 오류가 발생해도 새 게임은 시작
+      setHasExistingData(false);
+      setGameCompleted(false);
+      setAnswers([]);
+      initializeGame();
+    }
+  }, [_sessionId, userId, gameSession, initializeGame]);
+
+  // 게임 완료 처리 함수
+  const handleGameComplete = useCallback(() => {
+    setGameCompleted(true);
+    setGameSession(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        completed: true,
+        currentGameState: 'completed',
+        completedAt: Date.now()
+      };
+    });
+    console.log('게임 완료 처리됨');
+  }, []);
+
   return {
     gameSession,
     currentStage,
@@ -1262,21 +1351,21 @@ export const useRoguelikeQuiz = (quiz: Quiz | null, userId: string, _sessionId?:
     currentQuestion: getCurrentQuestionFromStage(),
     gameStarted,
     gameCompleted,
+    hasExistingData,
     answers,
     totalStages: TOTAL_STAGES_OR_ROUNDS,
     initializeGame,
     submitAnswer,
-    selectTemporaryBuff,
-    spinRoulette,
-    resetGame,
-    calculateActivityBonus,
-    selectMapPath,
     selectRewardBox,
+    selectMapPath,
     mapNodes,
     mapEdges,
     mapStageConnections,
     mapGeneratedStages,
     initialPlayerPosition,
     currentPlayerNodeId,
+    checkExistingData,
+    resetGameWithAttemptSave,
+    handleGameComplete,
   };
 }; 

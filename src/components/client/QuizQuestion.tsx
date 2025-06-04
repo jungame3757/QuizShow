@@ -419,27 +419,18 @@ const QuizQuestion: React.FC<QuizQuestionProps> = ({
             <div className="flex items-center justify-center">
               <MessageSquare size={24} className="mr-2" />
               의견이 제출되었습니다!
-              {serverValidationResult && (
-                <span className="ml-2 text-orange-600 font-bold">+{serverValidationResult.points}점</span>
-              )}
             </div>
           ) : isCorrect() ? (
             <div>
               <div className="flex items-center justify-center mb-1">
                 <Check size={24} className="mr-2" />
                 정답입니다!
-                {serverValidationResult && (
-                  <span className="ml-2 text-green-600 font-bold">+{serverValidationResult.points}점</span>
-                )}
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-center">
               <X size={24} className="mr-2" />
               오답입니다
-              {serverValidationResult && serverValidationResult.points > 0 && (
-                <span className="ml-2 text-red-600 font-bold">+{serverValidationResult.points}점</span>
-              )}
             </div>
           )}
         </div>

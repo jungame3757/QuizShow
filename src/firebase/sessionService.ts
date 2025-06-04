@@ -970,4 +970,20 @@ export const getSessionsByQuizId = async (quizId: string): Promise<Session[]> =>
     console.error('퀴즈 세션 조회 오류:', error);
     throw error;
   }
+};
+
+// 참가자 점수 업데이트 함수 (룰렛 스테이지용)
+export const updateParticipantScore = async (
+  sessionId: string,
+  participantId: string,
+  newScore: number
+): Promise<void> => {
+  try {
+    const participantScoreRef = ref(rtdb, `participants/${sessionId}/${participantId}/score`);
+    await set(participantScoreRef, newScore);
+    console.log(`참가자 ${participantId}의 점수가 ${newScore}점으로 업데이트되었습니다.`);
+  } catch (error) {
+    console.error('참가자 점수 업데이트 오류:', error);
+    throw error;
+  }
 }; 

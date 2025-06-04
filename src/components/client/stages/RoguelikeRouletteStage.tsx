@@ -1,116 +1,102 @@
 import React, { useState, useEffect } from 'react';
 import { RoguelikeGameSession, RouletteResult } from '../../../types/roguelike';
+import { updateParticipantScore } from '../../../firebase/sessionService';
 
 interface RoguelikeRouletteStageProps {
   gameSession: RoguelikeGameSession;
   onSpinRoulette: () => RouletteResult;
+  onComplete?: () => void;
+  sessionId?: string; // RTDB 업데이트용
+  userId?: string; // RTDB 업데이트용
+}
+
+interface RouletteBox {
+  id: number;
+  type: 'multiply' | 'add' | 'subtract';
+  value: number;
+  color: string;
+  label: string;
+  description: string;
 }
 
 const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
   gameSession,
-  onSpinRoulette
+  onSpinRoulette,
+  onComplete,
+  sessionId,
+  userId
 }) => {
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [results, setResults] = useState<RouletteResult[]>([]);
   const [showActivityBonus, setShowActivityBonus] = useState(true);
-  const [currentSpinIndex, setCurrentSpinIndex] = useState(0);
-  const [totalSpins, setTotalSpins] = useState(0);
+  const [availableTickets, setAvailableTickets] = useState(0);
+  const [usedTickets, setUsedTickets] = useState(0);
+  const [boxResults, setBoxResults] = useState<{ round: number; result: RouletteBox; points: number }[]>([]);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [currentBoxIndex, setCurrentBoxIndex] = useState<number | null>(null);
+  const [currentRoundBoxes, setCurrentRoundBoxes] = useState<RouletteBox[]>([]);
+  const [finalScoreUpdated, setFinalScoreUpdated] = useState(false); // RTDB 업데이트 중복 방지
 
-  const handleSpinRoulette = () => {
-    if (isSpinning || results.length > 0) return;
-    
-    setIsSpinning(true);
-    setShowActivityBonus(false);
-    
-    // [규칙 4] 보너스 점수에 따라 룰렛 횟수 결정
-    const spins = calculateRouletteSpins();
-    setTotalSpins(spins);
-    
-    performRouletteSpins(spins);
-  };
-
-  // [규칙 4] 보너스 점수에 따라 룰렛 돌릴 횟수 계산
-  const calculateRouletteSpins = () => {
-    const activityBonus = calculateActivityBonus();
-    const totalBonusPoints = activityBonus.total;
-    
-    // 보너스 점수에 따른 룰렛 횟수 결정
-    if (totalBonusPoints >= 2000) return 5;      // 2000점 이상: 5회
-    if (totalBonusPoints >= 1500) return 4;      // 1500점 이상: 4회
-    if (totalBonusPoints >= 1000) return 3;      // 1000점 이상: 3회
-    if (totalBonusPoints >= 500) return 2;       // 500점 이상: 2회
-    return 1;                                    // 기본: 1회
-  };
-
-  const performRouletteSpins = async (spins: number) => {
-    const spinResults: RouletteResult[] = [];
-    
-    for (let i = 0; i < spins; i++) {
-      setCurrentSpinIndex(i + 1);
-      
-      // 각 스핀마다 3초 대기
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // [규칙 4] 엘리트와 같은 다양한 보상 시스템
-      const result = generateEliteStyleReward(i === spins - 1); // 마지막 스핀에는 특별 보상 가능
-      spinResults.push(result);
+  // 룰렛 상자 설정 (전체 6가지 옵션)
+  const getAllRouletteBoxes = (): RouletteBox[] => [
+    {
+      id: 1,
+      type: 'multiply',
+      value: 1.5,
+      color: 'bg-green-100 border-green-300',
+      label: '상자 1',
+      description: '현재 점수 × 1.5배'
+    },
+    {
+      id: 2,
+      type: 'multiply',
+      value: 0.8,
+      color: 'bg-red-100 border-red-300',
+      label: '상자 2',
+      description: '현재 점수 × 0.8배'
+    },
+    {
+      id: 3,
+      type: 'add',
+      value: 500,
+      color: 'bg-blue-100 border-blue-300',
+      label: '상자 3',
+      description: '현재 점수 + 500점'
+    },
+    {
+      id: 4,
+      type: 'subtract',
+      value: 300,
+      color: 'bg-orange-100 border-orange-300',
+      label: '상자 4',
+      description: '현재 점수 - 300점'
+    },
+    {
+      id: 5,
+      type: 'multiply',
+      value: 2.0,
+      color: 'bg-purple-100 border-purple-300',
+      label: '상자 5',
+      description: '현재 점수 × 2.0배'
+    },
+    {
+      id: 6,
+      type: 'multiply',
+      value: 0.5,
+      color: 'bg-gray-100 border-gray-300',
+      label: '상자 6',
+      description: '현재 점수 × 0.5배'
     }
-    
-    setResults(spinResults);
-    setCurrentSpinIndex(0);
-    setIsSpinning(false);
-  };
+  ];
 
-  // [규칙 4] 엘리트 스테이지와 같은 다양한 보상 생성
-  const generateEliteStyleReward = (isLastSpin: boolean): RouletteResult => {
-    const activityBonus = calculateActivityBonus();
-    const basePoints = activityBonus.total;
-    
-    // 마지막 스핀에는 더 좋은 보상 확률 증가
-    const specialChance = isLastSpin ? 0.4 : 0.2;
-    
-    const rewardType = Math.random();
-    
-    if (rewardType < specialChance * 0.3) {
-      // 점수 2배 (매우 희귀)
-      const multiplier = 2.0;
-      const bonusPoints = gameSession.baseScore;
-      return {
-        multiplier,
-        bonusPoints,
-        message: "🎉 대박! 현재 점수가 2배가 됩니다!"
-      };
-    } else if (rewardType < specialChance * 0.6) {
-      // 고정 대량 점수 (희귀)
-      const multiplier = 3.0 + Math.random() * 2.0; // 3.0~5.0배
-      const bonusPoints = Math.floor(basePoints * multiplier);
-      return {
-        multiplier,
-        bonusPoints,
-        message: `🌟 엄청난 행운! ${multiplier.toFixed(1)}배 점수 획득!`
-      };
-    } else if (rewardType < specialChance) {
-      // 높은 배수 (일반 특별)
-      const multiplier = 2.0 + Math.random() * 1.5; // 2.0~3.5배
-      const bonusPoints = Math.floor(basePoints * multiplier);
-      return {
-        multiplier,
-        bonusPoints,
-        message: `✨ 대성공! ${multiplier.toFixed(1)}배 점수 획득!`
-      };
-    } else {
-      // 일반 보상
-      const multiplier = 0.5 + Math.random() * 1.5; // 0.5~2.0배
-      const bonusPoints = Math.floor(basePoints * multiplier);
-      const message = multiplier >= 1.5 ? `🎊 성공! ${multiplier.toFixed(1)}배 점수!` :
-                      multiplier >= 1.0 ? `👍 보통! ${multiplier.toFixed(1)}배 점수!` :
-                      `😅 아쉽! ${multiplier.toFixed(1)}배 점수...`;
-      return {
-        multiplier,
-        bonusPoints,
-        message
-      };
-    }
+  // 매번 3가지 랜덤 상자 선택
+  const generateRandomBoxes = (): RouletteBox[] => {
+    const allBoxes = getAllRouletteBoxes();
+    const shuffled = [...allBoxes].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3).map((box, index) => ({
+      ...box,
+      id: index + 1, // 표시용 ID는 1, 2, 3으로 재설정
+      label: `상자 ${index + 1}`,
+      color: `bg-gray-100 border-gray-300` // 모든 상자를 동일한 색상으로
+    }));
   };
 
   const calculateActivityBonus = () => {
@@ -122,44 +108,116 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
       completionBonus: 300
     };
 
-    // 열정 버프가 활성화되어 있으면 연속 정답 보너스 2배
-    const passionBuff = gameSession.temporaryBuffs.find(
-      buff => buff.id === 'PASSION_BUFF' && buff.active
-    );
-    if (passionBuff) {
-      const stackCount = passionBuff.stackCount || 1;
-      bonus.streakBonus *= (2 * stackCount);
-    }
-
-    // 지혜 버프는 완료 보너스에 적용
-    const wisdomBuff = gameSession.temporaryBuffs.find(
-      buff => buff.id === 'WISDOM_BUFF' && buff.active
-    );
-    if (wisdomBuff) {
-      const stackCount = wisdomBuff.stackCount || 1;
-      bonus.completionBonus += (50 * stackCount * gameSession.correctAnswers);
-    }
-
     const total = bonus.correctAnswerBonus + bonus.streakBonus + 
                   bonus.speedBonus + bonus.participationBonus + bonus.completionBonus;
 
     return { ...bonus, total };
   };
 
+  // 티켓 개수 계산 (500점당 1티켓)
+  const calculateTickets = () => {
+    const activityBonus = calculateActivityBonus();
+    return Math.floor(activityBonus.total / 500);
+  };
+
+  // RTDB에 최종 점수 업데이트
+  const updateFinalScoreToRTDB = async (finalScore: number) => {
+    if (!sessionId || !userId || finalScoreUpdated) return;
+
+    try {
+      await updateParticipantScore(sessionId, userId, finalScore);
+      setFinalScoreUpdated(true);
+      console.log(`RTDB에 최종 점수 ${finalScore}점이 업데이트되었습니다.`);
+    } catch (error) {
+      console.error('RTDB 점수 업데이트 실패:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (showActivityBonus) {
+      setAvailableTickets(calculateTickets());
+    }
+  }, [showActivityBonus]);
+
+  // 모든 티켓 사용 완료 시 최종 점수 RTDB 업데이트 및 게임 완료 처리
+  useEffect(() => {
+    if (usedTickets === availableTickets && availableTickets > 0 && boxResults.length > 0) {
+      const finalScore = boxResults[boxResults.length - 1].points;
+      updateFinalScoreToRTDB(finalScore);
+      
+      // 3초 후 자동으로 게임 완료 처리
+      const gameCompletionTimer = setTimeout(() => {
+        console.log('모든 룰렛 티켓 사용 완료 - 게임 완료 처리');
+        try {
+          if (onComplete && typeof onComplete === 'function') {
+            onComplete(); // 게임 완료 콜백 호출
+          } else {
+            console.log('onComplete 콜백이 제공되지 않았습니다.');
+          }
+        } catch (error) {
+          console.error('게임 완료 처리 중 오류 발생:', error);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(gameCompletionTimer);
+    }
+  }, [usedTickets, availableTickets, boxResults, onComplete]);
+
+  const handleStartRoulette = () => {
+    setShowActivityBonus(false);
+    // 첫 번째 라운드 상자 생성
+    setCurrentRoundBoxes(generateRandomBoxes());
+  };
+
+  const handleBoxSelect = (boxIndex: number) => {
+    if (usedTickets >= availableTickets || isAnimating) return;
+
+    setIsAnimating(true);
+    setCurrentBoxIndex(boxIndex);
+
+    // 현재 라운드 상자에서 선택한 상자의 실제 보상 가져오기
+    const selectedBox = currentRoundBoxes[boxIndex - 1]; // boxIndex는 1부터 시작하므로 -1
+    
+    // 현재 점수에 효과 적용 계산
+    const currentScore = boxResults.length > 0 ? boxResults[boxResults.length - 1].points : gameSession.baseScore;
+    let resultPoints = currentScore;
+    
+    if (selectedBox.type === 'multiply') {
+      resultPoints = Math.floor(currentScore * selectedBox.value);
+    } else if (selectedBox.type === 'add') {
+      resultPoints = currentScore + selectedBox.value;
+    } else if (selectedBox.type === 'subtract') {
+      resultPoints = Math.max(0, currentScore - selectedBox.value); // 최소 0점
+    }
+
+    setTimeout(() => {
+      const newUsedTickets = usedTickets + 1;
+      setBoxResults([...boxResults, { round: newUsedTickets, result: selectedBox, points: resultPoints }]);
+      setUsedTickets(newUsedTickets);
+      setCurrentBoxIndex(null);
+      setIsAnimating(false);
+      
+      // 다음 라운드를 위한 새로운 상자 생성 (아직 티켓이 남아있다면)
+      if (newUsedTickets < availableTickets) {
+        setCurrentRoundBoxes(generateRandomBoxes());
+        console.log(`라운드 ${newUsedTickets + 1}: 새로운 상자 3개 생성`);
+      }
+    }, 2000);
+  };
+
   const activityBonus = calculateActivityBonus();
-  const totalBonusFromRoulette = results.reduce((sum, result) => sum + result.bonusPoints, 0);
 
   if (showActivityBonus) {
-    const spinsToShow = calculateRouletteSpins();
+    const ticketsToShow = calculateTickets();
     
     return (
       <div className="bg-white rounded-2xl shadow-lg p-8">
         {/* 스테이지 헤더 */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🎰</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">최종 룰렛 - 활동 보너스 점수!</h2>
+          <div className="text-4xl mb-4">🎫</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">룰렛 티켓 - 활동 보너스 계산!</h2>
           <p className="text-gray-600">
-            모험을 완주하신 것을 축하합니다! 활동 보너스를 확인해보세요.
+            모험을 완주하신 것을 축하합니다! 활동 보너스를 티켓으로 교환합니다.
           </p>
         </div>
 
@@ -224,17 +282,18 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
           </div>
         </div>
 
-        {/* 룰렛 안내 */}
+        {/* 티켓 교환 안내 */}
         <div className="bg-yellow-50 rounded-lg p-4 mb-8">
           <div className="flex items-start space-x-2">
-            <div className="text-yellow-600">🎰</div>
+            <div className="text-yellow-600">🎫</div>
             <div>
               <h4 className="font-medium text-yellow-800 mb-1">
-                보너스 룰렛 {spinsToShow}회가 기다리고 있습니다!
+                룰렛 티켓 {ticketsToShow}장을 획득했습니다!
               </h4>
               <p className="text-sm text-yellow-700">
-                활동 보너스 {activityBonus.total.toLocaleString()}점에 따라 {spinsToShow}번의 룰렛 기회를 획득했습니다!
-                <br />각 룰렛은 점수 2배, 고정 대량 점수 등 다양한 보상을 제공합니다.
+                활동 보너스 {activityBonus.total.toLocaleString()}점 ÷ 500점 = {ticketsToShow}장의 티켓
+                <br />각 티켓마다 새로운 3개의 상자가 제공되며, 현재 점수에 다양한 효과를 적용할 수 있습니다.
+                <br />※ 보너스 점수는 실제 점수에 반영되지 않으며, 티켓 계산용입니다.
               </p>
             </div>
           </div>
@@ -243,10 +302,11 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
         {/* 룰렛 시작 버튼 */}
         <div className="text-center">
           <button
-            onClick={handleSpinRoulette}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105"
+            onClick={handleStartRoulette}
+            disabled={ticketsToShow === 0}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            🎰 보너스 룰렛 {spinsToShow}회 시작!
+            {ticketsToShow > 0 ? `🎫 룰렛 상자 선택하기 (${ticketsToShow}장)` : '🎫 티켓이 부족합니다'}
           </button>
         </div>
       </div>
@@ -258,81 +318,131 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
       {/* 스테이지 헤더 */}
       <div className="text-center mb-8">
         <div className="text-4xl mb-4">🎰</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          보너스 룰렛 {results.length > 0 ? `완료 (${totalSpins}회)` : `진행중 (${currentSpinIndex}/${totalSpins})`}
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">룰렛 상자 선택</h2>
         <p className="text-gray-600">
-          {isSpinning ? `${currentSpinIndex}번째 룰렛을 돌리는 중...` : '모든 룰렛이 완료되었습니다!'}
+          매 라운드마다 새로운 3개의 상자가 제공됩니다!
         </p>
+        <div className="mt-4 text-lg font-bold text-purple-600">
+          🎫 라운드: {usedTickets + 1} / {availableTickets} (남은 티켓: {availableTickets - usedTickets}장)
+        </div>
+        <div className="mt-2 text-sm text-gray-600">
+          현재 점수: {boxResults.length > 0 ? boxResults[boxResults.length - 1].points.toLocaleString() : gameSession.baseScore.toLocaleString()}점
+        </div>
       </div>
 
-      {/* 룰렛 애니메이션 */}
-      <div className="text-center mb-8">
-        {isSpinning ? (
-          <div className="relative">
-            <div className="text-8xl animate-spin">🎰</div>
-            <p className="mt-4 text-lg font-medium text-gray-600">
-              {currentSpinIndex}번째 룰렛을 돌리는 중...
-            </p>
-            <div className="mt-2 text-sm text-gray-500">
-              {currentSpinIndex - 1}회 완료, {totalSpins - currentSpinIndex + 1}회 남음
-            </div>
-          </div>
-        ) : results.length > 0 ? (
-          <div className="space-y-6">
-            <div className="text-8xl">🎉</div>
-            
-            {/* 각 룰렛 결과 표시 */}
-            <div className="space-y-4">
-              {results.map((result, index) => (
-                <div key={index} className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4">
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">
-                    {index + 1}번째 룰렛: × {result.multiplier.toFixed(1)}배
-                  </h3>
-                  <p className="text-md text-indigo-600 font-bold mb-1">
-                    +{result.bonusPoints.toLocaleString()}점 획득!
-                  </p>
-                  <p className="text-sm text-gray-600">{result.message}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 최종 결과 */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">🎉 최종 결과</h3>
+      {/* 상자 선택 영역 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {currentRoundBoxes.map((box, index) => {
+          const boxId = index + 1;
+          const isCurrentlyAnimating = currentBoxIndex === boxId;
+          
+          return (
+            <button
+              key={`round-${usedTickets + 1}-box-${index}`} // 라운드별로 고유한 key
+              onClick={() => handleBoxSelect(boxId)}
+              disabled={usedTickets >= availableTickets || isAnimating}
+              className={`relative p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
+                isCurrentlyAnimating
+                  ? `${box.color} scale-105 ring-4 ring-purple-300`
+                  : usedTickets >= availableTickets
+                  ? 'opacity-50 scale-95 cursor-not-allowed'
+                  : `${box.color} hover:scale-110 hover:shadow-lg`
+              }`}
+            >
+              {/* 상자 아이콘 */}
+              <div className="text-4xl mb-3">
+                {isCurrentlyAnimating ? '✨' : '📦'}
+              </div>
               
-              <div className="space-y-2 text-left">
-                <div className="flex justify-between">
-                  <span>• 기본 점수:</span>
-                  <span className="font-medium">{gameSession.baseScore.toLocaleString()}점</span>
+              {/* 상자 정보 */}
+              <div className="text-lg font-bold text-gray-800 mb-2">
+                상자 {boxId}
+              </div>
+              
+              {/* 보상 내용은 가림 - 선택 전에는 보여주지 않음 */}
+              {!isCurrentlyAnimating && (
+                <div className="text-sm text-gray-600">
+                  🎲 신비한 보상
                 </div>
-                <div className="flex justify-between">
-                  <span>• 활동 보너스:</span>
-                  <span className="font-medium">{activityBonus.total.toLocaleString()}점</span>
+              )}
+              
+              {/* 애니메이션 중 표시 */}
+              {isCurrentlyAnimating && (
+                <div className="mt-3 p-3 bg-white rounded-lg border">
+                  <div className="text-xs text-gray-600 animate-pulse">
+                    보상 확인 중...
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>• 룰렛 보너스 ({totalSpins}회):</span>
-                  <span className="font-medium text-purple-600">+{totalBonusFromRoulette.toLocaleString()}점</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 사용한 티켓이 있을 때 결과 요약 */}
+      {boxResults.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-6 mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">🎯 선택 결과</h3>
+          <div className="space-y-3">
+            {boxResults.map((result, index) => (
+              <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200">
+                <div>
+                  <span className="font-medium">라운드 {result.round}: </span>
+                  <span className="text-sm text-gray-600">{result.result.description}</span>
                 </div>
-                <div className="border-t-2 border-gray-400 pt-2 mt-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>🏆 총 최종 점수:</span>
-                    <span className="text-indigo-600">
-                      {(gameSession.baseScore + activityBonus.total + totalBonusFromRoulette).toLocaleString()}점
-                    </span>
+                <span className="font-bold text-purple-600">
+                  → {result.points.toLocaleString()}점
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          {usedTickets === availableTickets && (
+            <div className="border-t-2 border-gray-400 pt-4 mt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold text-gray-800">🏆 최종 점수</span>
+                <span className="text-2xl font-bold text-indigo-600">
+                  {boxResults.length > 0 ? boxResults[boxResults.length - 1].points.toLocaleString() : gameSession.baseScore.toLocaleString()}점
+                </span>
+              </div>
+              <div className="text-center mt-4">
+                <div className="text-sm text-green-600 font-medium">
+                  ✅ 점수가 데이터베이스에 저장되었습니다!
+                </div>
+                {onComplete ? (
+                  <div className="text-xs text-gray-500 mt-1">
+                    모든 티켓을 사용했습니다. 3초 후 최종 결과 화면으로 이동합니다...
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 mt-1">
+                    모든 티켓을 사용했습니다. 룰렛이 완료되었습니다!
+                  </div>
+                )}
+                <div className="flex justify-center mt-2">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                    <div className="text-xs text-gray-500">
+                      게임을 완료하는 중...
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      )}
 
-            <div className="text-sm text-gray-500">
-              축하합니다! 잠시 후 최종 결과를 확인할 수 있습니다...
-            </div>
-          </div>
-        ) : (
-          <div className="text-8xl opacity-50">🎰</div>
-        )}
-      </div>
+      {/* 안내 메시지 */}
+      {usedTickets < availableTickets && (
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            🎯 상자를 선택하여 신비한 보상을 받아보세요! (라운드 {usedTickets + 1}/{availableTickets})
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            매 라운드마다 완전히 새로운 3가지 보상이 준비되어 있습니다
+          </p>
+        </div>
+      )}
     </div>
   );
 };

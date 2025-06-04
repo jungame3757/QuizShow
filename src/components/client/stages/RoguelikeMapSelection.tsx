@@ -258,39 +258,14 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
   const gameStats = useMemo(() => {
     if (!gameSession) return null;
     
-    const accuracy = gameSession.totalQuestions > 0 
-      ? Math.round((gameSession.correctAnswers / gameSession.totalQuestions) * 100)
-      : 0;
-    
     return {
       currentScore: gameSession.baseScore || 0,
       correctAnswers: gameSession.correctAnswers || 0,
       totalQuestions: gameSession.totalQuestions || 0,
-      accuracy,
       currentStreak: gameSession.currentStreak || 0,
       maxStreak: gameSession.maxStreak || 0,
       activityBonus: gameSession.activityBonus?.total || 0
     };
-  }, [gameSession]);
-
-  // 보유 아이템/버프 정보 계산
-  const activeBuffs = useMemo(() => {
-    if (!gameSession?.temporaryBuffs) return [];
-    
-    return gameSession.temporaryBuffs
-      .filter((buff: any) => buff.active)
-      .map((buff: any) => {
-        switch (buff.id) {
-          case 'PASSION_BUFF':
-            return { name: '🔥 열정', description: '연속 정답 보너스 × 2' };
-          case 'WISDOM_BUFF':
-            return { name: '🧠 지혜', description: '룰렛 완료 보너스 추가' };
-          case 'LUCK_BUFF':
-            return { name: '🍀 행운', description: '룰렛 고배수 확률 증가' };
-          default:
-            return { name: buff.name || '알 수 없음', description: buff.description || '' };
-        }
-      });
   }, [gameSession]);
 
   // initialPlayerPosition이 변경될 때마다 currentPlayerPosition 업데이트
@@ -445,34 +420,6 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
                 <div className="text-xs text-gray-600">연속 🔥</div>
               </div>
             </div>
-
-            {/* 보유 아이템/버프 표시 */}
-            {activeBuffs.length > 0 && (
-              <div className="border-t border-blue-200 pt-3">
-                <div className="text-xs text-gray-600 mb-2">🎒 보유 아이템</div>
-                <div className="flex flex-wrap gap-2">
-                  {activeBuffs.map((buff: any, index: number) => (
-                    <div 
-                      key={index}
-                      className="bg-gradient-to-r from-purple-100 to-indigo-100 px-3 py-2 rounded-full text-sm border border-purple-300 flex items-center gap-1"
-                      title={buff.description}
-                    >
-                      <span>{buff.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 버프가 없을 때 안내 메시지 */}
-            {activeBuffs.length === 0 && (
-              <div className="border-t border-blue-200 pt-3">
-                <div className="text-xs text-gray-600 mb-2">🎒 보유 아이템</div>
-                <div className="text-xs text-gray-400 italic">
-                  모닥불 스테이지에서 특별한 버프를 획득할 수 있습니다
-                </div>
-              </div>
-            )}
           </div>
         )}
 

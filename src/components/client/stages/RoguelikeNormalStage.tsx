@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Question } from '../../../types';
 import QuizQuestion from '../QuizQuestion';
 
@@ -25,6 +25,53 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
   const [showResult, setShowResult] = useState(false);
   const [serverValidationResult, setServerValidationResult] = useState<{ isCorrect: boolean; points: number } | null>(null);
 
+  // 선택지 섞기 시스템 추가
+  const [currentShuffledOptions, setCurrentShuffledOptions] = useState<{ options: string[], mapping: number[] } | null>(null);
+
+  // 선택지 순서 섞기 함수 (Fisher-Yates 알고리즘)
+  const shuffleCurrentQuestionOptions = (question: Question) => {
+    if (question.type !== 'multiple-choice' || !question.options) {
+      return null;
+    }
+    
+    const indices = Array.from({ length: question.options.length }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    
+    const shuffledOptions = indices.map(i => question.options![i]);
+    return { options: shuffledOptions, mapping: indices };
+  };
+
+  // 현재 문제 가져오기 (섞인 선택지 적용)
+  const getCurrentQuestion = () => {
+    if (!question) return null;
+    
+    // 객관식이고 섞인 선택지가 있는 경우에만 적용
+    if (question.type === 'multiple-choice' && currentShuffledOptions && question.options) {
+      const currentQuestionOptions = currentShuffledOptions.options;
+      const correctAnswerIndex = question.correctAnswer;
+      
+      // 원본 정답 인덱스를 섞인 UI 인덱스로 변환
+      let currentQuestionCorrectAnswer = correctAnswerIndex;
+      if (correctAnswerIndex !== undefined && currentShuffledOptions.mapping) {
+        currentQuestionCorrectAnswer = currentShuffledOptions.mapping.indexOf(correctAnswerIndex);
+      }
+      
+      return {
+        ...question,
+        options: currentQuestionOptions,
+        correctAnswer: currentQuestionCorrectAnswer,
+        // 원본 인덱스도 포함하여 참조 가능하도록
+        originalCorrectAnswer: correctAnswerIndex
+      };
+    }
+    
+    // 다른 문제 형식이거나 섞인 선택지가 없으면 원본 그대로 반환
+    return question;
+  };
+
   // 게임 상태 정보 계산
   const gameStats = React.useMemo(() => {
     if (!gameSession) return null;
@@ -38,44 +85,28 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
     };
   }, [gameSession]);
 
-  // 보유 아이템/버프 정보 계산
-  const activeBuffs = React.useMemo(() => {
-    if (!gameSession?.temporaryBuffs) return [];
+  // 문제가 바뀔 때마다 선택지 순서 섞기
+  useEffect(() => {
+    if (!question) return;
     
-    return gameSession.temporaryBuffs
-      .filter((buff: any) => buff.active)
-      .map((buff: any, index: number) => {
-        const stackCount = buff.stackCount || 1;
-        const stackText = stackCount > 1 ? ` x${stackCount}` : '';
-        
-        switch (buff.id) {
-          case 'PASSION_BUFF':
-            return { 
-              name: `🔥 열정${stackText}`, 
-              description: `연속 정답 보너스 × ${2 * stackCount}`,
-              stackCount 
-            };
-          case 'WISDOM_BUFF':
-            return { 
-              name: `🧠 지혜${stackText}`, 
-              description: `룰렛 완료 보너스 +${50 * stackCount}% 추가`,
-              stackCount 
-            };
-          case 'LUCK_BUFF':
-            return { 
-              name: `🍀 행운${stackText}`, 
-              description: `룰렛 고배수 확률 ${stackCount > 1 ? '크게 ' : ''}증가`,
-              stackCount 
-            };
-          default:
-            return { 
-              name: `${buff.name || '알 수 없음'}${stackText}`, 
-              description: buff.description || '',
-              stackCount 
-            };
-        }
-      });
-  }, [gameSession]);
+    const shuffledData = shuffleCurrentQuestionOptions(question);
+    setCurrentShuffledOptions(shuffledData);
+    
+    // 선택 상태 초기화
+    setSelectedAnswer(null);
+    setSelectedIndex(null);
+    setServerValidationResult(null);
+    setIsSubmitting(false);
+    setShowResult(false);
+    
+    console.log('일반 스테이지 - 선택지 섞기 완료:', {
+      questionNumber,
+      questionType: question.type,
+      originalOptions: question.options,
+      shuffledOptions: shuffledData?.options,
+      mapping: shuffledData?.mapping
+    });
+  }, [question, questionNumber]);
 
   // 주관식 답안 검증 함수
   const validateShortAnswer = (userAnswer: string, question: Question): boolean => {
@@ -111,18 +142,34 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
 
     // 문제 타입에 따라 선택된 답안 저장
     if (question.type === 'multiple-choice') {
-      setSelectedIndex(index);
+      // 원본 인덱스로 변환
+      let originalAnswerIndex = index;
+      if (currentShuffledOptions && currentShuffledOptions.mapping) {
+        originalAnswerIndex = currentShuffledOptions.mapping[index];
+      }
+      
+      setSelectedIndex(originalAnswerIndex);
       setSelectedAnswer(answer);
       setShowResult(true);
       
-      // 클라이언트 검증 (임시로 결과 표시용)
-      const isCorrect = index === question.correctAnswer;
+      // 클라이언트 검증 (임시로 결과 표시용) - 원본 인덱스 기준
+      const isCorrect = originalAnswerIndex === question.correctAnswer;
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
       
-      // 피드백을 2초간 보여준 후 서버로 답안 전송
+      console.log('일반 스테이지 - 객관식 답변 처리:', {
+        questionNumber,
+        questionId: question?.id,
+        userSelectedDisplayIndex: index,
+        originalAnswerIndex,
+        correctAnswerIndex: question.correctAnswer,
+        isCorrect,
+        mapping: currentShuffledOptions?.mapping
+      });
+      
+      // 피드백을 2초간 보여준 후 서버로 답안 전송 (원본 인덱스로)
       setTimeout(async () => {
         try {
-          await onAnswer(index);
+          await onAnswer(originalAnswerIndex);
         } catch (error) {
           console.error('답변 제출 실패:', error);
           setIsSubmitting(false);
@@ -138,6 +185,12 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       // 클라이언트 검증 (임시로 결과 표시용)
       const isCorrect = validateShortAnswer(answer, question);
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
+      
+      console.log('일반 스테이지 주관식 답변:', {
+        questionId: question?.id,
+        answer,
+        isCorrect,
+      });
       
       // 피드백을 2초간 보여준 후 서버로 답안 전송
       setTimeout(async () => {
@@ -197,24 +250,6 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
               <div className="text-xs text-gray-600">최대 🏆</div>
             </div>
           </div>
-
-          {/* 보유 아이템/버프 표시 */}
-          {activeBuffs.length > 0 && (
-            <div className="border-t border-blue-200 pt-3">
-              <div className="text-xs text-gray-600 mb-2">🎒 보유 아이템</div>
-              <div className="flex flex-wrap gap-2">
-                {activeBuffs.map((buff: any, index: number) => (
-                  <div 
-                    key={index}
-                    className="bg-white px-2 py-1 rounded-full text-xs border border-blue-300"
-                    title={buff.description}
-                  >
-                    {buff.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -247,13 +282,14 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
 
       {/* QuizQuestion 컴포넌트 사용 */}
       <QuizQuestion
-        question={question}
+        question={getCurrentQuestion() || question}
         selectedAnswer={selectedAnswer}
         selectedAnswerIndex={selectedIndex}
         onSelectAnswer={handleSelectAnswer}
         showResult={showResult}
         disabled={isSubmitting}
         serverValidationResult={serverValidationResult}
+        currentShuffledOptions={currentShuffledOptions}
       />
 
       {/* 안내 메시지 */}
@@ -261,6 +297,13 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
         <p className="text-sm text-gray-500">
           💡 정답을 맞춰서 보상 상자를 획득하세요!
         </p>
+        
+        {/* 디버그 정보 (개발 모드에서만) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-2 text-xs text-gray-400">
+            <p>현재 문제 ID: {question?.id || 'N/A'}</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { Trophy, Medal, User, RefreshCw, Award, LogOut, AlertTriangle, Share2, G
 import Button from '../ui/Button';
 import confetti from 'canvas-confetti';
 import { Quiz } from '../../types';
+import { rtdb } from '../../firebase/config'; // RTDB import 추가
 
 interface Answer {
   questionIndex: number;
@@ -38,6 +39,8 @@ interface QuizResultsProps {
   onResetQuiz?: () => void; // 퀴즈 다시 시작 함수 추가
   inviteCode?: string; // 초대 코드 추가
   canRetry?: boolean; // 퀴즈 재시도 가능 여부
+  sessionId?: string; // 세션 ID 추가
+  currentUserId?: string; // 현재 사용자 ID 추가
 }
 
 const QuizResults: React.FC<QuizResultsProps> = ({ 
@@ -47,12 +50,81 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   isLoadingRankings = false,
   onResetQuiz,
   inviteCode,
-  canRetry = true
+  canRetry = true,
+  sessionId,
+  currentUserId
 }) => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSuccess, setShowShareSuccess] = useState(false);
   const [rankingViewMode, setRankingViewMode] = useState<'top5' | 'around'>('top5');
+  
+  // RTDB에서 가져온 실제 데이터 상태
+  const [realTimeRankings, setRealTimeRankings] = useState<RankingParticipant[]>([]);
+  const [realTimeParticipant, setRealTimeParticipant] = useState<Participant>(participant);
+  const [isLoadingRealTimeData, setIsLoadingRealTimeData] = useState(false);
+  
+  // RTDB에서 참가자 정보 가져오기
+  useEffect(() => {
+    if (!sessionId) {
+      // sessionId가 없으면 기본 props 사용
+      setRealTimeRankings(rankings);
+      return;
+    }
+
+    const fetchParticipantsData = async () => {
+      setIsLoadingRealTimeData(true);
+      try {
+        const { ref, get } = await import('firebase/database');
+        const participantsRef = ref(rtdb, `participants/${sessionId}`);
+        const snapshot = await get(participantsRef);
+        
+        if (snapshot.exists()) {
+          const participantsData = snapshot.val();
+          console.log('RTDB 참가자 데이터:', participantsData);
+          
+          // 참가자들을 랭킹 형태로 변환
+          const participantsList: RankingParticipant[] = Object.entries(participantsData)
+            .map(([id, data]: [string, any]) => ({
+              id,
+              name: data.name || '익명',
+              score: data.score || 0,
+              isCurrentUser: id === currentUserId || id === participant.id
+            }))
+            .filter(p => p.score > 0 || p.isCurrentUser); // 점수가 0보다 크거나 현재 사용자인 경우만 포함
+          
+          setRealTimeRankings(participantsList);
+          
+          // 현재 사용자 정보 업데이트
+          const currentUserData = participantsData[currentUserId || participant.id];
+          if (currentUserData) {
+            setRealTimeParticipant({
+              ...participant,
+              score: currentUserData.score || participant.score,
+              nickname: currentUserData.name || participant.nickname
+            });
+          }
+          
+          console.log('실시간 랭킹 데이터 업데이트:', participantsList);
+        } else {
+          console.log('참가자 데이터가 없습니다. 기본 데이터 사용.');
+          setRealTimeRankings(rankings);
+        }
+      } catch (error) {
+        console.error('RTDB 참가자 데이터 가져오기 실패:', error);
+        setRealTimeRankings(rankings);
+      } finally {
+        setIsLoadingRealTimeData(false);
+      }
+    };
+
+    fetchParticipantsData();
+  }, [sessionId, currentUserId, participant, rankings]);
+  
+  // 사용할 데이터 결정 (RTDB 데이터가 있으면 우선 사용)
+  const activeRankings = realTimeRankings.length > 0 ? realTimeRankings : rankings;
+  const activeParticipant = realTimeParticipant;
+  const activeIsLoading = sessionId ? isLoadingRealTimeData : isLoadingRankings;
   
   // Calculate results
   const totalQuestions = quiz.questions.length;
@@ -60,7 +132,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   // 점수별로 정렬된 랭킹 계산 (동점자 처리 포함)
   const processedRankings = React.useMemo(() => {
     // 점수별로 내림차순 정렬
-    const sortedRankings = [...rankings].sort((a, b) => b.score - a.score);
+    const sortedRankings = [...activeRankings].sort((a, b) => b.score - a.score);
     
     // 동점자 처리를 위한 배열
     let result: (RankingParticipant & { rank: number })[] = [];
@@ -82,7 +154,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
     });
     
     return result;
-  }, [rankings]);
+  }, [activeRankings]);
   
   // 사용자 랭킹 찾기
   const userRankInfo = processedRankings.find(r => r.isCurrentUser);
@@ -124,9 +196,11 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   
   // 티어 결정 함수
   const getTierInfo = () => {
+    // 점수 기반 티어 계산에서 activeParticipant.score 사용
+    const score = activeParticipant.score;
+    
     // 참가자 수가 적을 경우 순위 기반 대신 점수 기반으로 티어 결정
-    if (rankings.length <= 3) {
-      const score = participant.score;
+    if (processedRankings.length <= 3) {
       const maxPossibleScore = totalQuestions * 100; // 예상 최대 점수
       const scorePercentage = maxPossibleScore > 0 ? (score / maxPossibleScore) * 100 : 0;
       
@@ -188,7 +262,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
     }
     
     // 순위 기반 티어
-    const rankPercentile = rankings.length > 0 ? (userRank / rankings.length) * 100 : 0;
+    const rankPercentile = processedRankings.length > 0 ? (userRank / processedRankings.length) * 100 : 0;
     const percentileText = `상위 ${Math.round(rankPercentile)}%`;
     
     if (rankPercentile <= 10 || userRank === 1) return { 
@@ -608,12 +682,12 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   // 퀴즈 결과 공유하기 함수
   const handleShareResults = async () => {
     // 퍼센트 순위 계산
-    const percentile = Math.round(((rankings.length - userRank + 1) / rankings.length) * 100);
+    const percentile = Math.round(((processedRankings.length - userRank + 1) / processedRankings.length) * 100);
     
     // 등급 계산 함수 - 실제 게임 티어 시스템과 동일하게 수정
     const getGrade = (_percentile: number, rank: number) => {
       // 실제 게임의 getTierInfo 로직과 동일하게 적용
-      const rankPercentile = rankings.length > 0 ? (rank / rankings.length) * 100 : 0;
+      const rankPercentile = processedRankings.length > 0 ? (rank / processedRankings.length) * 100 : 0;
       
       if (rankPercentile <= 10 || rank === 1) {
         return { grade: '다이아몬드', emoji: '💎', color: 'diamond', imagePath: '/og-images/diamond.png' };
@@ -635,7 +709,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
     // 초대 코드가 있으면 해당 코드 사용
     const shareInviteCode = inviteCode;
     
-    const shareText = `Score ${participant.score} by ${participant.nickname}]\n\n🎯 지금 도전하기!\n${window.location.origin}/join?code=${shareInviteCode}`.trim();
+    const shareText = `Score ${activeParticipant.score} by ${activeParticipant.nickname}]\n\n🎯 지금 도전하기!\n${window.location.origin}/join?code=${shareInviteCode}`.trim();
     
     // 티어별 이미지 가져오기 및 공유
     try {
@@ -735,7 +809,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
               {/* 사용자 닉네임 표시 좌측 상단으로 이동 */}
               <div className="inline-flex items-center bg-white bg-opacity-10 px-2 py-0.5 rounded-full text-xs">
                 <User size={12} className="text-teal-100 mr-0.5" />
-                <span className="text-teal-50">{participant.nickname}</span>
+                <span className="text-teal-50">{activeParticipant.nickname}</span>
               </div>
             </div>
             
@@ -746,7 +820,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
                   {tierInfo.icon}
                 </div>
               </div>
-              <div className="text-3xl font-bold">{participant.score}</div>
+              <div className="text-3xl font-bold">{activeParticipant.score}</div>
               <div className="text-lg font-medium text-teal-100">최종 점수</div>
               
               {/* 티어 표시 추가 - 퍼센타일 표시 */}
@@ -761,7 +835,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
                   <span>현재 </span>
                   <span className="ml-1 font-bold">{userRank}위</span>
                   <span className="mx-1">/ </span>
-                  <span>{rankings.length}명 중</span>
+                  <span>{processedRankings.length}명 중</span>
                 </div>
               )}
             </div>
@@ -782,7 +856,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
                 {rankingViewMode === 'top5' ? 'TOP 5' : '내 주변 랭킹'}
               </h3>
               <div className="flex items-center gap-2">
-                <div className="text-xs text-gray-500">총 {rankings.length}명 참가</div>
+                <div className="text-xs text-gray-500">총 {activeRankings.length}명 참가</div>
                 <div className="flex rounded-md overflow-hidden text-xs border border-teal-200">
                   <button 
                     onClick={() => setRankingViewMode('top5')}
@@ -804,14 +878,14 @@ const QuizResults: React.FC<QuizResultsProps> = ({
               </div>
             </div>
             
-            {isLoadingRankings ? (
+            {activeIsLoading ? (
               <div className="py-2 text-center">
                 <div className="animate-spin w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full mx-auto mb-1"></div>
                 <p className="text-gray-600 text-sm">랭킹 정보를 불러오는 중...</p>
               </div>
             ) : (
               <div className="space-y-1">
-                {rankings.length === 0 ? (
+                {processedRankings.length === 0 ? (
                   <p className="text-center text-gray-600 py-1 text-sm">참가자 정보가 없습니다</p>
                 ) : (
                   (rankingViewMode === 'top5' ? processedRankings.slice(0, 5) : aroundRankings).map((rank, index) => (

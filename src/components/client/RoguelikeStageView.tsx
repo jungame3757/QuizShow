@@ -15,10 +15,13 @@ interface RoguelikeStageViewProps {
   currentSession?: Session | null;
   participants?: Record<string, RealtimeParticipant>;
   totalStages: number;
-  onSubmitAnswer: (answerIndex?: number, answerText?: string, timeSpent?: number) => Promise<void>;
+  sessionId?: string; // RTDB 업데이트용
+  userId?: string; // RTDB 업데이트용
+  onSubmitAnswer: (answerIndex?: number, answerText?: string, timeSpent?: number, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer', timeSpent: number}>) => Promise<void>;
   onSelectBuff: (buffId: string) => void;
   onSpinRoulette: () => RouletteResult;
   onSelectRewardBox: (points: number) => void;
+  onGameComplete?: () => void;
 }
 
 const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
@@ -27,10 +30,13 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
   currentStage,
   currentQuestionIndex,
   totalStages,
+  sessionId,
+  userId,
   onSubmitAnswer,
   onSelectBuff,
   onSpinRoulette,
   onSelectRewardBox,
+  onGameComplete,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<number>(Date.now());
@@ -103,19 +109,24 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
       answer: string | number;
       isCorrect: boolean;
       questionType: 'multiple-choice' | 'short-answer';
+      timeSpent: number;
     } | null
   ) => {
     // 엘리트 스테이지 완료 처리 - 마지막 문제 답변 데이터도 함께 전달
+    const eliteAnswers = lastQuestionAnswerData ? [lastQuestionAnswerData] : undefined;
+    
     await onSubmitAnswer(
       success ? 1 : 0, 
       `엘리트 스테이지 ${success ? '성공' : '실패'}: ${correctCount}문제 정답`,
-      0
+      0,
+      eliteAnswers
     );
   };
 
   // 모닥불 스테이지 건너뛰기 핸들러
-  const handleCampfireSkip = async () => {
-    await onSubmitAnswer(undefined, "건너뛰기");
+  const handleCampfireSkip = () => {
+    // 데이터 저장 없이 바로 다음 스테이지(맵 선택)로 이동
+    onSubmitAnswer(-1, "CAMPFIRE_SKIP", 0); // 특별한 식별자로 건너뛰기 표시
   };
 
   // 진행률 계산
@@ -177,13 +188,7 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
               <RoguelikeCampfireStage
                 question={currentQuestion}
                 onAnswer={handleAnswer}
-                onSelectBuff={onSelectBuff}
                 onSkip={handleCampfireSkip}
-                onReward={(rewardType: 'health' | 'score' | 'streak') => {
-                  console.log('Selected reward:', rewardType);
-                  // 보상 타입에 따른 처리를 여기에 추가
-                  handleAnswer(undefined, `보상 선택: ${rewardType}`);
-                }}
                 gameSession={gameSession}
               />
             )}
@@ -195,6 +200,9 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
           <RoguelikeRouletteStage
             gameSession={gameSession}
             onSpinRoulette={onSpinRoulette}
+            sessionId={sessionId}
+            userId={userId}
+            onComplete={onGameComplete}
           />
         )}
       </div>

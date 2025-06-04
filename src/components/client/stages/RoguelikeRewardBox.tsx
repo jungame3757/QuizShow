@@ -17,7 +17,9 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
   onClose
 }) => {
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
+  const [selectedMultiplier, setSelectedMultiplier] = useState<any | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [finalRewardPoints, setFinalRewardPoints] = useState<number>(0);
 
   // 게임 상태 정보 계산
   const gameStats = React.useMemo(() => {
@@ -29,45 +31,6 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
     };
   }, [gameSession]);
 
-  // 보유 아이템/버프 정보 계산
-  const activeBuffs = React.useMemo(() => {
-    if (!gameSession?.temporaryBuffs) return [];
-    
-    return gameSession.temporaryBuffs
-      .filter((buff: any) => buff.active)
-      .map((buff: any) => {
-        const stackCount = buff.stackCount || 1;
-        const stackText = stackCount > 1 ? ` x${stackCount}` : '';
-        
-        switch (buff.id) {
-          case 'PASSION_BUFF':
-            return { 
-              name: `🔥 열정${stackText}`, 
-              description: `연속 정답 보너스 × ${2 * stackCount}`,
-              stackCount 
-            };
-          case 'WISDOM_BUFF':
-            return { 
-              name: `🧠 지혜${stackText}`, 
-              description: `룰렛 완료 보너스 +${50 * stackCount}% 추가`,
-              stackCount 
-            };
-          case 'LUCK_BUFF':
-            return { 
-              name: `🍀 행운${stackText}`, 
-              description: `룰렛 고배수 확률 ${stackCount > 1 ? '크게 ' : ''}증가`,
-              stackCount 
-            };
-          default:
-            return { 
-              name: `${buff.name || '알 수 없음'}${stackText}`, 
-              description: buff.description || '',
-              stackCount 
-            };
-        }
-      });
-  }, [gameSession]);
-
   // 스테이지별 보상 상자 설정
   const getBoxConfig = () => {
     switch (stageType) {
@@ -76,9 +39,24 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
           title: '일반 스테이지 클리어!',
           emoji: '🗡️',
           boxes: [
-            { points: 100, chance: '40%', color: 'bg-blue-100 border-blue-300' },
-            { points: 200, chance: '35%', color: 'bg-green-100 border-green-300' },
-            { points: 300, chance: '25%', color: 'bg-purple-100 border-purple-300' }
+            { 
+              minPoints: 80, 
+              maxPoints: 350, 
+              color: 'bg-blue-100 border-blue-300',
+              label: '상자 1' 
+            },
+            { 
+              minPoints: 80, 
+              maxPoints: 350, 
+              color: 'bg-green-100 border-green-300',
+              label: '상자 2' 
+            },
+            { 
+              minPoints: 80, 
+              maxPoints: 350, 
+              color: 'bg-purple-100 border-purple-300',
+              label: '상자 3' 
+            }
           ]
         };
       case 'elite':
@@ -86,55 +64,122 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
           title: '엘리트 스테이지 클리어!',
           emoji: '⚔️',
           boxes: [
-            { points: 300, chance: '40%', color: 'bg-orange-100 border-orange-300' },
-            { points: 600, chance: '35%', color: 'bg-red-100 border-red-300' },
-            { points: 800, chance: '25%', color: 'bg-purple-100 border-purple-300' }
+            { 
+              minPoints: 250, 
+              maxPoints: 1000, 
+              color: 'bg-orange-100 border-orange-300',
+              label: '상자 1' 
+            },
+            { 
+              minPoints: 250, 
+              maxPoints: 1000, 
+              color: 'bg-red-100 border-red-300',
+              label: '상자 2' 
+            },
+            { 
+              minPoints: 250, 
+              maxPoints: 1000, 
+              color: 'bg-purple-100 border-purple-300',
+              label: '상자 3' 
+            }
           ]
         };
       case 'campfire':
         return {
           title: '모닥불 스테이지 완료!',
           emoji: '🔥',
-          boxes: [
-            { points: 50, chance: '50%', color: 'bg-yellow-100 border-yellow-300' },
-            { points: 100, chance: '30%', color: 'bg-orange-100 border-orange-300' },
-            { points: 150, chance: '20%', color: 'bg-red-100 border-red-300' }
-          ]
+          isMultiplier: true, // 곱셈 방식 표시
+          multiplierBoxes: getCampfireMultiplierBoxes()
         };
       default:
         return {
           title: '스테이지 클리어!',
           emoji: '🎉',
           boxes: [
-            { points: 50, chance: '50%', color: 'bg-gray-100 border-gray-300' },
-            { points: 100, chance: '30%', color: 'bg-blue-100 border-blue-300' },
-            { points: 150, chance: '20%', color: 'bg-purple-100 border-purple-300' }
+            { 
+              minPoints: 30, 
+              maxPoints: 180, 
+              color: 'bg-gray-100 border-gray-300',
+              label: '상자 1' 
+            },
+            { 
+              minPoints: 30, 
+              maxPoints: 180, 
+              color: 'bg-blue-100 border-blue-300',
+              label: '상자 2' 
+            },
+            { 
+              minPoints: 30, 
+              maxPoints: 180, 
+              color: 'bg-purple-100 border-purple-300',
+              label: '상자 3' 
+            }
           ]
         };
     }
   };
 
+  // 모닥불 곱셈 보상 박스 생성
+  const getCampfireMultiplierBoxes = () => {
+    // 기본 보상 박스들 (모두 곱셈 방식, 0.8~2배 범위)
+    const baseBoxes = [
+      { id: 1, multiplier: 0.8, description: '현재 점수 × 0.8배' },
+      { id: 2, multiplier: 0.9, description: '현재 점수 × 0.9배' },
+      { id: 3, multiplier: 1.1, description: '현재 점수 × 1.1배' },
+      { id: 4, multiplier: 1.2, description: '현재 점수 × 1.2배' },
+      { id: 5, multiplier: 1.3, description: '현재 점수 × 1.3배' },
+      { id: 6, multiplier: 1.4, description: '현재 점수 × 1.4배' },
+      { id: 7, multiplier: 1.5, description: '현재 점수 × 1.5배' },
+      { id: 8, multiplier: 1.6, description: '현재 점수 × 1.6배' },
+      { id: 9, multiplier: 1.8, description: '현재 점수 × 1.8배' },
+      { id: 10, multiplier: 2.0, description: '현재 점수 × 2.0배' }
+    ];
+
+    // 3개의 랜덤 박스 선택
+    const shuffled = [...baseBoxes].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3).map((box, index) => ({
+      ...box,
+      id: index + 1,
+      label: `보상 ${index + 1}`,
+      color: 'bg-orange-100 border-orange-300'
+    }));
+  };
+
   const config = getBoxConfig();
 
-  const handleBoxSelect = (points: number, boxIndex: number) => {
-    if (selectedBox !== null) return;
+  const handleBoxSelect = (boxIndex: number) => {
+    if (selectedBox !== null || config.isMultiplier) return;
     
     setSelectedBox(boxIndex);
     setIsAnimating(true);
     
+    // 랜덤 점수 계산 (한 번만 계산하여 고정)
+    const box = config.boxes![boxIndex];
+    const randomPoints = Math.floor(Math.random() * (box.maxPoints - box.minPoints + 1)) + box.minPoints;
+    setFinalRewardPoints(randomPoints);
+    
     // 애니메이션 후 콜백 실행
     setTimeout(() => {
-      onBoxSelect(points);
+      onBoxSelect(randomPoints);
     }, 2000);
   };
 
-  // 실제 보상 포인트 계산 (확률 기반)
-  const getActualReward = (boxIndex: number) => {
-    const random = Math.random();
-    const boxes = config.boxes;
+  const handleMultiplierSelect = (multiplierIndex: number) => {
+    if (selectedMultiplier !== null || !config.isMultiplier) return;
     
-    // 선택한 상자의 포인트 반환 (실제로는 랜덤이지만 UI상으로는 선택한 것처럼)
-    return boxes[boxIndex].points;
+    setSelectedMultiplier(config.multiplierBoxes![multiplierIndex]);
+    setIsAnimating(true);
+    
+    // 현재 점수에 배수 적용
+    const currentScore = gameStats?.currentScore || 0;
+    const multiplier = config.multiplierBoxes![multiplierIndex].multiplier;
+    const newScore = Math.floor(currentScore * multiplier);
+    setFinalRewardPoints(newScore);
+    
+    // 애니메이션 후 콜백 실행 (곱셈 결과 전달)
+    setTimeout(() => {
+      onBoxSelect(newScore);
+    }, 2000);
   };
 
   // 모달이 열려있지 않으면 렌더링하지 않음
@@ -173,29 +218,6 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
                     <div className="text-xs text-gray-600">연속 🔥</div>
                   </div>
                 </div>
-
-                {/* 보유 아이템/버프 표시 */}
-                {activeBuffs.length > 0 && (
-                  <div className="border-t border-orange-200 pt-3 mt-3">
-                    <div className="text-xs text-gray-600 mb-2">🎒 보유 아이템</div>
-                    <div className="flex flex-wrap gap-2">
-                      {activeBuffs.map((buff, index) => (
-                        <div 
-                          key={index}
-                          className="bg-gradient-to-r from-purple-100 to-pink-100 px-3 py-1 rounded-full text-xs border border-purple-300 shadow-sm"
-                          title={buff.description}
-                        >
-                          {buff.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {activeBuffs.length === 0 && (
-                  <div className="border-t border-orange-200 pt-3 mt-3">
-                    <div className="text-xs text-gray-500 text-center">아직 보유한 아이템이 없습니다</div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -204,74 +226,122 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
               <div className="text-4xl mb-2">{config.emoji}</div>
               <h2 className="text-xl font-bold text-gray-800 mb-1">{config.title}</h2>
               <p className="text-sm text-gray-600">
-                보상 상자를 선택하여 추가 점수를 획득하세요!
+                {config.isMultiplier ? '점수 곱셈 보상을 선택하세요!' : '보상 상자를 선택하여 추가 점수를 획득하세요!'}
               </p>
             </div>
           </div>
 
           {/* 모달 본문 */}
           <div className="p-6">
-            {/* 보상 상자들 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {config.boxes.map((box, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleBoxSelect(box.points, index)}
-                  disabled={selectedBox !== null}
-                  className={`relative p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
-                    selectedBox === index
-                      ? `${box.color} scale-105 ring-4 ring-yellow-300`
-                      : selectedBox !== null
-                      ? 'opacity-50 scale-95'
-                      : `${box.color} hover:scale-110 hover:shadow-lg`
-                  }`}
-                >
-                  {/* 상자 아이콘 */}
-                  <div className="text-3xl mb-2">
-                    {selectedBox === index && isAnimating ? '✨' : '📦'}
-                  </div>
-                  
-                  {/* 상자 정보 */}
-                  <div className="text-lg font-bold text-gray-800 mb-1">
-                    상자 {index + 1}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    확률: {box.chance}
-                  </div>
-                  
-                  {/* 선택된 상자의 결과 표시 */}
-                  {selectedBox === index && (
-                    <div className="mt-3 p-2 bg-white rounded-lg">
-                      <div className="text-xl font-bold text-green-600">
-                        +{getActualReward(index)}점!
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        {isAnimating ? '보상 적용 중...' : '보상 적용됨!'}
-                      </div>
+            {/* 곱셈 보상 선택 (모닥불 스테이지) */}
+            {config.isMultiplier && config.multiplierBoxes && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {config.multiplierBoxes.map((multiplier, index) => (
+                  <button
+                    key={multiplier.id}
+                    onClick={() => handleMultiplierSelect(index)}
+                    disabled={selectedMultiplier !== null}
+                    className={`relative p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
+                      selectedMultiplier === multiplier
+                        ? `${multiplier.color} scale-105 ring-4 ring-orange-300`
+                        : selectedMultiplier !== null
+                        ? 'opacity-50 scale-95'
+                        : `${multiplier.color} hover:scale-110 hover:shadow-lg`
+                    }`}
+                  >
+                    {/* 보상 아이콘 */}
+                    <div className="text-3xl mb-2">
+                      {selectedMultiplier === multiplier && isAnimating ? '✨' : '🎁'}
                     </div>
-                  )}
-                </button>
-              ))}
-            </div>
+                    
+                    {/* 보상 정보 */}
+                    <div className="text-lg font-bold text-gray-800 mb-2">
+                      {multiplier.label}
+                    </div>
+                    
+                    {/* 선택 전에는 신비한 보상으로 표시, 선택 후에만 실제 배수 공개 */}
+                    {selectedMultiplier !== multiplier && (
+                      <div className="text-sm text-gray-600 mb-3">
+                        🎲 신비한 배수 보상
+                      </div>
+                    )}
 
-            {/* 확률 정보 */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-bold text-gray-800 mb-3 text-sm">💡 보상 확률 정보</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                {config.boxes.map((box, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span>{box.points}점</span>
-                    <span className="text-gray-600">{box.chance}</span>
-                  </div>
+                    {/* 선택된 상자가 아니고 아직 선택하지 않은 경우 예상 결과 점수 숨김 */}
+                    {selectedMultiplier === null && (
+                      <div className="text-xs text-gray-500">
+                        현재 점수: {(gameStats?.currentScore || 0).toLocaleString()}점
+                      </div>
+                    )}
+                    
+                    {/* 선택 결과 표시 (선택된 상자만) */}
+                    {selectedMultiplier === multiplier && (
+                      <div className="mt-3 p-2 bg-white rounded-lg">
+                        <div className="text-lg font-bold text-orange-600 mb-1">
+                          🎉 {multiplier.description}
+                        </div>
+                        <div className="text-sm font-bold text-green-600">
+                          {gameStats?.currentScore.toLocaleString()}점 → {finalRewardPoints.toLocaleString()}점
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {isAnimating ? '보상 적용 중...' : '보상 적용됨!'}
+                        </div>
+                      </div>
+                    )}
+                  </button>
                 ))}
               </div>
-            </div>
+            )}
+
+            {/* 보상 상자들 (일반/엘리트 스테이지) */}
+            {!config.isMultiplier && config.boxes && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {config.boxes.map((box, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleBoxSelect(index)}
+                    disabled={selectedBox !== null}
+                    className={`relative p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
+                      selectedBox === index
+                        ? `${box.color} scale-105 ring-4 ring-yellow-300`
+                        : selectedBox !== null
+                        ? 'opacity-50 scale-95'
+                        : `${box.color} hover:scale-110 hover:shadow-lg`
+                    }`}
+                  >
+                    {/* 상자 아이콘 */}
+                    <div className="text-3xl mb-2">
+                      {selectedBox === index && isAnimating ? '✨' : '📦'}
+                    </div>
+                    
+                    {/* 상자 정보 */}
+                    <div className="text-lg font-bold text-gray-800 mb-1">
+                      {box.label}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {box.minPoints} ~ {box.maxPoints}점
+                    </div>
+                    
+                    {/* 선택된 상자의 결과 표시 */}
+                    {selectedBox === index && (
+                      <div className="mt-3 p-2 bg-white rounded-lg">
+                        <div className="text-xl font-bold text-green-600">
+                          +{finalRewardPoints}점!
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {isAnimating ? '보상 적용 중...' : '보상 적용됨!'}
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* 선택 안내 */}
-            {selectedBox === null && (
+            {selectedBox === null && selectedMultiplier === null && (
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-500">
-                  🎯 상자를 선택하여 보상을 받아보세요!
+                  🎯 {config.isMultiplier ? '곱셈 보상을 선택하여 점수를 늘려보세요!' : '상자를 선택하여 보상을 받아보세요!'}
                 </p>
               </div>
             )}
