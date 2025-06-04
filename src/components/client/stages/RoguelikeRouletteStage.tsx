@@ -211,89 +211,95 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
     const ticketsToShow = calculateTickets();
     
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-8">
+      <div className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-purple-500/30 backdrop-blur-sm relative overflow-hidden">
+        {/* 네온 글로우 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-cyan-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
+        <div className="absolute top-4 right-4 w-3 h-3 bg-purple-400 rounded-full animate-pulse"></div>
+        <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+        
+        <div className="relative z-10">
         {/* 스테이지 헤더 */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🎫</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">룰렛 티켓 - 활동 보너스 계산!</h2>
-          <p className="text-gray-600">
-            모험을 완주하신 것을 축하합니다! 활동 보너스를 티켓으로 교환합니다.
+            <div className="text-6xl mb-4 drop-shadow-[0_0_25px_rgba(168,85,247,0.8)]">🎰</div>
+            <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 카지노 - 활동 보너스 계산!</h2>
+            <p className="text-purple-300 text-lg">
+              우주 모험을 완주하신 것을 축하합니다! 활동 보너스를 카지노 토큰으로 교환합니다.
           </p>
         </div>
 
         {/* 활동 보너스 상세 내역 */}
-        <div className="bg-gray-50 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-bold text-gray-800 mb-6">📊 활동 보너스 내역</h3>
+          <div className="bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-6 mb-8 border border-purple-400/30 backdrop-blur-sm">
+            <h3 className="text-xl font-bold text-purple-400 mb-6 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">🌌 활동 보너스 내역</h3>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
+              <div className="flex items-center justify-between py-2 border-b border-gray-600/50">
               <div className="flex items-center space-x-2">
                 <span>✅</span>
-                <span>정답 개수 보너스</span>
-                <span className="text-sm text-gray-500">({gameSession.correctAnswers}개 × 50점)</span>
+                  <span className="text-cyan-300">정답 개수 보너스</span>
+                  <span className="text-sm text-gray-400">({gameSession.correctAnswers}개 × 50점)</span>
               </div>
-              <span className="font-bold text-indigo-600">+{activityBonus.correctAnswerBonus}점</span>
+                <span className="font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">+{activityBonus.correctAnswerBonus}점</span>
             </div>
             
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
+              <div className="flex items-center justify-between py-2 border-b border-gray-600/50">
               <div className="flex items-center space-x-2">
                 <span>🔥</span>
-                <span>연속 정답 보너스</span>
-                <span className="text-sm text-gray-500">({gameSession.maxStreak}연속 × 30점)</span>
+                  <span className="text-orange-300">연속 정답 보너스</span>
+                  <span className="text-sm text-gray-400">({gameSession.maxStreak}연속 × 30점)</span>
               </div>
-              <span className="font-bold text-orange-600">+{activityBonus.streakBonus}점</span>
+                <span className="font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">+{activityBonus.streakBonus}점</span>
             </div>
             
             {activityBonus.speedBonus > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                <div className="flex items-center justify-between py-2 border-b border-gray-600/50">
                 <div className="flex items-center space-x-2">
                   <span>⚡</span>
-                  <span>빠른 답변 보너스</span>
-                  <span className="text-sm text-gray-500">(평균 {Math.round(gameSession.averageAnswerTime)}초)</span>
+                    <span className="text-yellow-300">빠른 답변 보너스</span>
+                    <span className="text-sm text-gray-400">(평균 {Math.round(gameSession.averageAnswerTime)}초)</span>
+                  </div>
+                  <span className="font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]">+{activityBonus.speedBonus}점</span>
                 </div>
-                <span className="font-bold text-yellow-600">+{activityBonus.speedBonus}점</span>
+              )}
+              
+              {activityBonus.participationBonus > 0 && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-600/50">
+                  <div className="flex items-center space-x-2">
+                    <span>💬</span>
+                    <span className="text-green-300">의견 참여 보너스</span>
+                  </div>
+                  <span className="font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">+{activityBonus.participationBonus}점</span>
               </div>
             )}
             
-            {activityBonus.participationBonus > 0 && (
-              <div className="flex items-center justify-between py-2 border-b border-gray-200">
+              <div className="flex items-center justify-between py-2 border-b border-gray-600/50">
                 <div className="flex items-center space-x-2">
-                  <span>💬</span>
-                  <span>의견 참여 보너스</span>
+                  <span>🏆</span>
+                  <span className="text-purple-300">완주 보너스</span>
                 </div>
-                <span className="font-bold text-green-600">+{activityBonus.participationBonus}점</span>
+                <span className="font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">+{activityBonus.completionBonus}점</span>
               </div>
-            )}
-            
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
-              <div className="flex items-center space-x-2">
-                <span>🏆</span>
-                <span>완주 보너스</span>
-              </div>
-              <span className="font-bold text-purple-600">+{activityBonus.completionBonus}점</span>
             </div>
-          </div>
           
-          <div className="border-t-2 border-gray-400 pt-4 mt-6">
+            <div className="border-t-2 border-purple-400/50 pt-4 mt-6">
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold text-gray-800">💰 활동 보너스 총합</span>
-              <span className="text-2xl font-bold text-indigo-600">{activityBonus.total.toLocaleString()}점</span>
+                <span className="text-xl font-bold text-white">💰 활동 보너스 총합</span>
+                <span className="text-3xl font-bold text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)]">{activityBonus.total.toLocaleString()}점</span>
             </div>
           </div>
         </div>
 
         {/* 티켓 교환 안내 */}
-        <div className="bg-yellow-50 rounded-lg p-4 mb-8">
+          <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl p-4 mb-8 border border-yellow-400/30 backdrop-blur-sm">
           <div className="flex items-start space-x-2">
-            <div className="text-yellow-600">🎫</div>
+              <div className="text-yellow-400 text-2xl drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]">🎰</div>
             <div>
-              <h4 className="font-medium text-yellow-800 mb-1">
-                룰렛 티켓 {ticketsToShow}장을 획득했습니다!
+                <h4 className="font-medium text-yellow-300 mb-1 text-lg">
+                  우주 카지노 토큰 {ticketsToShow}개를 획득했습니다!
               </h4>
-              <p className="text-sm text-yellow-700">
-                활동 보너스 {activityBonus.total.toLocaleString()}점 ÷ 500점 = {ticketsToShow}장의 티켓
-                <br />각 티켓마다 새로운 3개의 상자가 제공되며, 현재 점수에 다양한 효과를 적용할 수 있습니다.
-                <br />※ 보너스 점수는 실제 점수에 반영되지 않으며, 티켓 계산용입니다.
+                <p className="text-sm text-yellow-200">
+                  활동 보너스 {activityBonus.total.toLocaleString()}점 ÷ 500점 = {ticketsToShow}개의 토큰
+                  <br />각 토큰마다 새로운 3개의 신비한 상자가 제공되며, 현재 점수에 다양한 효과를 적용할 수 있습니다.
+                  <br />※ 보너스 점수는 실제 점수에 반영되지 않으며, 토큰 계산용입니다.
               </p>
             </div>
           </div>
@@ -304,28 +310,39 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
           <button
             onClick={handleStartRoulette}
             disabled={ticketsToShow === 0}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-6 rounded-3xl font-bold text-xl 
+                       hover:from-purple-500 hover:to-pink-500 transition-all transform hover:scale-105 
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                       border border-purple-400/30 backdrop-blur-sm
+                       drop-shadow-[0_0_20px_rgba(168,85,247,0.5)] hover:drop-shadow-[0_0_30px_rgba(168,85,247,0.8)]"
           >
-            {ticketsToShow > 0 ? `🎫 룰렛 상자 선택하기 (${ticketsToShow}장)` : '🎫 티켓이 부족합니다'}
+              {ticketsToShow > 0 ? `🎰 우주 카지노 입장 (${ticketsToShow}토큰)` : '🎰 토큰이 부족합니다'}
           </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8">
+    <div className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-purple-500/30 backdrop-blur-sm relative overflow-hidden">
+      {/* 네온 글로우 효과 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-cyan-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
+      <div className="absolute top-4 right-4 w-3 h-3 bg-purple-400 rounded-full animate-pulse"></div>
+      <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+      
+      <div className="relative z-10">
       {/* 스테이지 헤더 */}
       <div className="text-center mb-8">
-        <div className="text-4xl mb-4">🎰</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">룰렛 상자 선택</h2>
-        <p className="text-gray-600">
-          매 라운드마다 새로운 3개의 상자가 제공됩니다!
+          <div className="text-6xl mb-4 drop-shadow-[0_0_25px_rgba(168,85,247,0.8)]">🎰</div>
+          <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 카지노 상자 선택</h2>
+          <p className="text-purple-300 text-lg">
+            매 라운드마다 새로운 3개의 신비한 상자가 제공됩니다!
         </p>
-        <div className="mt-4 text-lg font-bold text-purple-600">
-          🎫 라운드: {usedTickets + 1} / {availableTickets} (남은 티켓: {availableTickets - usedTickets}장)
+          <div className="mt-4 text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">
+            🎰 라운드: {usedTickets + 1} / {availableTickets} (남은 토큰: {availableTickets - usedTickets}개)
         </div>
-        <div className="mt-2 text-sm text-gray-600">
+          <div className="mt-2 text-sm text-cyan-300">
           현재 점수: {boxResults.length > 0 ? boxResults[boxResults.length - 1].points.toLocaleString() : gameSession.baseScore.toLocaleString()}점
         </div>
       </div>
@@ -338,39 +355,39 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
           
           return (
             <button
-              key={`round-${usedTickets + 1}-box-${index}`} // 라운드별로 고유한 key
+                key={`round-${usedTickets + 1}-box-${index}`}
               onClick={() => handleBoxSelect(boxId)}
               disabled={usedTickets >= availableTickets || isAnimating}
-              className={`relative p-6 rounded-xl border-2 transition-all transform hover:scale-105 ${
+                className={`relative p-8 rounded-2xl border-2 transition-all transform hover:scale-105 ${
                 isCurrentlyAnimating
-                  ? `${box.color} scale-105 ring-4 ring-purple-300`
+                    ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-purple-400 scale-105 ring-4 ring-purple-300/50'
                   : usedTickets >= availableTickets
-                  ? 'opacity-50 scale-95 cursor-not-allowed'
-                  : `${box.color} hover:scale-110 hover:shadow-lg`
-              }`}
+                    ? 'opacity-50 scale-95 cursor-not-allowed bg-gradient-to-br from-gray-600/20 to-gray-700/20 border-gray-500/30'
+                    : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 border-cyan-400/50 hover:scale-110 hover:border-purple-400/70 hover:bg-gradient-to-br hover:from-purple-500/20 hover:to-pink-500/20'
+                } backdrop-blur-sm`}
             >
               {/* 상자 아이콘 */}
-              <div className="text-4xl mb-3">
-                {isCurrentlyAnimating ? '✨' : '📦'}
+                <div className="text-5xl mb-4">
+                  {isCurrentlyAnimating ? <span className="animate-spin">✨</span> : '📦'}
               </div>
               
               {/* 상자 정보 */}
-              <div className="text-lg font-bold text-gray-800 mb-2">
+                <div className="text-xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
                 상자 {boxId}
               </div>
               
               {/* 보상 내용은 가림 - 선택 전에는 보여주지 않음 */}
               {!isCurrentlyAnimating && (
-                <div className="text-sm text-gray-600">
-                  🎲 신비한 보상
+                  <div className="text-sm text-cyan-300">
+                    🌌 신비한 우주 보상
                 </div>
               )}
               
               {/* 애니메이션 중 표시 */}
               {isCurrentlyAnimating && (
-                <div className="mt-3 p-3 bg-white rounded-lg border">
-                  <div className="text-xs text-gray-600 animate-pulse">
-                    보상 확인 중...
+                  <div className="mt-3 p-3 bg-purple-500/20 rounded-lg border border-purple-400/30 backdrop-blur-sm">
+                    <div className="text-xs text-purple-300 animate-pulse">
+                      우주 보상 확인 중...
                   </div>
                 </div>
               )}
@@ -379,18 +396,18 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
         })}
       </div>
 
-      {/* 사용한 티켓이 있을 때 결과 요약 */}
+        {/* 사용한 토큰이 있을 때 결과 요약 */}
       {boxResults.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">🎯 선택 결과</h3>
+          <div className="bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-6 mb-6 border border-purple-400/30 backdrop-blur-sm">
+            <h3 className="text-xl font-bold text-purple-400 mb-4 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">🌟 선택 결과</h3>
           <div className="space-y-3">
             {boxResults.map((result, index) => (
-              <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200">
+                <div key={index} className="flex justify-between items-center py-2 border-b border-gray-600/50">
                 <div>
-                  <span className="font-medium">라운드 {result.round}: </span>
-                  <span className="text-sm text-gray-600">{result.result.description}</span>
+                    <span className="font-medium text-cyan-300">라운드 {result.round}: </span>
+                    <span className="text-sm text-gray-300">{result.result.description}</span>
                 </div>
-                <span className="font-bold text-purple-600">
+                  <span className="font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">
                   → {result.points.toLocaleString()}점
                 </span>
               </div>
@@ -398,31 +415,31 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
           </div>
           
           {usedTickets === availableTickets && (
-            <div className="border-t-2 border-gray-400 pt-4 mt-4">
+              <div className="border-t-2 border-purple-400/50 pt-4 mt-4">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-gray-800">🏆 최종 점수</span>
-                <span className="text-2xl font-bold text-indigo-600">
+                  <span className="text-xl font-bold text-white">🏆 최종 점수</span>
+                  <span className="text-3xl font-bold text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]">
                   {boxResults.length > 0 ? boxResults[boxResults.length - 1].points.toLocaleString() : gameSession.baseScore.toLocaleString()}점
                 </span>
               </div>
               <div className="text-center mt-4">
-                <div className="text-sm text-green-600 font-medium">
-                  ✅ 점수가 데이터베이스에 저장되었습니다!
+                  <div className="text-sm text-green-400 font-medium drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">
+                    ✅ 점수가 우주 데이터베이스에 저장되었습니다!
                 </div>
                 {onComplete ? (
-                  <div className="text-xs text-gray-500 mt-1">
-                    모든 티켓을 사용했습니다. 3초 후 최종 결과 화면으로 이동합니다...
+                    <div className="text-xs text-cyan-300 mt-1">
+                      모든 토큰을 사용했습니다. 3초 후 최종 결과 화면으로 이동합니다...
                   </div>
                 ) : (
-                  <div className="text-xs text-gray-500 mt-1">
-                    모든 티켓을 사용했습니다. 룰렛이 완료되었습니다!
+                    <div className="text-xs text-cyan-300 mt-1">
+                      모든 토큰을 사용했습니다. 우주 카지노가 완료되었습니다!
                   </div>
                 )}
                 <div className="flex justify-center mt-2">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mx-auto mb-2"></div>
-                    <div className="text-xs text-gray-500">
-                      게임을 완료하는 중...
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400 mx-auto mb-2"></div>
+                      <div className="text-xs text-cyan-300">
+                        우주 여행을 완료하는 중...
                     </div>
                   </div>
                 </div>
@@ -435,14 +452,15 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
       {/* 안내 메시지 */}
       {usedTickets < availableTickets && (
         <div className="text-center">
-          <p className="text-sm text-gray-500">
-            🎯 상자를 선택하여 신비한 보상을 받아보세요! (라운드 {usedTickets + 1}/{availableTickets})
+            <p className="text-sm text-cyan-300">
+              🌌 상자를 선택하여 신비한 우주 보상을 받아보세요! (라운드 {usedTickets + 1}/{availableTickets})
           </p>
-          <p className="text-xs text-gray-400 mt-1">
-            매 라운드마다 완전히 새로운 3가지 보상이 준비되어 있습니다
+            <p className="text-xs text-purple-300 mt-1">
+              매 라운드마다 완전히 새로운 3가지 우주 보상이 준비되어 있습니다
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 };

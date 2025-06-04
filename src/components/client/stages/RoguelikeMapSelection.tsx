@@ -13,6 +13,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { Sparkle } from 'lucide-react';
 import { PathChoice, MapPathType, RoguelikeStage, RoguelikeGameSession, RouletteResult } from '../../../types/roguelike';
 
 // 커스텀 노드 컴포넌트
@@ -24,11 +25,49 @@ const StartNode = ({ data }: { data: any }) => {
   return (
     <div className="relative">
       <Handle type="source" position={Position.Top} className="w-3 h-3 bg-green-500 border-2 border-white invisible" /> 
+      {/* 별자리 별처럼 빛나는 효과 */}
+      <div className="absolute inset-0 w-16 h-16 bg-gradient-to-r from-cyan-400/30 to-blue-400/30 rounded-full animate-pulse"></div>
+      <div className="absolute inset-1 w-14 h-14 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-full animate-ping"></div>
+      
       <div 
-        className={`w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-full shadow-lg border-3 border-green-300 flex items-center justify-center ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`relative w-16 h-16 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-full shadow-[0_0_30px_rgba(34,211,238,0.8)] border-2 border-cyan-300/50 flex items-center justify-center transform transition-all duration-300 overflow-hidden shimmer-start-node ${isClickable ? 'cursor-pointer hover:scale-110 hover:shadow-[0_0_40px_rgba(34,211,238,1)]' : 'cursor-default'}`}
+        style={{
+          boxShadow: '0 0 30px rgba(34, 211, 238, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.2)'
+        }}
         onClick={() => { if (isClickable && onClick) onClick(); }}
       >
-        <div className="text-3xl">🚀</div>
+        <div className="text-3xl drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">🚀</div>
+        
+        {/* 고급 별빛 효과 */}
+        <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+          {Array.from({ length: 6 }).map((_, i) => {
+            const positions = [
+              { top: '10%', left: '20%', size: 8, delay: 0 },
+              { top: '80%', left: '15%', size: 6, delay: 0.5 },
+              { top: '25%', right: '20%', size: 10, delay: 1 },
+              { top: '70%', right: '25%', size: 4, delay: 1.5 },
+              { top: '50%', left: '10%', size: 5, delay: 2 },
+              { top: '60%', right: '10%', size: 7, delay: 2.5 }
+            ];
+            const pos = positions[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-advanced"
+                style={{
+                  ...pos,
+                  animationDelay: `${pos.delay}s`,
+                  animationDuration: '3s'
+                }}
+              >
+                <Sparkle 
+                  size={pos.size} 
+                  className="text-white opacity-90" 
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -38,10 +77,38 @@ const StageNode = ({ data }: { data: any }) => {
   const { stageType = 'normal', isActive = false, isCompleted = false, isFailed = false, onClick, label, isClickable: dataIsClickable } = data;
   const getStageInfo = (type: string) => {
     switch (type) {
-      case 'elite': return { icon: '⚔️', title: '엘리트', bgClass: 'from-red-400 to-red-600', borderClass: 'border-red-300' };
-      case 'campfire': return { icon: '🔥', title: '모닥불', bgClass: 'from-orange-400 to-orange-600', borderClass: 'border-orange-300' };
-      case 'roulette': return { icon: '🎰', title: '룰렛', bgClass: 'from-purple-400 to-purple-600', borderClass: 'border-purple-300' };
-      default: return { icon: '🗡️', title: '일반', bgClass: 'from-gray-400 to-gray-600', borderClass: 'border-gray-300' };
+      case 'elite': return { 
+        icon: '⚔️', 
+        title: '엘리트', 
+        bgClass: 'from-red-400 to-pink-500', 
+        borderClass: 'border-red-300/50',
+        glowColor: 'rgba(239, 68, 68, 0.8)',
+        starColor: 'bg-red-200'
+      };
+      case 'campfire': return { 
+        icon: '🔥', 
+        title: '모닥불', 
+        bgClass: 'from-orange-400 to-yellow-500', 
+        borderClass: 'border-orange-300/50',
+        glowColor: 'rgba(251, 146, 60, 0.8)',
+        starColor: 'bg-orange-200'
+      };
+      case 'roulette': return { 
+        icon: '🎰', 
+        title: '룰렛', 
+        bgClass: 'from-purple-400 to-indigo-500', 
+        borderClass: 'border-purple-300/50',
+        glowColor: 'rgba(168, 85, 247, 0.8)',
+        starColor: 'bg-purple-200'
+      };
+      default: return { 
+        icon: '🗡️', 
+        title: '일반', 
+        bgClass: 'from-blue-400 to-cyan-500', 
+        borderClass: 'border-blue-300/50',
+        glowColor: 'rgba(59, 130, 246, 0.8)',
+        starColor: 'bg-blue-200'
+      };
     }
   };
   const stageInfo = getStageInfo(stageType);
@@ -49,34 +116,88 @@ const StageNode = ({ data }: { data: any }) => {
   const isClickable = dataIsClickable !== undefined ? dataIsClickable : (isActive && !isCompleted && !isFailed);
 
   // 완료 상태에 따른 스타일 결정
-  let statusRing = '';
+  let statusEffect = '';
   let statusIcon = '';
+  let glowEffect = '';
+  
   if (isCompleted && !isFailed) {
-    statusRing = 'ring-4 ring-offset-2 ring-green-400';
+    statusEffect = 'shadow-[0_0_25px_rgba(34,197,94,0.8)]';
     statusIcon = '✓';
+    glowEffect = '0 0 25px rgba(34, 197, 94, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.2)';
   } else if (isFailed) {
-    statusRing = 'ring-4 ring-offset-2 ring-red-400';
+    statusEffect = 'shadow-[0_0_25px_rgba(239,68,68,0.8)]';
     statusIcon = '✗';
+    glowEffect = '0 0 25px rgba(239, 68, 68, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.2)';
   } else if (isActive && !isCompleted) {
-    statusRing = 'ring-4 ring-offset-2 ring-yellow-400 animate-pulse';
-    statusIcon = '';
+    statusEffect = 'shadow-[0_0_30px_rgba(250,204,21,0.9)] animate-pulse';
+    glowEffect = `0 0 30px rgba(250, 204, 21, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.3)`;
+  } else if (isClickable) {
+    statusEffect = `shadow-[0_0_20px_${stageInfo.glowColor.replace('0.8', '0.6')}]`;
+    glowEffect = `0 0 20px ${stageInfo.glowColor}, inset 0 0 15px rgba(255, 255, 255, 0.2)`;
+  } else {
+    glowEffect = `0 0 10px ${stageInfo.glowColor.replace('0.8', '0.3')}, inset 0 0 10px rgba(255, 255, 255, 0.1)`;
   }
 
   return (
     <div className="relative">
       <Handle type="target" position={Position.Bottom} className="w-3 h-3 bg-blue-500 border-2 border-white invisible" />
+      
+      {/* 별자리 별 빛 효과 */}
+      {(isActive || isCompleted || isFailed) && (
+        <>
+          <div className={`absolute inset-0 w-14 h-14 bg-gradient-to-r ${stageInfo.bgClass.replace('400', '300').replace('500', '400')} opacity-30 rounded-full animate-pulse`}></div>
+          <div className={`absolute inset-1 w-12 h-12 bg-gradient-to-r ${stageInfo.bgClass.replace('400', '200').replace('500', '300')} opacity-20 rounded-full animate-ping`}></div>
+        </>
+      )}
+      
       <div
-        className={`w-14 h-14 bg-gradient-to-r ${stageInfo.bgClass} text-white rounded-xl shadow-lg border-3 ${stageInfo.borderClass} transition-transform ${isClickable ? 'cursor-pointer hover:scale-110' : 'cursor-default'} ${statusRing} ${!isActive && !isCompleted ? 'opacity-60' : ''} flex items-center justify-center`}
+        className={`relative w-14 h-14 bg-gradient-to-r ${stageInfo.bgClass} text-white rounded-full border-2 ${stageInfo.borderClass} transition-all duration-300 overflow-hidden ${isClickable ? 'cursor-pointer hover:scale-125 transform shimmer-stage-node' : 'cursor-default'} ${statusEffect} ${!isActive && !isCompleted && !isFailed ? 'opacity-50' : ''} flex items-center justify-center`}
+        style={{
+          boxShadow: glowEffect
+        }}
         onClick={() => { if (isClickable && onClick) onClick(); }}
       >
-        <div className="text-2xl">{stageInfo.icon}</div>
+        <div className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] relative z-10">{stageInfo.icon}</div>
+        
+        {/* 고급 별빛 반짝임 효과 */}
+        {(isActive || isCompleted || isFailed) && (
+          <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+            {Array.from({ length: 4 }).map((_, i) => {
+              const positions = [
+                { top: '15%', right: '15%', size: 6, delay: 0 },
+                { bottom: '20%', left: '20%', size: 4, delay: 0.7 },
+                { top: '50%', left: '5%', size: 3, delay: 1.4 },
+                { bottom: '10%', right: '5%', size: 5, delay: 2.1 }
+              ];
+              const pos = positions[i];
+              return (
+                <div 
+                  key={i}
+                  className="absolute sparkle-animation-advanced"
+                  style={{
+                    ...pos,
+                    animationDelay: `${pos.delay}s`,
+                    animationDuration: '2.8s'
+                  }}
+                >
+                  <Sparkle 
+                    size={pos.size} 
+                    className={`${stageInfo.starColor.replace('bg-', 'text-')} opacity-90`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
+        {/* 상태 아이콘 */}
         {(isCompleted || isFailed) && (
-          <div className={`absolute -top-2 -right-2 ${isCompleted && !isFailed ? 'bg-green-500' : 'bg-red-500'} text-white text-xs w-6 h-6 rounded-full flex items-center justify-center`}>
+          <div className={`absolute -top-2 -right-2 ${isCompleted && !isFailed ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)]'} text-white text-xs w-6 h-6 rounded-full flex items-center justify-center border border-white/30 z-20`}>
             {statusIcon}
           </div>
         )}
         {!isActive && !isCompleted && !isFailed && (
-          <div className="absolute -top-2 -right-2 bg-gray-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center">🔒</div>
+          <div className="absolute -top-2 -right-2 bg-gray-600 shadow-[0_0_10px_rgba(75,85,99,0.6)] text-white text-xs w-6 h-6 rounded-full flex items-center justify-center border border-gray-400/30 z-20">🔒</div>
         )}
       </div>
       <Handle type="source" position={Position.Top} className="w-3 h-3 bg-blue-500 border-2 border-white invisible" />
@@ -88,9 +209,69 @@ const EndNode = ({ data }: { data: any }) => {
   return (
     <div className="relative">
       <Handle type="target" position={Position.Bottom} className="w-3 h-3 bg-purple-500 border-2 border-white invisible" />
-      <div className={`w-16 h-16 bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-full shadow-lg border-3 ${data.isActive ? "ring-4 ring-offset-2 ring-purple-500" : "border-purple-300"} flex items-center justify-center transition-transform hover:scale-105`}>
-        <div className="text-3xl">🏆</div>
-      </div>
+      
+      {/* 별자리 최종 별 효과 */}
+      {data.isActive && (
+        <>
+          <div className="absolute inset-0 w-16 h-16 bg-gradient-to-r from-yellow-400/40 to-orange-400/40 rounded-full animate-pulse"></div>
+          <div className="absolute inset-1 w-14 h-14 bg-gradient-to-r from-yellow-500/30 to-orange-500/30 rounded-full animate-ping"></div>
+          <div className="absolute inset-2 w-12 h-12 bg-gradient-to-r from-yellow-600/20 to-orange-600/20 rounded-full animate-pulse"></div>
+        </>
+      )}
+      
+             <div 
+         className={`relative w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full border-2 border-yellow-300/50 flex items-center justify-center transition-all duration-300 transform hover:scale-110 overflow-hidden shimmer-end-node ${data.isActive ? 'shadow-[0_0_40px_rgba(250,204,21,1)] animate-pulse' : 'shadow-[0_0_20px_rgba(168,85,247,0.6)]'}`}
+         style={{
+           boxShadow: data.isActive 
+             ? '0 0 40px rgba(250, 204, 21, 1), inset 0 0 25px rgba(255, 255, 255, 0.3)' 
+             : '0 0 20px rgba(168, 85, 247, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.2)'
+         }}
+       >
+         <div className="text-3xl drop-shadow-[0_0_15px_rgba(255,255,255,1)] relative z-10">🏆</div>
+         
+         {/* 고급 최종 목표 별빛 효과 */}
+         <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+           {Array.from({ length: 8 }).map((_, i) => {
+             const positions = [
+               { top: '10%', left: '15%', size: 8, delay: 0 },
+               { bottom: '15%', right: '20%', size: 6, delay: 0.4 },
+               { top: '20%', right: '10%', size: 4, delay: 0.8 },
+               { bottom: '20%', left: '15%', size: 7, delay: 1.2 },
+               { top: '50%', left: '5%', size: 5, delay: 1.6 },
+               { bottom: '10%', right: '5%', size: 3, delay: 2.0 },
+               { top: '70%', left: '50%', size: 6, delay: 2.4 },
+               { top: '30%', left: '80%', size: 4, delay: 2.8 }
+             ];
+             const pos = positions[i];
+             return (
+               <div 
+                 key={i}
+                 className="absolute sparkle-animation-advanced"
+                 style={{
+                   ...pos,
+                   animationDelay: `${pos.delay}s`,
+                   animationDuration: '3.2s'
+                 }}
+               >
+                 <Sparkle 
+                   size={pos.size} 
+                   className="text-yellow-100 opacity-95" 
+                 />
+               </div>
+             );
+           })}
+         </div>
+         
+         {/* 승리의 광채 효과 */}
+         {data.isActive && (
+           <>
+             <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-0.5 h-4 bg-gradient-to-t from-yellow-400 to-transparent opacity-80"></div>
+             <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0.5 h-4 bg-gradient-to-b from-yellow-400 to-transparent opacity-80"></div>
+             <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 h-0.5 w-4 bg-gradient-to-l from-yellow-400 to-transparent opacity-80"></div>
+             <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 h-0.5 w-4 bg-gradient-to-r from-yellow-400 to-transparent opacity-80"></div>
+           </>
+         )}
+       </div>
     </div>
   );
 };
@@ -250,6 +431,217 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
   const [currentPlayerPosition, setCurrentPlayerPosition] = useState<string>(initialPlayerPosition);
   const [isFitViewActive, setIsFitViewActive] = useState(false);
 
+  // CSS 애니메이션 스타일 추가
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 고급 스파클 애니메이션 */
+      .sparkle-animation-advanced {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleEffectAdvanced infinite;
+      }
+      
+      @keyframes sparkleEffectAdvanced {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        15% {
+          opacity: 0.6;
+          transform: scale(0.8) rotate(45deg);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1.2) rotate(90deg);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1) rotate(180deg);
+        }
+        70% {
+          opacity: 0.8;
+          transform: scale(1.1) rotate(270deg);
+        }
+        85% {
+          opacity: 0.4;
+          transform: scale(0.9) rotate(315deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(360deg);
+        }
+      }
+      
+      /* 배경 별 애니메이션 */
+      .sparkle-animation-background {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleBackgroundEffect infinite;
+      }
+      
+      @keyframes sparkleBackgroundEffect {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        20% {
+          opacity: 0.4;
+          transform: scale(0.8) rotate(20deg);
+        }
+        40% {
+          opacity: 0.8;
+          transform: scale(1) rotate(40deg);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(1.1) rotate(60deg);
+        }
+        80% {
+          opacity: 0.6;
+          transform: scale(0.9) rotate(80deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(100deg);
+        }
+      }
+      
+      /* 노드별 shimmer 효과 */
+      .shimmer-start-node {
+        position: relative;
+        overflow: hidden;
+      }
+      .shimmer-start-node::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          to right, 
+          rgba(255,255,255,0) 0%,
+          rgba(34,211,238,0.4) 50%,
+          rgba(255,255,255,0) 100%
+        );
+        transform: rotate(30deg);
+        animation: shimmerStart 4s infinite;
+      }
+      @keyframes shimmerStart {
+        0% { transform: rotate(30deg) translateX(-150%); }
+        100% { transform: rotate(30deg) translateX(150%); }
+      }
+      
+      .shimmer-stage-node {
+        position: relative;
+        overflow: hidden;
+      }
+      .shimmer-stage-node::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          to right, 
+          rgba(255,255,255,0) 0%,
+          rgba(255,255,255,0.3) 50%,
+          rgba(255,255,255,0) 100%
+        );
+        transform: rotate(30deg);
+        animation: shimmerStage 5s infinite;
+      }
+      @keyframes shimmerStage {
+        0% { transform: rotate(30deg) translateX(-150%); }
+        100% { transform: rotate(30deg) translateX(150%); }
+      }
+      
+      .shimmer-end-node {
+        position: relative;
+        overflow: hidden;
+      }
+      .shimmer-end-node::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          to right, 
+          rgba(255,255,255,0) 0%,
+          rgba(250,204,21,0.4) 50%,
+          rgba(255,255,255,0) 100%
+        );
+        transform: rotate(30deg);
+        animation: shimmerEnd 3s infinite;
+      }
+      @keyframes shimmerEnd {
+        0% { transform: rotate(30deg) translateX(-150%); }
+        100% { transform: rotate(30deg) translateX(150%); }
+      }
+      
+             /* 페이지 배경 별 애니메이션 */
+       .sparkle-animation-background-page {
+         opacity: 0;
+         transform: scale(0);
+         animation: sparklePageBackgroundEffect infinite;
+       }
+       
+       @keyframes sparklePageBackgroundEffect {
+         0% {
+           opacity: 0;
+           transform: scale(0) rotate(0deg);
+         }
+         10% {
+           opacity: 0.3;
+           transform: scale(0.6) rotate(18deg);
+         }
+         25% {
+           opacity: 0.7;
+           transform: scale(1) rotate(45deg);
+         }
+         50% {
+           opacity: 1;
+           transform: scale(1.3) rotate(90deg);
+         }
+         75% {
+           opacity: 0.8;
+           transform: scale(1.1) rotate(135deg);
+         }
+         90% {
+           opacity: 0.4;
+           transform: scale(0.7) rotate(162deg);
+         }
+         100% {
+           opacity: 0;
+           transform: scale(0) rotate(180deg);
+         }
+       }
+       
+       /* 기존 twinkle 애니메이션 개선 */
+       @keyframes twinkle {
+         0%, 100% { 
+           opacity: 0.2; 
+           transform: scale(0.8);
+         }
+         50% { 
+           opacity: 1; 
+           transform: scale(1.2);
+         }
+       }
+     `;
+     document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   const reactFlowInstance = useReactFlow();
 
   const stageConnections = useMemo(() => mapStageConnections, [mapStageConnections]);
@@ -349,23 +741,31 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
         (isSourceStartNode && (targetNodeCompleted || targetNodeFailed)) ||
         ((sourceNodeCompleted || sourceNodeFailed) && isTargetStartNode);
       
-      let edgeColor = '#9ca3af'; // 기본 회색
-      let strokeWidth = 3;
+      let edgeColor = '#475569'; // 기본 어두운 회색 (별자리 배경에 맞게)
+      let strokeWidth = 2;
       let strokeDasharray = 'none';
       let animated = false;
+      let glowEffect = '';
 
       if (isCurrentlyAvailable) {
-        // 현재 선택 가능한 경로 - 노란색 애니메이션
-        edgeColor = '#eab308';
-        strokeWidth = 4;
-        strokeDasharray = '5,5';
+        // 현재 선택 가능한 경로 - 황금색 별자리 연결선 애니메이션
+        edgeColor = '#fbbf24';
+        strokeWidth = 3;
+        strokeDasharray = '8,4';
         animated = true;
+        glowEffect = '0 0 15px #fbbf24, 0 0 30px #fbbf24';
       } else if (isActuallyTraveledPath) {
-        // 실제로 지나온 경로 - 파란색 (성공/실패 구분 없이)
-        edgeColor = '#3b82f6';
-        strokeWidth = 4;
+        // 실제로 지나온 경로 - 청록색 별자리 연결선 (완료된 별자리)
+        edgeColor = '#06b6d4';
+        strokeWidth = 3;
+        glowEffect = '0 0 10px #06b6d4, 0 0 20px #06b6d4';
+      } else {
+        // 미지의 경로 - 희미한 별자리 연결선
+        edgeColor = '#64748b';
+        strokeWidth = 1.5;
+        strokeDasharray = '3,3';
+        glowEffect = '0 0 5px #64748b';
       }
-      // 나머지 경우(선택 가능했지만 지나가지 않은 길)는 기본 회색 유지
 
       return {
         ...e,
@@ -374,6 +774,8 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
           stroke: edgeColor,
           strokeWidth,
           strokeDasharray,
+          filter: `drop-shadow(${glowEffect})`,
+          opacity: isCurrentlyAvailable ? 1 : (isActuallyTraveledPath ? 0.9 : 0.6)
         },
         animated
       };
@@ -402,22 +804,112 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
   }, [pathType, currentPlayerPosition, stageConnections, getActivatableNodes]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-6xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 고급 우주 배경 효과 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+      
+      {/* 고급 배경 별빛 효과 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {Array.from({ length: 25 }).map((_, i) => {
+          const backgroundStars = [
+            { top: '5%', left: '8%', color: 'text-white', size: 12, delay: 0 },
+            { top: '15%', right: '12%', color: 'text-cyan-400', size: 8, delay: 0.5 },
+            { bottom: '18%', left: '15%', color: 'text-pink-400', size: 10, delay: 1.0 },
+            { top: '35%', left: '25%', color: 'text-yellow-400', size: 6, delay: 1.5 },
+            { bottom: '25%', right: '18%', color: 'text-purple-400', size: 14, delay: 2.0 },
+            { top: '8%', left: '50%', color: 'text-indigo-300', size: 7, delay: 2.5 },
+            { bottom: '45%', left: '8%', color: 'text-emerald-400', size: 9, delay: 3.0 },
+            { top: '60%', right: '25%', color: 'text-rose-400', size: 5, delay: 3.5 },
+            { bottom: '8%', left: '40%', color: 'text-orange-400', size: 8, delay: 4.0 },
+            { top: '25%', right: '45%', color: 'text-violet-300', size: 11, delay: 4.5 },
+            { bottom: '35%', left: '70%', color: 'text-teal-400', size: 6, delay: 5.0 },
+            { top: '75%', left: '20%', color: 'text-amber-300', size: 10, delay: 5.5 },
+            { top: '45%', right: '8%', color: 'text-lime-400', size: 7, delay: 6.0 },
+            { bottom: '60%', left: '50%', color: 'text-sky-300', size: 9, delay: 6.5 },
+            { top: '12%', right: '70%', color: 'text-fuchsia-400', size: 8, delay: 7.0 },
+            { bottom: '12%', right: '50%', color: 'text-blue-300', size: 6, delay: 7.5 },
+            { top: '50%', left: '5%', color: 'text-red-300', size: 5, delay: 8.0 },
+            { bottom: '70%', right: '15%', color: 'text-green-400', size: 11, delay: 8.5 },
+            { top: '80%', left: '60%', color: 'text-yellow-300', size: 8, delay: 9.0 },
+            { top: '30%', left: '75%', color: 'text-cyan-300', size: 7, delay: 9.5 },
+            { bottom: '50%', right: '35%', color: 'text-pink-300', size: 9, delay: 10.0 },
+            { top: '65%', left: '35%', color: 'text-purple-300', size: 6, delay: 10.5 },
+            { bottom: '80%', left: '80%', color: 'text-indigo-400', size: 10, delay: 11.0 },
+            { top: '20%', left: '90%', color: 'text-emerald-300', size: 5, delay: 11.5 },
+            { bottom: '30%', right: '5%', color: 'text-orange-300', size: 8, delay: 12.0 }
+          ];
+          const star = backgroundStars[i];
+          return (
+            <div 
+              key={i}
+              className="absolute sparkle-animation-background-page"
+              style={{
+                ...star,
+                animationDelay: `${star.delay}s`,
+                animationDuration: '6s'
+              }}
+            >
+              <Sparkle 
+                size={star.size} 
+                className={`${star.color} opacity-60`}
+              />
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl p-8 max-w-6xl w-full border border-purple-500/30 backdrop-blur-sm relative overflow-hidden">
+        {/* 네온 글로우 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-cyan-500/5 to-pink-500/5 rounded-3xl"></div>
+        
+        {/* 카드 내부 고급 별빛 효과 */}
+        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+          {Array.from({ length: 8 }).map((_, i) => {
+            const cardStars = [
+              { top: '8%', right: '8%', color: 'text-purple-400', size: 10, delay: 0 },
+              { bottom: '12%', left: '8%', color: 'text-cyan-400', size: 8, delay: 1.5 },
+              { top: '25%', right: '25%', color: 'text-pink-300', size: 6, delay: 3.0 },
+              { bottom: '30%', right: '15%', color: 'text-yellow-300', size: 7, delay: 4.5 },
+              { top: '60%', left: '15%', color: 'text-indigo-300', size: 5, delay: 6.0 },
+              { top: '45%', right: '40%', color: 'text-emerald-300', size: 9, delay: 7.5 },
+              { bottom: '60%', left: '40%', color: 'text-orange-300', size: 4, delay: 9.0 },
+              { top: '80%', right: '60%', color: 'text-violet-300', size: 8, delay: 10.5 }
+            ];
+            const star = cardStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-background-page"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay}s`,
+                  animationDuration: '8s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-40`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="relative z-10">
         {/* 게임 상태 표시 바 */}
         {gameStats && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
+            <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-3 border border-purple-400/30 backdrop-blur-sm">
             <div className="grid grid-cols-2 gap-3 mb-3">
               {/* 현재 점수 */}
               <div className="text-center">
-                <div className="text-xl font-bold text-blue-600">{gameStats.currentScore.toLocaleString()}</div>
-                <div className="text-xs text-gray-600">점수</div>
+                  <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
+                  <div className="text-xs text-gray-300">⭐ 점수</div>
               </div>
               
               {/* 현재 연속 */}
               <div className="text-center">
-                <div className="text-xl font-bold text-orange-600">{gameStats.currentStreak}</div>
-                <div className="text-xs text-gray-600">연속 🔥</div>
+                  <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
+                  <div className="text-xs text-gray-300">🔥 연속</div>
               </div>
             </div>
           </div>
@@ -425,19 +917,59 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
 
         {/* 스테이지 헤더 */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🗺️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">갈림길 선택</h2>
-          <p className="text-gray-600">
-            다음으로 진행할 경로를 선택하세요!
+            <div className="text-6xl mb-4 drop-shadow-[0_0_25px_rgba(168,85,247,0.8)]">🗺️</div>
+            <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 항로 네비게이션</h2>
+            <p className="text-purple-300 text-lg">
+              다음으로 진행할 우주 항로를 선택하세요!
           </p>
         </div>
 
-        <div className="h-[500px] mb-6 border-2 border-indigo-200 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 relative shadow-xl">
+          <div className="h-[500px] mb-6 border-2 border-cyan-400/20 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-black relative shadow-2xl backdrop-blur-sm">
+          {/* 고급 별자리 배경 별들 */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {Array.from({ length: 15 }).map((_, i) => {
+              const positions = [
+                { top: '8%', left: '15%', color: 'text-white', size: 8, delay: 0 },
+                { top: '25%', left: '8%', color: 'text-cyan-300', size: 4, delay: 0.5 },
+                { top: '15%', right: '20%', color: 'text-yellow-200', size: 10, delay: 1.0 },
+                { bottom: '35%', left: '25%', color: 'text-purple-300', size: 6, delay: 1.5 },
+                { bottom: '15%', right: '15%', color: 'text-blue-200', size: 8, delay: 2.0 },
+                { top: '45%', left: '5%', color: 'text-pink-300', size: 5, delay: 2.5 },
+                { top: '30%', right: '8%', color: 'text-indigo-200', size: 7, delay: 3.0 },
+                { bottom: '45%', left: '40%', color: 'text-emerald-300', size: 4, delay: 3.5 },
+                { top: '12%', left: '50%', color: 'text-orange-200', size: 6, delay: 4.0 },
+                { bottom: '25%', right: '35%', color: 'text-rose-300', size: 5, delay: 4.5 },
+                { top: '60%', left: '12%', color: 'text-violet-200', size: 4, delay: 5.0 },
+                { top: '75%', right: '12%', color: 'text-teal-300', size: 6, delay: 5.5 },
+                { bottom: '8%', left: '60%', color: 'text-amber-200', size: 7, delay: 6.0 },
+                { top: '50%', right: '50%', color: 'text-lime-300', size: 5, delay: 6.5 },
+                { bottom: '60%', right: '8%', color: 'text-sky-200', size: 8, delay: 7.0 }
+              ];
+              const star = positions[i];
+              return (
+                <div 
+                  key={i}
+                  className="absolute sparkle-animation-background"
+                  style={{
+                    ...star,
+                    animationDelay: `${star.delay}s`,
+                    animationDuration: '4s'
+                  }}
+                >
+                  <Sparkle 
+                    size={star.size} 
+                    className={`${star.color} opacity-70`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          
           <button 
             onClick={() => setIsFitViewActive(!isFitViewActive)} 
-            className="absolute top-4 left-4 z-10 bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-md shadow-md transition-colors"
+              className="absolute top-4 left-4 z-10 bg-gradient-to-r from-indigo-700/80 to-purple-700/80 hover:from-indigo-600/90 hover:to-purple-600/90 text-cyan-100 text-xs px-4 py-2 rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all transform hover:scale-105 border border-cyan-400/20 backdrop-blur-sm"
           >
-            {isFitViewActive ? "현재 노드 보기" : "전체 맵 보기"}
+              {isFitViewActive ? "🎯 현재 위치 보기" : "🌌 전체 별자리 보기"}
           </button>
           <style>{`
             .react-flow__pane, 
@@ -451,6 +983,16 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
             .react-flow__background, 
             .react-flow__selection {
               cursor: default !important;
+              background: transparent !important;
+            }
+            
+            /* React Flow 배경을 완전히 투명하게 */
+            .react-flow__renderer {
+              background: transparent !important;
+            }
+            
+            .react-flow__pane {
+              background: transparent !important;
             }
             
             /* 클릭 가능한 노드만 포인터 커서 표시 */
@@ -470,6 +1012,11 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
             .react-flow__node.non-clickable-node:hover {
               cursor: default !important;
             }
+            
+            /* 별자리 분위기를 위한 추가 스타일 */
+            .react-flow__background {
+              opacity: 0.3 !important;
+            }
           `}</style>
           <ReactFlow
             nodes={nodes}
@@ -488,7 +1035,7 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
             proOptions={{ hideAttribution: true }}
             fitView
           >
-            <Background color="#c7d2fe" gap={20} size={1} variant={BackgroundVariant.Dots} />
+              <Background color="#1e293b" gap={30} size={0.5} variant={BackgroundVariant.Dots} />
             <ViewportUpdater 
               currentPlayerPosition={currentPlayerPosition} 
               nodes={nodes} 
@@ -496,6 +1043,7 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
               stageConnections={stageConnections}
             />
           </ReactFlow>
+          </div>
         </div>
       </div>
     </div>

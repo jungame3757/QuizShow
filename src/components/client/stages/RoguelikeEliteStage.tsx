@@ -429,49 +429,54 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
     const success = finalSuccess;
 
     return (
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto">
-        <div className="text-center">
-          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 ${
-            success ? 'bg-green-100' : 'bg-red-100'
-          }`}>
+      <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden max-w-2xl mx-auto">
+        {/* 네온 글로우 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
+        <div className="absolute top-4 right-4 w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
+        <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+        
+        <div className="text-center relative z-10">
+          <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
+            success ? 'bg-gradient-to-r from-green-500/20 to-cyan-500/20 border-2 border-green-400' : 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-2 border-red-400'
+          } backdrop-blur-sm`}>
             {success ? (
-              <CheckCircle size={40} className="text-green-600" />
+              <CheckCircle size={48} className="text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
             ) : (
-              <XCircle size={40} className="text-red-600" />
+              <XCircle size={48} className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
             )}
           </div>
           
-          <h2 className={`text-3xl font-bold mb-4 ${
-            success ? 'text-green-700' : 'text-red-700'
+          <h2 className={`text-4xl font-bold mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] ${
+            success ? 'text-green-400' : 'text-red-400'
           }`}>
-            엘리트 스테이지 {success ? '성공!' : '실패'}
+            엘리트 미션 {success ? '성공!' : '실패'}
           </h2>
           
-          <p className="text-xl text-gray-600 mb-6">
-            {correctCount}문제 / {questions.length}문제 정답
+          <p className="text-2xl text-cyan-300 mb-6 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">
+            {correctCount}미션 / {questions.length}미션 클리어
           </p>
           
           <div className="grid grid-cols-3 gap-4 mb-6">
             {results.map((isCorrect, index) => (
-              <div key={index} className={`p-4 rounded-lg border-2 ${
+              <div key={index} className={`p-4 rounded-xl border-2 backdrop-blur-sm ${
                 isCorrect 
-                  ? 'border-green-300 bg-green-50' 
-                  : 'border-red-300 bg-red-50'
+                  ? 'border-green-400/50 bg-gradient-to-br from-green-500/20 to-cyan-500/20' 
+                  : 'border-red-400/50 bg-gradient-to-br from-red-500/20 to-pink-500/20'
               }`}>
                 <div className="text-center">
                   {isCorrect ? (
-                    <CheckCircle size={24} className="text-green-600 mx-auto mb-2" />
+                    <CheckCircle size={28} className="text-green-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]" />
                   ) : (
-                    <XCircle size={24} className="text-red-600 mx-auto mb-2" />
+                    <XCircle size={28} className="text-red-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
                   )}
-                  <p className="font-medium">문제 {index + 1}</p>
+                  <p className="font-medium text-white">미션 {index + 1}</p>
                 </div>
               </div>
             ))}
           </div>
           
-          <p className="text-gray-500">
-            {success ? '보상을 획득했습니다!' : '잠시 후 다음 스테이지로 이동합니다...'}
+          <p className="text-cyan-300">
+            {success ? '🌟 우주 보상을 획득했습니다!' : '⭐ 다음 스테이지로 이동합니다...'}
           </p>
         </div>
       </div>
@@ -479,33 +484,39 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto">
+    <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden max-w-2xl mx-auto">
+      {/* 네온 글로우 효과 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl"></div>
+      <div className="absolute top-4 right-4 w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
+      <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+      
+      <div className="relative z-10">
       {/* 게임 상태 표시 바 */}
       {gameStats && (
-        <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-3 border border-red-200">
+          <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-red-900/80 to-gray-900/80 rounded-xl p-4 border border-red-400/30 backdrop-blur-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             {/* 현재 점수 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-red-600">{gameStats.currentScore.toLocaleString()}</div>
-              <div className="text-xs text-gray-600">점수</div>
+                <div className="text-xl font-bold text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
+                <div className="text-xs text-gray-300">⭐ 점수</div>
             </div>
             
             {/* 정답 수 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-green-600">{gameStats.correctAnswers}</div>
-              <div className="text-xs text-gray-600">정답 수</div>
+                <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">{gameStats.correctAnswers}</div>
+                <div className="text-xs text-gray-300">✅ 정답</div>
             </div>
             
             {/* 현재 연속 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-orange-600">{gameStats.currentStreak}</div>
-              <div className="text-xs text-gray-600">연속 🔥</div>
+                <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
+                <div className="text-xs text-gray-300">🔥 연속</div>
             </div>
             
             {/* 최대 연속 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-purple-600">{gameStats.maxStreak}</div>
-              <div className="text-xs text-gray-600">최대 🏆</div>
+                <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.maxStreak}</div>
+                <div className="text-xs text-gray-300">🏆 최대</div>
             </div>
           </div>
         </div>
@@ -514,19 +525,19 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
       {/* 엘리트 스테이지 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <div className="bg-red-100 p-3 rounded-full mr-4">
-            <Shield size={24} className="text-red-600" />
+            <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 p-4 rounded-full mr-4 border border-red-400/50 backdrop-blur-sm">
+              <Shield size={28} className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-red-700">엘리트 스테이지</h1>
-            <p className="text-gray-600">모든 문제를 맞춰야 성공! 한 문제라도 틀리면 실패</p>
+              <h1 className="text-3xl font-bold text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">🛸 엘리트 미션</h1>
+              <p className="text-cyan-300">모든 미션을 성공해야 클리어! 하나라도 실패하면 게임오버</p>
           </div>
         </div>
         
         {timeLeft !== null && (
-          <div className="flex items-center bg-red-50 px-4 py-2 rounded-lg">
-            <Clock size={18} className="text-red-600 mr-2" />
-            <span className="font-bold text-red-700">
+            <div className="flex items-center bg-gradient-to-r from-red-500/20 to-pink-500/20 px-4 py-3 rounded-xl border border-red-400/50 backdrop-blur-sm">
+              <Clock size={20} className="text-red-400 mr-2 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
+              <span className="font-bold text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]">
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </span>
           </div>
@@ -535,29 +546,29 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
 
       {/* 진행률 표시 */}
       <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">
-            문제 {currentQuestionIndex + 1} / {questions.length}
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-cyan-300">
+              미션 {currentQuestionIndex + 1} / {questions.length}
           </span>
           <div className="flex space-x-1">
             {questions.map((_, index) => (
               <Star
                 key={index}
-                size={16}
+                  size={18}
                 className={`${
                   index < currentQuestionIndex 
-                    ? 'text-yellow-400 fill-current' 
+                      ? 'text-yellow-400 fill-current drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' 
                     : index === currentQuestionIndex
-                    ? 'text-yellow-400'
-                    : 'text-gray-300'
+                      ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]'
+                      : 'text-gray-500'
                 }`}
               />
             ))}
           </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-700/50 rounded-full h-3 border border-gray-600/50">
           <div 
-            className="bg-red-600 h-2 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-red-500 to-pink-500 h-3 rounded-full transition-all duration-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
             style={{ width: `${getProgressWidth()}%` }}
           />
         </div>
@@ -578,9 +589,10 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
 
       {/* 안내 메시지 */}
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
-          ⚔️ 모든 문제를 정확히 맞춰서 엘리트 보상을 획득하세요!
+          <p className="text-sm text-cyan-300">
+            ⚔️ 모든 미션을 완벽히 성공해서 엘리트 우주 보상을 획득하세요!
         </p>
+        </div>
       </div>
     </div>
   );

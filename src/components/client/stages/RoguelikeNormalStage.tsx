@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkle } from 'lucide-react';
 import { Question } from '../../../types';
 import QuizQuestion from '../QuizQuestion';
 
@@ -220,34 +221,112 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
     return (timeLeft / 60) * 100; // 60초 기준
   };
 
+  // CSS 애니메이션 스타일 추가
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 일반 스테이지 배경 별 애니메이션 */
+      .sparkle-animation-normal-stage {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleNormalStageEffect infinite;
+      }
+      
+      @keyframes sparkleNormalStageEffect {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        25% {
+          opacity: 0.8;
+          transform: scale(1) rotate(90deg);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.3) rotate(180deg);
+        }
+        75% {
+          opacity: 0.6;
+          transform: scale(0.8) rotate(270deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(360deg);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8">
+    <div className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-cyan-500/30 backdrop-blur-sm relative overflow-hidden">
+      {/* 네온 글로우 효과 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl"></div>
+      
+      {/* 고급 배경 별빛 효과 */}
+      <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+        {Array.from({ length: 6 }).map((_, i) => {
+          const normalStageStars = [
+            { top: '12%', right: '12%', color: 'text-cyan-400', size: 8, delay: 0 },
+            { bottom: '15%', left: '15%', color: 'text-pink-400', size: 6, delay: 1.2 },
+            { top: '25%', right: '30%', color: 'text-white', size: 5, delay: 2.4 },
+            { bottom: '30%', right: '20%', color: 'text-purple-300', size: 7, delay: 3.6 },
+            { top: '70%', left: '20%', color: 'text-cyan-300', size: 4, delay: 4.8 },
+            { top: '60%', right: '60%', color: 'text-indigo-300', size: 9, delay: 6.0 }
+          ];
+          const star = normalStageStars[i];
+          return (
+            <div 
+              key={i}
+              className="absolute sparkle-animation-normal-stage"
+              style={{
+                ...star,
+                animationDelay: `${star.delay}s`,
+                animationDuration: '4s'
+              }}
+            >
+              <Sparkle 
+                size={star.size} 
+                className={`${star.color} opacity-40`}
+              />
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="relative z-10">
       {/* 게임 상태 표시 바 */}
       {gameStats && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
+          <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-4 border border-cyan-400/30 backdrop-blur-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             {/* 현재 점수 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-600">{gameStats.currentScore.toLocaleString()}</div>
-              <div className="text-xs text-gray-600">점수</div>
+                <div className="text-xl font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
+                <div className="text-xs text-gray-300">⭐ 점수</div>
             </div>
             
             {/* 정답 수 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-green-600">{gameStats.correctAnswers}</div>
-              <div className="text-xs text-gray-600">정답 수</div>
+                <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">{gameStats.correctAnswers}</div>
+                <div className="text-xs text-gray-300">✅ 정답</div>
             </div>
             
             {/* 현재 연속 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-orange-600">{gameStats.currentStreak}</div>
-              <div className="text-xs text-gray-600">연속 🔥</div>
+                <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
+                <div className="text-xs text-gray-300">🔥 연속</div>
             </div>
             
             {/* 최대 연속 */}
             <div className="text-center">
-              <div className="text-xl font-bold text-purple-600">{gameStats.maxStreak}</div>
-              <div className="text-xs text-gray-600">최대 🏆</div>
+                <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.maxStreak}</div>
+                <div className="text-xs text-gray-300">🏆 최대</div>
             </div>
           </div>
         </div>
@@ -255,23 +334,24 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
 
       {/* 스테이지 헤더 */}
       <div className="text-center mb-8">
-        <div className="text-4xl mb-4">🗡️</div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">일반 문제 스테이지</h2>
-        <p className="text-gray-600">
-          문제 {questionNumber}/{totalQuestions}
+          <div className="text-6xl mb-4 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)]">🚀</div>
+          <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">일반 문제 스테이지</h2>
+          <p className="text-cyan-300 text-lg">
+            미션 {questionNumber}/{totalQuestions}
         </p>
         
         {/* 타이머 */}
         {timeLeft !== null && (
-          <div className="mt-4">
-            <div className={`text-lg font-bold mb-2 ${getTimerColor()}`}>
+            <div className="mt-6">
+              <div className={`text-xl font-bold mb-3 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] ${getTimerColor()}`}>
               ⏰ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-700/50 rounded-full h-3 border border-gray-600/50">
               <div 
-                className={`h-2 rounded-full transition-all duration-1000 ${
-                  timeLeft <= 10 ? 'bg-red-500' : 
-                  timeLeft <= 30 ? 'bg-yellow-500' : 'bg-green-500'
+                  className={`h-3 rounded-full transition-all duration-1000 ${
+                    timeLeft <= 10 ? 'bg-gradient-to-r from-red-500 to-pink-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 
+                    timeLeft <= 30 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 
+                    'bg-gradient-to-r from-green-500 to-cyan-500 drop-shadow-[0_0_10px_rgba(34,197,94,0.8)]'
                 }`}
                 style={{ width: `${getTimerProgress()}%` }}
               ></div>
@@ -294,16 +374,17 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
 
       {/* 안내 메시지 */}
       <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
-          💡 정답을 맞춰서 보상 상자를 획득하세요!
+          <p className="text-sm text-cyan-300">
+            💫 정답을 맞춰서 우주 보상을 획득하세요!
         </p>
         
         {/* 디버그 정보 (개발 모드에서만) */}
         {process.env.NODE_ENV === 'development' && (
-          <div className="mt-2 text-xs text-gray-400">
-            <p>현재 문제 ID: {question?.id || 'N/A'}</p>
+            <div className="mt-2 text-xs text-gray-500">
+              <p>현재 미션 ID: {question?.id || 'N/A'}</p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

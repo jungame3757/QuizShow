@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkle } from 'lucide-react';
 import { Quiz, Question, Session, RealtimeParticipant } from '../../types';
 import { RoguelikeGameSession, RoguelikeStage, RouletteResult, RoguelikeStageType } from '../../types/roguelike';
 import RoguelikeNormalStage from '../../components/client/stages/RoguelikeNormalStage';
@@ -156,9 +157,108 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
 
   const progressInfo = getProgressInfo();
 
+  // CSS 애니메이션 스타일 추가
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 페이지 배경 별 애니메이션 */
+      .sparkle-animation-stage-view {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleStageViewEffect infinite;
+      }
+      
+      @keyframes sparkleStageViewEffect {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        15% {
+          opacity: 0.4;
+          transform: scale(0.7) rotate(30deg);
+        }
+        35% {
+          opacity: 0.8;
+          transform: scale(1.1) rotate(90deg);
+        }
+        55% {
+          opacity: 1;
+          transform: scale(1.3) rotate(150deg);
+        }
+        75% {
+          opacity: 0.7;
+          transform: scale(1) rotate(210deg);
+        }
+        90% {
+          opacity: 0.3;
+          transform: scale(0.6) rotate(270deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(360deg);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 고급 우주 배경 효과 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+      
+      {/* 고급 배경 별빛 효과 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {Array.from({ length: 20 }).map((_, i) => {
+          const stageViewStars = [
+            { top: '8%', left: '12%', color: 'text-white', size: 10, delay: 0 },
+            { top: '20%', right: '15%', color: 'text-cyan-400', size: 7, delay: 0.8 },
+            { bottom: '25%', left: '18%', color: 'text-pink-400', size: 9, delay: 1.6 },
+            { top: '45%', left: '30%', color: 'text-yellow-400', size: 5, delay: 2.4 },
+            { bottom: '30%', right: '20%', color: 'text-purple-400', size: 12, delay: 3.2 },
+            { top: '15%', left: '60%', color: 'text-indigo-300', size: 6, delay: 4.0 },
+            { bottom: '50%', left: '10%', color: 'text-emerald-400', size: 8, delay: 4.8 },
+            { top: '70%', right: '30%', color: 'text-rose-400', size: 4, delay: 5.6 },
+            { bottom: '15%', left: '50%', color: 'text-orange-400', size: 7, delay: 6.4 },
+            { top: '35%', right: '50%', color: 'text-violet-300', size: 10, delay: 7.2 },
+            { bottom: '40%', left: '75%', color: 'text-teal-400', size: 5, delay: 8.0 },
+            { top: '80%', left: '25%', color: 'text-amber-300', size: 9, delay: 8.8 },
+            { top: '55%', right: '10%', color: 'text-lime-400', size: 6, delay: 9.6 },
+            { bottom: '65%', left: '55%', color: 'text-sky-300', size: 8, delay: 10.4 },
+            { top: '10%', right: '80%', color: 'text-fuchsia-400', size: 7, delay: 11.2 },
+            { bottom: '10%', right: '60%', color: 'text-blue-300', size: 5, delay: 12.0 },
+            { top: '60%', left: '8%', color: 'text-red-300', size: 4, delay: 12.8 },
+            { bottom: '75%', right: '12%', color: 'text-green-400', size: 10, delay: 13.6 },
+            { top: '85%', left: '70%', color: 'text-yellow-300', size: 7, delay: 14.4 },
+            { top: '25%', left: '85%', color: 'text-cyan-300', size: 6, delay: 15.2 }
+          ];
+          const star = stageViewStars[i];
+          return (
+            <div 
+              key={i}
+              className="absolute sparkle-animation-stage-view"
+              style={{
+                ...star,
+                animationDelay: `${star.delay}s`,
+                animationDuration: '5s'
+              }}
+            >
+              <Sparkle 
+                size={star.size} 
+                className={`${star.color} opacity-50`}
+              />
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="max-w-4xl w-full relative z-10">
         {/* 문제 풀이 단계 - 항상 기본 화면으로 표시 */}
         {(gameSession.currentGameState === 'question' || gameSession.currentGameState === 'stage-active' || gameSession.currentGameState === 'reward-box') && currentStage && (
           <>

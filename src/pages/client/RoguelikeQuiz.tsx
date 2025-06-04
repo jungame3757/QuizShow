@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import copy from 'clipboard-copy';
+import { Sparkle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSession } from '../../contexts/SessionContext';
 import { getQuizById } from '../../firebase/quizService';
@@ -10,7 +10,6 @@ import { rtdb } from '../../firebase/config';
 import { Quiz } from '../../types';
 import { useRoguelikeQuiz } from '../../hooks/useRoguelikeQuiz';
 import RoguelikeStageView from '../../components/client/RoguelikeStageView';
-import RoguelikeGameStart from '../../components/client/RoguelikeGameStart';
 import QuizResults from '../../components/client/QuizResults';
 import RoguelikeMapSelection from '../../components/client/stages/RoguelikeMapSelection';
 
@@ -19,11 +18,8 @@ const RoguelikeQuiz: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { 
-    createSessionForQuiz, 
     currentSession, 
-    participants, 
-    cleanupSession,
-    resetSessionState 
+    participants
   } = useSession();
   
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -31,9 +27,6 @@ const RoguelikeQuiz: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creatingSession, setCreatingSession] = useState(false);
-  const [sessionCreated, setSessionCreated] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
   
   // 세션 ID 상태 추가
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -60,6 +53,53 @@ const RoguelikeQuiz: React.FC = () => {
     resetGameWithAttemptSave,
     handleGameComplete
   } = useRoguelikeQuiz(quiz, currentUser?.uid || '', sessionId || undefined);
+
+  // CSS 애니메이션 스타일 추가
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 로그라이크 퀴즈 페이지 배경 별 애니메이션 */
+      .sparkle-animation-roguelike-quiz {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleRoguelikeQuizEffect infinite;
+      }
+      
+      @keyframes sparkleRoguelikeQuizEffect {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        20% {
+          opacity: 0.5;
+          transform: scale(0.8) rotate(45deg);
+        }
+        40% {
+          opacity: 0.9;
+          transform: scale(1.2) rotate(90deg);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(1.4) rotate(135deg);
+        }
+        80% {
+          opacity: 0.6;
+          transform: scale(0.9) rotate(180deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(225deg);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
 
   // 로컬 스토리지에서 참가자 정보 확인
   useEffect(() => {
@@ -210,9 +250,8 @@ const RoguelikeQuiz: React.FC = () => {
             setLoading(false);
             return;
           }
-          
-          setQuiz(quizData);
-          setSessionCreated(true);
+                  
+        setQuiz(quizData);
           
         } catch (quizError) {
           console.error('퀴즈 데이터 로드 오류:', quizError);
@@ -285,74 +324,145 @@ const RoguelikeQuiz: React.FC = () => {
     }
   }, [quiz, sessionId, userId, checkExistingData]);
 
-  // 세션 생성 핸들러
-  const handleCreateSession = async () => {
-    if (!quizId || !currentUser || !quiz) return;
-    
-    try {
-      setCreatingSession(true);
-      setError(null);
-      
-      const sessionOptions = {
-        expiresIn: 24 * 60 * 60 * 1000, // 24시간
-        randomizeQuestions: false,
-        singleAttempt: false, // 로그라이크는 여러 번 시도 가능
-        questionTimeLimit: 60, // 로그라이크는 시간 제한 여유롭게
-        gameMode: 'roguelike' as const
-      };
-      
-      const sessionId = await createSessionForQuiz(quizId, sessionOptions, quiz);
-      console.log('로그라이크 세션 생성 완료:', sessionId);
-      
-      setSessionCreated(true);
-    } catch (err) {
-      console.error('세션 생성 실패:', err);
-      setError(err instanceof Error ? err.message : '세션 생성에 실패했습니다.');
-    } finally {
-      setCreatingSession(false);
-    }
-  };
-
-  // 게임 시작 핸들러
-  const handleStartGame = async () => {
-    if (!sessionCreated) {
-      await handleCreateSession();
-    }
-    initializeGame();
-  };
-
-  // 게임 종료 시 세션 정리
-  const handleGameEnd = async () => {
-    if (currentSession) {
-      try {
-        await cleanupSession(currentSession.id);
-        resetSessionState();
-      } catch (err) {
-        console.error('세션 정리 실패:', err);
+  // 퀴즈 로드 완료 후 자동으로 게임 시작 또는 기존 데이터 처리
+  useEffect(() => {
+    if (quiz && sessionId && userId && !gameStarted && !gameCompleted) {
+      if (hasExistingData) {
+        console.log('기존 완료된 게임 데이터 감지 - 결과 화면으로 자동 이동');
+        // 기존 데이터가 있는 경우, gameCompleted를 true로 설정하여 결과 화면으로 이동
+        // 이는 useRoguelikeQuiz 훅에서 자동으로 처리됩니다.
+      } else {
+        console.log('퀴즈 로드 완료 - 자동으로 게임 시작');
+        initializeGame();
       }
     }
-    setSessionCreated(false);
-  };
+  }, [quiz, sessionId, userId, gameStarted, gameCompleted, hasExistingData, initializeGame]);
 
-  // 초대 코드 복사
-  const copyInviteCode = () => {
-    if (currentSession?.code) {
-      copy(currentSession.code);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
 
-  // 초대 URL 복사
-  const copyInviteUrl = () => {
-    if (currentSession?.code) {
-      const baseUrl = window.location.origin;
-      const joinUrl = `${baseUrl}/join?code=${currentSession.code}`;
-      copy(joinUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
+
+  // 로딩 상태
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center relative overflow-hidden">
+        {/* 고급 우주 배경 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+        
+        {/* 고급 배경 별빛 효과 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 15 }).map((_, i) => {
+            const loadingStars = [
+              { top: '10%', left: '15%', color: 'text-white', size: 8, delay: 0 },
+              { top: '25%', right: '20%', color: 'text-cyan-400', size: 6, delay: 1 },
+              { bottom: '30%', left: '25%', color: 'text-pink-400', size: 10, delay: 2 },
+              { top: '50%', left: '40%', color: 'text-purple-400', size: 5, delay: 3 },
+              { bottom: '20%', right: '30%', color: 'text-yellow-400', size: 9, delay: 4 },
+              { top: '70%', left: '20%', color: 'text-indigo-300', size: 7, delay: 5 },
+              { bottom: '50%', right: '15%', color: 'text-emerald-400', size: 4, delay: 6 },
+              { top: '30%', right: '40%', color: 'text-rose-400', size: 8, delay: 7 },
+              { bottom: '10%', left: '60%', color: 'text-orange-400', size: 6, delay: 8 },
+              { top: '80%', right: '50%', color: 'text-violet-300', size: 11, delay: 9 },
+              { top: '15%', left: '80%', color: 'text-teal-400', size: 5, delay: 10 },
+              { bottom: '60%', left: '10%', color: 'text-amber-300', size: 7, delay: 11 },
+              { top: '60%', right: '10%', color: 'text-lime-400', size: 9, delay: 12 },
+              { bottom: '80%', right: '70%', color: 'text-sky-300', size: 6, delay: 13 },
+              { top: '40%', left: '70%', color: 'text-fuchsia-400', size: 8, delay: 14 }
+            ];
+            const star = loadingStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-roguelike-quiz"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay * 0.3}s`,
+                  animationDuration: '4s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-60`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="text-center relative z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mx-auto mb-6 drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]"></div>
+          <div className="text-6xl mb-4 animate-pulse">🚀</div>
+          <p className="text-cyan-300 text-xl font-bold drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">우주 퀴즈를 불러오는 중...</p>
+          <p className="text-purple-300 text-sm mt-2">잠시만 기다려주세요</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 오류 상태
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center relative overflow-hidden">
+        {/* 고급 우주 배경 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+        
+        {/* 고급 배경 별빛 효과 - 에러 테마 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 12 }).map((_, i) => {
+            const errorStars = [
+              { top: '15%', left: '20%', color: 'text-red-400', size: 9, delay: 0 },
+              { top: '30%', right: '25%', color: 'text-pink-400', size: 7, delay: 1.2 },
+              { bottom: '35%', left: '30%', color: 'text-orange-400', size: 8, delay: 2.4 },
+              { top: '60%', left: '45%', color: 'text-red-300', size: 6, delay: 3.6 },
+              { bottom: '25%', right: '35%', color: 'text-rose-400', size: 10, delay: 4.8 },
+              { top: '75%', left: '25%', color: 'text-amber-400', size: 5, delay: 6.0 },
+              { bottom: '55%', right: '20%', color: 'text-yellow-400', size: 8, delay: 7.2 },
+              { top: '40%', right: '45%', color: 'text-orange-300', size: 7, delay: 8.4 },
+              { bottom: '15%', left: '65%', color: 'text-red-300', size: 6, delay: 9.6 },
+              { top: '85%', right: '55%', color: 'text-pink-300', size: 9, delay: 10.8 },
+              { top: '20%', left: '85%', color: 'text-rose-300', size: 5, delay: 12.0 },
+              { bottom: '70%', left: '15%', color: 'text-amber-300', size: 8, delay: 13.2 }
+            ];
+            const star = errorStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-roguelike-quiz"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay * 0.5}s`,
+                  animationDuration: '5s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-40`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 border border-red-500/30 backdrop-blur-sm relative overflow-hidden">
+          {/* 네온 글로우 효과 */}
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
+          
+          <div className="text-center relative z-10">
+            <div className="text-8xl mb-4 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]">❌</div>
+            <h2 className="text-2xl font-bold text-white mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 통신 오류</h2>
+            <p className="text-red-300 mb-6">{error}</p>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg
+                       hover:from-purple-500 hover:to-pink-500 transition-all transform hover:scale-105
+                       border border-purple-400/30 backdrop-blur-sm
+                       drop-shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]"
+            >
+              🚀 우주 기지로 돌아가기
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 로그라이크 게임 세션을 QuizResults 형식으로 변환하는 함수
   const convertRoguelikeToQuizResults = () => {
@@ -476,59 +586,78 @@ const RoguelikeQuiz: React.FC = () => {
     };
   };
 
-  // 로딩 상태
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">퀴즈를 불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 오류 상태
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            <div className="text-red-500 text-5xl mb-4">❌</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">오류가 발생했습니다</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              홈으로 돌아가기
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // 퀴즈가 없는 경우
   if (!quiz) {
     return null;
   }
 
-  // 게임 시작 전
-  if (!gameStarted) {
+  // 게임 시작 전 - 자동으로 시작되거나 기존 데이터 처리 중
+  if (!gameStarted && !gameCompleted) {
     return (
-      <RoguelikeGameStart
-        quiz={quiz}
-        onStartGame={handleStartGame}
-        onBack={() => navigate('/')}
-        currentSession={currentSession}
-        participants={participants}
-        creatingSession={creatingSession}
-        sessionCreated={sessionCreated}
-        isCopied={isCopied}
-        onCopyInviteCode={copyInviteCode}
-        onCopyInviteUrl={copyInviteUrl}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center relative overflow-hidden">
+        {/* 고급 우주 배경 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+        
+        {/* 고급 배경 별빛 효과 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 18 }).map((_, i) => {
+            const prepStars = [
+              { top: '8%', left: '12%', color: 'text-white', size: 10, delay: 0 },
+              { top: '22%', right: '18%', color: 'text-cyan-400', size: 8, delay: 0.7 },
+              { bottom: '28%', left: '22%', color: 'text-purple-400', size: 9, delay: 1.4 },
+              { top: '48%', left: '38%', color: 'text-indigo-400', size: 6, delay: 2.1 },
+              { bottom: '22%', right: '28%', color: 'text-blue-400', size: 11, delay: 2.8 },
+              { top: '68%', left: '18%', color: 'text-violet-300', size: 7, delay: 3.5 },
+              { bottom: '48%', right: '12%', color: 'text-pink-400', size: 5, delay: 4.2 },
+              { top: '32%', right: '38%', color: 'text-rose-400', size: 8, delay: 4.9 },
+              { bottom: '12%', left: '58%', color: 'text-teal-400', size: 6, delay: 5.6 },
+              { top: '78%', right: '48%', color: 'text-emerald-300', size: 10, delay: 6.3 },
+              { top: '18%', left: '78%', color: 'text-cyan-300', size: 5, delay: 7.0 },
+              { bottom: '58%', left: '8%', color: 'text-sky-400', size: 9, delay: 7.7 },
+              { top: '58%', right: '8%', color: 'text-indigo-300', size: 7, delay: 8.4 },
+              { bottom: '78%', right: '68%', color: 'text-purple-300', size: 6, delay: 9.1 },
+              { top: '38%', left: '68%', color: 'text-blue-300', size: 8, delay: 9.8 },
+              { bottom: '38%', left: '48%', color: 'text-violet-400', size: 4, delay: 10.5 },
+              { top: '88%', left: '38%', color: 'text-cyan-200', size: 9, delay: 11.2 },
+              { bottom: '8%', right: '8%', color: 'text-indigo-200', size: 7, delay: 11.9 }
+            ];
+            const star = prepStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-roguelike-quiz"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay}s`,
+                  animationDuration: '6s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-65`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="text-center relative z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mx-auto mb-6 drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]"></div>
+          {hasExistingData ? (
+            <>
+              <div className="text-6xl mb-4 animate-pulse">📊</div>
+              <p className="text-cyan-300 text-xl font-bold drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">우주 탐험 기록을 불러오는 중...</p>
+              <p className="text-purple-300 text-sm mt-2">이전 탐험 결과를 확인하고 있습니다</p>
+            </>
+          ) : (
+            <>
+              <div className="text-6xl mb-4 animate-pulse">🗺️</div>
+              <p className="text-cyan-300 text-xl font-bold drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">우주 탐험 맵을 준비하는 중...</p>
+              <p className="text-purple-300 text-sm mt-2">잠시만 기다려주세요</p>
+            </>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -556,17 +685,61 @@ const RoguelikeQuiz: React.FC = () => {
     
     // resultsData가 없는 경우 오류 처리
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            <div className="text-red-500 text-5xl mb-4">❌</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">결과 처리 오류</h2>
-            <p className="text-gray-600 mb-6">게임 결과를 처리하는 중 오류가 발생했습니다.</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center relative overflow-hidden">
+        {/* 고급 우주 배경 효과 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
+        
+        {/* 고급 배경 별빛 효과 - 결과 오류 테마 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 10 }).map((_, i) => {
+            const resultErrorStars = [
+              { top: '20%', left: '25%', color: 'text-red-400', size: 8, delay: 0 },
+              { top: '40%', right: '30%', color: 'text-orange-400', size: 6, delay: 1.5 },
+              { bottom: '40%', left: '35%', color: 'text-pink-400', size: 9, delay: 3.0 },
+              { top: '70%', left: '50%', color: 'text-red-300', size: 5, delay: 4.5 },
+              { bottom: '30%', right: '40%', color: 'text-rose-400', size: 10, delay: 6.0 },
+              { top: '80%', left: '30%', color: 'text-amber-400', size: 7, delay: 7.5 },
+              { bottom: '60%', right: '25%', color: 'text-yellow-400', size: 4, delay: 9.0 },
+              { top: '50%', right: '50%', color: 'text-orange-300', size: 8, delay: 10.5 },
+              { bottom: '20%', left: '70%', color: 'text-red-300', size: 6, delay: 12.0 },
+              { top: '90%', right: '60%', color: 'text-pink-300', size: 7, delay: 13.5 }
+            ];
+            const star = resultErrorStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-roguelike-quiz"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay * 0.4}s`,
+                  animationDuration: '4.5s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-35`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 border border-red-500/30 backdrop-blur-sm relative overflow-hidden">
+          {/* 네온 글로우 효과 */}
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
+          
+          <div className="text-center relative z-10">
+            <div className="text-8xl mb-4 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]">❌</div>
+            <h2 className="text-2xl font-bold text-white mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">결과 처리 오류</h2>
+            <p className="text-red-300 mb-6">우주 게임 결과를 처리하는 중 오류가 발생했습니다.</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg
+                       hover:from-purple-500 hover:to-pink-500 transition-all transform hover:scale-105
+                       border border-purple-400/30 backdrop-blur-sm
+                       drop-shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]"
             >
-              홈으로 돌아가기
+              🚀 우주 기지로 돌아가기
             </button>
           </div>
         </div>
@@ -576,7 +749,7 @@ const RoguelikeQuiz: React.FC = () => {
 
   // 게임 진행 중
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black">
       {gameSession && mapNodes && mapEdges && mapStageConnections && (
         <>
           {gameSession.currentGameState === 'map-selection' && (
