@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Question } from '../../../types';
 import { RoguelikeGameSession } from '../../../types/roguelike';
-import { Shield, Clock, Star, CheckCircle, XCircle } from 'lucide-react';
+import { Shield, Clock, Star, CheckCircle, XCircle, Sparkle } from 'lucide-react';
 import QuizQuestion from '../QuizQuestion';
+import QuizTimer from '../QuizTimer';
 
 // State Machine: 단일 상태로 모든 상태 전환 관리
 type EliteStageState = 'PLAYING' | 'SHOWING_RESULT' | 'MOVING_TO_NEXT' | 'COMPLETED';
@@ -11,6 +12,7 @@ interface RoguelikeEliteStageProps {
   questions: Question[];
   questionIndices: number[];
   timeLeft: number | null;
+  timerPercentage: number;
   onAnswer: (answerIndex?: number, answerText?: string, timeSpent?: number, eliteAnswers?: Array<{questionIndex: number, answer: string | number, isCorrect: boolean, questionType: 'multiple-choice' | 'short-answer', timeSpent: number}>) => Promise<void>;
   onStageComplete: (
     success: boolean, 
@@ -24,15 +26,20 @@ interface RoguelikeEliteStageProps {
     } | null
   ) => Promise<void>;
   gameSession?: RoguelikeGameSession;
+  onPauseTimer?: () => void; // 타이머 일시정지 함수 추가
+  onResumeTimer?: () => void; // 타이머 재개 함수 추가
 }
 
 const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
   questions,
   questionIndices,
   timeLeft,
+  timerPercentage,
   onAnswer,
   onStageComplete,
-  gameSession
+  gameSession,
+  onPauseTimer,
+  onResumeTimer
 }) => {
   // State Machine: 단일 상태로 관리
   const [stageState, setStageState] = useState<EliteStageState>('PLAYING');
@@ -273,6 +280,11 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
       setSelectedAnswerIndex(originalAnswerIndex);
       setSelectedAnswer(answer);
       
+      // 결과가 나오면 즉시 타이머 일시정지
+      if (onPauseTimer) {
+        onPauseTimer();
+      }
+      
       // 정답 체크 (원본 인덱스 기준)
       const isCorrect = originalAnswerIndex === currentQuestion.correctAnswer;
       
@@ -345,11 +357,21 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
           setSelectedAnswer(null);
           setServerValidationResult(null);
           setStageState('PLAYING');
+          
+          // 다음 문제로 넘어갈 때 타이머 재개
+          if (onResumeTimer) {
+            onResumeTimer();
+          }
         }
       }, 2000);
     } else if (currentQuestion.type === 'short-answer') {
       setSelectedAnswer(answer);
       setSelectedAnswerIndex(null);
+      
+      // 결과가 나오면 즉시 타이머 일시정지
+      if (onPauseTimer) {
+        onPauseTimer();
+      }
       
       // 정답 체크
       const isCorrect = validateShortAnswer(answer, currentQuestion);
@@ -414,6 +436,11 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
           setSelectedAnswer(null);
           setServerValidationResult(null);
           setStageState('PLAYING');
+          
+          // 다음 문제로 넘어갈 때 타이머 재개
+          if (onResumeTimer) {
+            onResumeTimer();
+          }
         }
       }, 2000);
     }
@@ -423,175 +450,280 @@ const RoguelikeEliteStage: React.FC<RoguelikeEliteStageProps> = ({
     return ((currentQuestionIndex + 1) / questions.length) * 100;
   };
 
+  // CSS 애니메이션 스타일 추가
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      /* 엘리트 스테이지 배경 별 애니메이션 */
+      .sparkle-animation-elite-stage {
+        opacity: 0;
+        transform: scale(0);
+        animation: sparkleEliteStageEffect infinite;
+      }
+      
+      @keyframes sparkleEliteStageEffect {
+        0% {
+          opacity: 0;
+          transform: scale(0) rotate(0deg);
+        }
+        25% {
+          opacity: 0.8;
+          transform: scale(1) rotate(90deg);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.3) rotate(180deg);
+        }
+        75% {
+          opacity: 0.6;
+          transform: scale(0.8) rotate(270deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) rotate(360deg);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   // State Machine 기반 렌더링
   if (stageState === 'COMPLETED') {
     const correctCount = results.filter(Boolean).length;
     const success = finalSuccess;
 
     return (
-      <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden max-w-2xl mx-auto">
+      <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden">
         {/* 네온 글로우 효과 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl animate-pulse"></div>
-        <div className="absolute top-4 right-4 w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl"></div>
         
-        <div className="text-center relative z-10">
-          <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
-            success ? 'bg-gradient-to-r from-green-500/20 to-cyan-500/20 border-2 border-green-400' : 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-2 border-red-400'
-          } backdrop-blur-sm`}>
-            {success ? (
-              <CheckCircle size={48} className="text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
-            ) : (
-              <XCircle size={48} className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
-            )}
-          </div>
-          
-          <h2 className={`text-4xl font-bold mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] ${
-            success ? 'text-green-400' : 'text-red-400'
-          }`}>
-            엘리트 미션 {success ? '성공!' : '실패'}
-          </h2>
-          
-          <p className="text-2xl text-cyan-300 mb-6 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">
-            {correctCount}미션 / {questions.length}미션 클리어
-          </p>
-          
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            {results.map((isCorrect, index) => (
-              <div key={index} className={`p-4 rounded-xl border-2 backdrop-blur-sm ${
-                isCorrect 
-                  ? 'border-green-400/50 bg-gradient-to-br from-green-500/20 to-cyan-500/20' 
-                  : 'border-red-400/50 bg-gradient-to-br from-red-500/20 to-pink-500/20'
-              }`}>
-                <div className="text-center">
-                  {isCorrect ? (
-                    <CheckCircle size={28} className="text-green-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]" />
-                  ) : (
-                    <XCircle size={28} className="text-red-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-                  )}
-                  <p className="font-medium text-white">미션 {index + 1}</p>
-                </div>
+        {/* 배경 별빛 효과 */}
+        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+          {Array.from({ length: 4 }).map((_, i) => {
+            const eliteStageStars = [
+              { top: '15%', right: '15%', color: 'text-red-400', size: 6, delay: 0 },
+              { bottom: '20%', left: '20%', color: 'text-pink-400', size: 4, delay: 2.0 },
+              { top: '75%', left: '15%', color: 'text-red-300', size: 3, delay: 4.0 },
+              { top: '65%', right: '70%', color: 'text-orange-300', size: 5, delay: 6.0 }
+            ];
+            const star = eliteStageStars[i];
+            return (
+              <div 
+                key={i}
+                className="absolute sparkle-animation-elite-stage"
+                style={{
+                  ...star,
+                  animationDelay: `${star.delay}s`,
+                  animationDuration: '5s'
+                }}
+              >
+                <Sparkle 
+                  size={star.size} 
+                  className={`${star.color} opacity-20`}
+                />
               </div>
-            ))}
+            );
+          })}
+        </div>
+        
+        <div className="relative z-10">
+          {/* 스테이지 헤더 - 아이콘과 제목 가로 배치 */}
+          <div className="flex items-center justify-center mb-6">
+            <div className="text-4xl mr-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">🛸</div>
+            <h2 className={`text-2xl font-bold drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] ${
+              success ? 'text-green-400' : 'text-red-400'
+            }`}>
+              엘리트 미션 {success ? '성공!' : '실패'}
+            </h2>
           </div>
-          
-          <p className="text-cyan-300">
-            {success ? '🌟 우주 보상을 획득했습니다!' : '⭐ 다음 스테이지로 이동합니다...'}
-          </p>
+
+          {/* 결과 영역 - 흰색 배경 패널 */}
+          <div className={`bg-white/95 rounded-2xl border-2 backdrop-blur-md shadow-lg p-6 ${
+            success ? 'border-green-400/30' : 'border-red-400/30'
+          }`}
+            style={{
+              boxShadow: success ? '0 3px 0 rgba(34, 197, 94, 0.5)' : '0 3px 0 rgba(239, 68, 68, 0.5)',
+              border: success ? '2px solid #22c55e' : '2px solid #dc2626',
+              borderRadius: '16px',
+              background: success 
+                ? 'linear-gradient(to bottom right, #fff, #f0fdf4)' 
+                : 'linear-gradient(to bottom right, #fff, #fef2f2)',
+            }}
+          >
+            <div className="text-center">
+              <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
+                success ? 'bg-gradient-to-r from-green-500/20 to-cyan-500/20 border-2 border-green-400' : 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-2 border-red-400'
+              } backdrop-blur-sm`}>
+                {success ? (
+                  <CheckCircle size={48} className="text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
+                ) : (
+                  <XCircle size={48} className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
+                )}
+              </div>
+              
+              <p className={`text-2xl font-bold mb-6 ${success ? 'text-green-600' : 'text-red-600'}`}>
+                {correctCount}미션 / {questions.length}미션 클리어
+              </p>
+              
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                {results.map((isCorrect, index) => (
+                  <div key={index} className={`p-4 rounded-xl border-2 backdrop-blur-sm ${
+                    isCorrect 
+                      ? 'border-green-400/50 bg-gradient-to-br from-green-500/20 to-cyan-500/20' 
+                      : 'border-red-400/50 bg-gradient-to-br from-red-500/20 to-pink-500/20'
+                  }`}>
+                    <div className="text-center">
+                      {isCorrect ? (
+                        <CheckCircle size={28} className="text-green-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]" />
+                      ) : (
+                        <XCircle size={28} className="text-red-400 mx-auto mb-2 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
+                      )}
+                      <p className="font-medium text-gray-700">미션 {index + 1}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <p className={`text-lg font-medium ${success ? 'text-green-600' : 'text-red-600'}`}>
+                {success ? '🌟 우주 보상을 획득했습니다!' : '⭐ 다음 스테이지로 이동합니다...'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden max-w-2xl mx-auto">
+    <div className="bg-gradient-to-br from-gray-800 via-red-800 to-gray-900 rounded-3xl shadow-2xl p-8 border border-red-500/50 backdrop-blur-sm relative overflow-hidden">
       {/* 네온 글로우 효과 */}
       <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl"></div>
-      <div className="absolute top-4 right-4 w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
-      <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
+      
+      {/* 배경 별빛 효과 */}
+      <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+        {Array.from({ length: 4 }).map((_, i) => {
+          const eliteStageStars = [
+            { top: '15%', right: '15%', color: 'text-red-400', size: 6, delay: 0 },
+            { bottom: '20%', left: '20%', color: 'text-pink-400', size: 4, delay: 2.0 },
+            { top: '75%', left: '15%', color: 'text-red-300', size: 3, delay: 4.0 },
+            { top: '65%', right: '70%', color: 'text-orange-300', size: 5, delay: 6.0 }
+          ];
+          const star = eliteStageStars[i];
+          return (
+            <div 
+              key={i}
+              className="absolute sparkle-animation-elite-stage"
+              style={{
+                ...star,
+                animationDelay: `${star.delay}s`,
+                animationDuration: '5s'
+              }}
+            >
+              <Sparkle 
+                size={star.size} 
+                className={`${star.color} opacity-20`}
+              />
+            </div>
+          );
+        })}
+      </div>
       
       <div className="relative z-10">
-      {/* 게임 상태 표시 바 */}
-      {gameStats && (
-          <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-red-900/80 to-gray-900/80 rounded-xl p-4 border border-red-400/30 backdrop-blur-sm">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            {/* 현재 점수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
-                <div className="text-xs text-gray-300">⭐ 점수</div>
-            </div>
-            
-            {/* 정답 수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">{gameStats.correctAnswers}</div>
-                <div className="text-xs text-gray-300">✅ 정답</div>
-            </div>
-            
-            {/* 현재 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
-                <div className="text-xs text-gray-300">🔥 연속</div>
-            </div>
-            
-            {/* 최대 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.maxStreak}</div>
-                <div className="text-xs text-gray-300">🏆 최대</div>
-            </div>
-          </div>
+        {/* 스테이지 헤더 - 아이콘과 제목 가로 배치 */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="text-4xl mr-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">🛸</div>
+          <h2 className="text-2xl font-bold text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">
+            엘리트 미션 {currentQuestionIndex + 1}/{questions.length}
+          </h2>
         </div>
-      )}
 
-      {/* 엘리트 스테이지 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-            <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 p-4 rounded-full mr-4 border border-red-400/50 backdrop-blur-sm">
-              <Shield size={28} className="text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
-          </div>
-          <div>
-              <h1 className="text-3xl font-bold text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">🛸 엘리트 미션</h1>
-              <p className="text-cyan-300">모든 미션을 성공해야 클리어! 하나라도 실패하면 게임오버</p>
-          </div>
-        </div>
-        
-        {timeLeft !== null && (
-            <div className="flex items-center bg-gradient-to-r from-red-500/20 to-pink-500/20 px-4 py-3 rounded-xl border border-red-400/50 backdrop-blur-sm">
-              <Clock size={20} className="text-red-400 mr-2 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-              <span className="font-bold text-red-300 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]">
-              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+        {/* 미션 진행 상태 - 별 표시 중심 */}
+        <div className="mb-8">
+          <div className="text-center mb-4">
+            <span className="text-sm font-medium text-red-300">
+              모든 미션을 성공해야 클리어! 하나라도 실패하면 게임오버
             </span>
           </div>
-        )}
-      </div>
-
-      {/* 진행률 표시 */}
-      <div className="mb-6">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-medium text-cyan-300">
-              미션 {currentQuestionIndex + 1} / {questions.length}
-          </span>
-          <div className="flex space-x-1">
-            {questions.map((_, index) => (
-              <Star
-                key={index}
-                  size={18}
-                className={`${
-                  index < currentQuestionIndex 
-                      ? 'text-yellow-400 fill-current drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]' 
-                    : index === currentQuestionIndex
-                      ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]'
-                      : 'text-gray-500'
-                }`}
-              />
-            ))}
+          
+          {/* 미션 상태 별 표시 */}
+          <div className="flex justify-center items-center space-x-8">
+            {questions.map((_, index) => {
+              const isCompleted = index < currentQuestionIndex;
+              const isCurrent = index === currentQuestionIndex;
+              const isCorrect = results[index] === true;
+              
+              return (
+                <div key={index} className="text-center">
+                  <div className="relative">
+                    <Star
+                      size={32}
+                      className={`transition-all duration-300 ${
+                        isCompleted && isCorrect
+                          ? 'text-green-400 fill-current drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]' 
+                          : isCurrent
+                            ? 'text-yellow-400 fill-current drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] animate-pulse'
+                            : 'text-gray-500'
+                      }`}
+                    />
+                    {/* 현재 문제 표시 링 */}
+                    {isCurrent && (
+                      <div className="absolute inset-0 border-2 border-yellow-400 rounded-full animate-ping"></div>
+                    )}
+                  </div>
+                  <div className={`text-xs font-medium mt-2 ${
+                    isCompleted && isCorrect
+                      ? 'text-green-400'
+                      : isCurrent
+                        ? 'text-yellow-400'
+                        : 'text-gray-500'
+                  }`}>
+                    미션 {index + 1}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-          <div className="w-full bg-gray-700/50 rounded-full h-3 border border-gray-600/50">
-          <div 
-              className="bg-gradient-to-r from-red-500 to-pink-500 h-3 rounded-full transition-all duration-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-            style={{ width: `${getProgressWidth()}%` }}
-          />
-        </div>
-      </div>
 
-      {/* QuizQuestion 컴포넌트 사용 */}
-      <QuizQuestion
-        key={currentQuestionIndex}
-        question={getCurrentQuestion() || currentQuestion}
-        selectedAnswer={selectedAnswer}
-        selectedAnswerIndex={selectedAnswerIndex}
-        onSelectAnswer={handleSelectAnswer}
-        showResult={stageState === 'SHOWING_RESULT' || stageState === 'MOVING_TO_NEXT'}
-        disabled={stageState !== 'PLAYING'}
-        serverValidationResult={serverValidationResult}
-        currentShuffledOptions={currentShuffledOptions}
-      />
-
-      {/* 안내 메시지 */}
-      <div className="mt-6 text-center">
-          <p className="text-sm text-cyan-300">
-            ⚔️ 모든 미션을 완벽히 성공해서 엘리트 우주 보상을 획득하세요!
-        </p>
+        {/* 문제 영역 - RoguelikeNormalStage와 동일한 구조 */}
+        <div className="bg-white/95 rounded-2xl border-2 border-red-400/30 backdrop-blur-md shadow-lg"
+          style={{
+            boxShadow: '0 3px 0 rgba(239, 68, 68, 0.5)',
+            border: '2px solid #dc2626',
+            borderRadius: '16px',
+            background: 'linear-gradient(to bottom right, #fff, #fef2f2)',
+          }}
+        >
+          {/* 타이머 - QuizTimer 컴포넌트 사용 */}
+          {timeLeft !== null && (
+            <div className="px-6 pt-4 pb-2">
+              <QuizTimer 
+                timeLeft={timeLeft}
+                timerPercentage={timerPercentage}
+              />
+            </div>
+          )}
+          
+          {/* 문제 내용 */}
+          <div className="px-6 pb-6">
+            <QuizQuestion
+              key={currentQuestionIndex}
+              question={getCurrentQuestion() || currentQuestion}
+              selectedAnswer={selectedAnswer}
+              selectedAnswerIndex={selectedAnswerIndex}
+              onSelectAnswer={handleSelectAnswer}
+              showResult={stageState === 'SHOWING_RESULT' || stageState === 'MOVING_TO_NEXT'}
+              disabled={stageState !== 'PLAYING'}
+              serverValidationResult={serverValidationResult}
+              currentShuffledOptions={currentShuffledOptions}
+            />
+          </div>
         </div>
       </div>
     </div>

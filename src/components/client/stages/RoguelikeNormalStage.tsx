@@ -2,23 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { Sparkle } from 'lucide-react';
 import { Question } from '../../../types';
 import QuizQuestion from '../QuizQuestion';
+import QuizTimer from '../QuizTimer';
 
 interface RoguelikeNormalStageProps {
   question: Question;
   questionNumber: number;
   totalQuestions: number;
   timeLeft: number | null;
+  timerPercentage: number;
   onAnswer: (answerIndex?: number, answerText?: string) => Promise<void>;
   gameSession?: any; // 게임 세션 정보 추가
+  onPauseTimer?: () => void; // 타이머 일시정지 함수 추가
+  onResumeTimer?: () => void; // 타이머 재개 함수 추가
 }
 
 const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
   question,
   questionNumber,
-  totalQuestions,
   timeLeft,
+  timerPercentage,
   onAnswer,
-  gameSession
+  onPauseTimer
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -72,19 +76,6 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
     // 다른 문제 형식이거나 섞인 선택지가 없으면 원본 그대로 반환
     return question;
   };
-
-  // 게임 상태 정보 계산
-  const gameStats = React.useMemo(() => {
-    if (!gameSession) return null;
-    
-    return {
-      currentScore: gameSession.baseScore || 0,
-      correctAnswers: gameSession.correctAnswers || 0,
-      totalQuestions: gameSession.totalQuestions || 0,
-      currentStreak: gameSession.currentStreak || 0,
-      maxStreak: gameSession.maxStreak || 0,
-    };
-  }, [gameSession]);
 
   // 문제가 바뀔 때마다 선택지 순서 섞기
   useEffect(() => {
@@ -153,6 +144,11 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       setSelectedAnswer(answer);
       setShowResult(true);
       
+      // 결과가 나오면 즉시 타이머 일시정지
+      if (onPauseTimer) {
+        onPauseTimer();
+      }
+      
       // 클라이언트 검증 (임시로 결과 표시용) - 원본 인덱스 기준
       const isCorrect = originalAnswerIndex === question.correctAnswer;
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
@@ -183,6 +179,11 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       setSelectedIndex(null);
       setShowResult(true);
       
+      // 결과가 나오면 즉시 타이머 일시정지
+      if (onPauseTimer) {
+        onPauseTimer();
+      }
+      
       // 클라이언트 검증 (임시로 결과 표시용)
       const isCorrect = validateShortAnswer(answer, question);
       setServerValidationResult({ isCorrect, points: isCorrect ? 50 : 0 }); // 임시 점수
@@ -205,20 +206,6 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
         }
       }, 2000); // 2초 피드백 시간
     }
-  };
-
-  // 타이머 색상 계산
-  const getTimerColor = () => {
-    if (!timeLeft) return 'text-gray-500';
-    if (timeLeft <= 10) return 'text-red-500';
-    if (timeLeft <= 30) return 'text-yellow-500';
-    return 'text-green-500';
-  };
-
-  // 타이머 진행도 계산
-  const getTimerProgress = () => {
-    if (!timeLeft) return 0;
-    return (timeLeft / 60) * 100; // 60초 기준
   };
 
   // CSS 애니메이션 스타일 추가
@@ -269,16 +256,14 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       {/* 네온 글로우 효과 */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl"></div>
       
-      {/* 고급 배경 별빛 효과 */}
+      {/* 배경 별빛 효과 (투명도 낮춤) */}
       <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
-        {Array.from({ length: 6 }).map((_, i) => {
+        {Array.from({ length: 4 }).map((_, i) => {
           const normalStageStars = [
-            { top: '12%', right: '12%', color: 'text-cyan-400', size: 8, delay: 0 },
-            { bottom: '15%', left: '15%', color: 'text-pink-400', size: 6, delay: 1.2 },
-            { top: '25%', right: '30%', color: 'text-white', size: 5, delay: 2.4 },
-            { bottom: '30%', right: '20%', color: 'text-purple-300', size: 7, delay: 3.6 },
-            { top: '70%', left: '20%', color: 'text-cyan-300', size: 4, delay: 4.8 },
-            { top: '60%', right: '60%', color: 'text-indigo-300', size: 9, delay: 6.0 }
+            { top: '15%', right: '15%', color: 'text-cyan-400', size: 6, delay: 0 },
+            { bottom: '20%', left: '20%', color: 'text-white', size: 4, delay: 2.0 },
+            { top: '75%', left: '15%', color: 'text-cyan-300', size: 3, delay: 4.0 },
+            { top: '65%', right: '70%', color: 'text-indigo-300', size: 5, delay: 6.0 }
           ];
           const star = normalStageStars[i];
           return (
@@ -288,12 +273,12 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
               style={{
                 ...star,
                 animationDelay: `${star.delay}s`,
-                animationDuration: '4s'
+                animationDuration: '5s'
               }}
             >
               <Sparkle 
                 size={star.size} 
-                className={`${star.color} opacity-40`}
+                className={`${star.color} opacity-20`}
               />
             </div>
           );
@@ -301,91 +286,46 @@ const RoguelikeNormalStage: React.FC<RoguelikeNormalStageProps> = ({
       </div>
       
       <div className="relative z-10">
-      {/* 게임 상태 표시 바 */}
-      {gameStats && (
-          <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-4 border border-cyan-400/30 backdrop-blur-sm">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            {/* 현재 점수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
-                <div className="text-xs text-gray-300">⭐ 점수</div>
-            </div>
-            
-            {/* 정답 수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">{gameStats.correctAnswers}</div>
-                <div className="text-xs text-gray-300">✅ 정답</div>
-            </div>
-            
-            {/* 현재 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
-                <div className="text-xs text-gray-300">🔥 연속</div>
-            </div>
-            
-            {/* 최대 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.maxStreak}</div>
-                <div className="text-xs text-gray-300">🏆 최대</div>
-            </div>
-          </div>
-        </div>
-      )}
+            {/* 스테이지 헤더 - 아이콘과 제목 가로 배치 */}
+      <div className="flex items-center justify-center mb-6">
+        <div className="text-4xl mr-4 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)]">🚀</div>
+        <h2 className="text-2xl font-bold text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">{questionNumber}번째 여정</h2>
+      </div>
 
-      {/* 스테이지 헤더 */}
-      <div className="text-center mb-8">
-          <div className="text-6xl mb-4 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)]">🚀</div>
-          <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">일반 문제 스테이지</h2>
-          <p className="text-cyan-300 text-lg">
-            미션 {questionNumber}/{totalQuestions}
-        </p>
-        
-        {/* 타이머 */}
+      {/* 문제 영역 - 상단에 타이머 포함 */}
+      <div className="bg-white/95 rounded-2xl border-2 border-cyan-400/30 backdrop-blur-md shadow-lg quiz-question-container"
+        style={{
+          boxShadow: '0 3px 0 rgba(6, 182, 212, 0.5)',
+          border: '2px solid #0891b2',
+          borderRadius: '16px',
+          background: 'linear-gradient(to bottom right, #fff, #f0fffc)',
+        }}
+      >
+        {/* 타이머 - QuizTimer 컴포넌트 사용 */}
         {timeLeft !== null && (
-            <div className="mt-6">
-              <div className={`text-xl font-bold mb-3 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] ${getTimerColor()}`}>
-              ⏰ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-            </div>
-              <div className="w-full bg-gray-700/50 rounded-full h-3 border border-gray-600/50">
-              <div 
-                  className={`h-3 rounded-full transition-all duration-1000 ${
-                    timeLeft <= 10 ? 'bg-gradient-to-r from-red-500 to-pink-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 
-                    timeLeft <= 30 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 
-                    'bg-gradient-to-r from-green-500 to-cyan-500 drop-shadow-[0_0_10px_rgba(34,197,94,0.8)]'
-                }`}
-                style={{ width: `${getTimerProgress()}%` }}
-              ></div>
-            </div>
+          <div className="px-6 pt-4 pb-2">
+            <QuizTimer 
+              timeLeft={timeLeft}
+              timerPercentage={timerPercentage}
+            />
           </div>
         )}
-      </div>
-
-      {/* QuizQuestion 컴포넌트 사용 */}
-      <QuizQuestion
-        question={getCurrentQuestion() || question}
-        selectedAnswer={selectedAnswer}
-        selectedAnswerIndex={selectedIndex}
-        onSelectAnswer={handleSelectAnswer}
-        showResult={showResult}
-        disabled={isSubmitting}
-        serverValidationResult={serverValidationResult}
-        currentShuffledOptions={currentShuffledOptions}
-      />
-
-      {/* 안내 메시지 */}
-      <div className="mt-6 text-center">
-          <p className="text-sm text-cyan-300">
-            💫 정답을 맞춰서 우주 보상을 획득하세요!
-        </p>
         
-        {/* 디버그 정보 (개발 모드에서만) */}
-        {process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 text-xs text-gray-500">
-              <p>현재 미션 ID: {question?.id || 'N/A'}</p>
-          </div>
-        )}
+                {/* 문제 내용 */}
+        <div className="px-6 pb-6">
+          <QuizQuestion
+            question={getCurrentQuestion() || question}
+            selectedAnswer={selectedAnswer}
+            selectedAnswerIndex={selectedIndex}
+            onSelectAnswer={handleSelectAnswer}
+            showResult={showResult}
+            disabled={isSubmitting}
+            serverValidationResult={serverValidationResult}
+            currentShuffledOptions={currentShuffledOptions}
+          />
         </div>
       </div>
+    </div>
     </div>
   );
 };

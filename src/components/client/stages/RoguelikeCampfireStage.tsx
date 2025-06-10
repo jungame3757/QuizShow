@@ -9,6 +9,7 @@ interface RoguelikeCampfireStageProps {
   onAnswer: (answerIndex?: number, answerText?: string) => Promise<void>;
   onSkip: () => void;
   gameSession?: RoguelikeGameSession;
+  otherOpinions?: string[]; // 다른 참가자들의 의견
 }
 
 // 보상 박스 인터페이스 제거 (RoguelikeRewardBox에서 처리)
@@ -17,34 +18,31 @@ const RoguelikeCampfireStage: React.FC<RoguelikeCampfireStageProps> = ({
   question,
   onAnswer,
   onSkip,
-  gameSession
+  otherOpinions = []
 }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [submittedOpinion, setSubmittedOpinion] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [isSkipped, setIsSkipped] = useState(false);
   const [serverValidationResult, setServerValidationResult] = useState<{ isCorrect: boolean; points: number } | null>(null);
-  
-  // 게임 상태 정보 계산
-  const gameStats = React.useMemo(() => {
-    if (!gameSession) return null;
-    
-    return {
-      currentScore: gameSession.baseScore || 0,
-      correctAnswers: gameSession.correctAnswers || 0,
-      totalQuestions: gameSession.totalQuestions || 0,
-      currentStreak: gameSession.currentStreak || 0,
-      maxStreak: gameSession.maxStreak || 0,
-    };
-  }, [gameSession]);
+  const [showOtherOpinions, setShowOtherOpinions] = useState(false);
 
-  const handleSelectAnswer = async (answer: string, index: number) => {
+  // 컴포넌트 마운트 시 다른 의견들을 보여주기 위한 딜레이
+  useEffect(() => {
+    if (otherOpinions.length > 0) {
+      const timer = setTimeout(() => {
+        setShowOtherOpinions(true);
+      }, 1000); // 1초 후에 다른 의견들 표시
+      
+      return () => clearTimeout(timer);
+    }
+  }, [otherOpinions.length]);
+
+  const handleSelectAnswer = async (answer: string) => {
     if (isSubmitting) return;
     
     setIsSubmitting(true);
     setSelectedAnswer(answer);
-    setSubmittedOpinion(answer);
     setShowResult(true);
 
     // 의견 문제는 항상 정답으로 처리
@@ -205,91 +203,105 @@ const RoguelikeCampfireStage: React.FC<RoguelikeCampfireStageProps> = ({
       </div>
       
       <div className="relative z-10">
-      {/* 게임 상태 표시 바 */}
-      {gameStats && (
-          <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-orange-900/80 to-gray-900/80 rounded-xl p-4 border border-orange-400/30 backdrop-blur-sm">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            {/* 현재 점수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
-                <div className="text-xs text-gray-300">⭐ 점수</div>
+        {/* 스테이지 헤더 - 아이콘과 제목 가로 배치 */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="text-4xl mr-4 drop-shadow-[0_0_20px_rgba(251,146,60,0.8)]">🛸</div>
+          <h2 className="text-2xl font-bold text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 정거장 스테이지</h2>
+        </div>
+        
+        {/* 다른 여행자들의 의견 수 표시 */}
+        {otherOpinions.length > 0 && (
+          <div className="mb-4 flex justify-center items-center space-x-2">
+            <div className="text-sm text-cyan-300 font-medium">
+              💫 다른 우주 여행자 {otherOpinions.length}명의 생각들이 도착했습니다
             </div>
+            {!showOtherOpinions && (
+              <div className="animate-pulse">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 문제 영역 - 하얀 프레임 구조 적용 */}
+        <div className="bg-white/95 rounded-2xl border-2 border-orange-400/30 backdrop-blur-md shadow-lg"
+          style={{
+            boxShadow: '0 3px 0 rgba(251, 146, 60, 0.5)',
+            border: '2px solid #f97316',
+            borderRadius: '16px',
+            background: 'linear-gradient(to bottom right, #fff, #fff8f0)',
+          }}
+        >
+          {/* 설명 영역 */}
+          <div className="px-6 py-4 border-b border-orange-200/50">
+            <p className="text-orange-600 text-center font-medium">
+              다른 우주 여행자들과 의견을 나누고 특별한 보상을 획득하세요!
+            </p>
             
-            {/* 정답 수 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">{gameStats.correctAnswers}</div>
-                <div className="text-xs text-gray-300">✅ 정답</div>
-            </div>
+            {/* 다른 의견들이 있지만 아직 표시되지 않은 경우 */}
+            {otherOpinions.length > 0 && !showOtherOpinions && (
+              <p className="text-xs text-cyan-600 animate-pulse text-center mt-2">
+                💭 다른 여행자들의 생각을 불러오는 중...
+              </p>
+            )}
             
-            {/* 현재 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)]">{gameStats.currentStreak}</div>
-                <div className="text-xs text-gray-300">🔥 연속</div>
-            </div>
-            
-            {/* 최대 연속 */}
-            <div className="text-center">
-                <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.maxStreak}</div>
-                <div className="text-xs text-gray-300">🏆 최대</div>
-            </div>
+            {/* 다른 의견들이 표시된 후 */}
+            {showOtherOpinions && otherOpinions.length > 0 && (
+              <p className="text-xs text-purple-600 text-center mt-2">
+                🌌 위의 생각들을 참고하여 여러분만의 독특한 의견을 들려주세요!
+              </p>
+            )}
+          </div>
+          
+          {/* 문제 내용 */}
+          <div className="px-6 pb-6 pt-4">
+            <QuizQuestion
+              question={question}
+              selectedAnswer={selectedAnswer}
+              selectedAnswerIndex={null}
+              onSelectAnswer={handleSelectAnswer}
+              showResult={showResult}
+              disabled={isSubmitting}
+              serverValidationResult={serverValidationResult}
+              otherOpinions={showOtherOpinions ? otherOpinions : undefined}
+            />
           </div>
         </div>
-      )}
 
-      {/* 스테이지 헤더 */}
-      <div className="text-center mb-8">
-          <div className="text-6xl mb-4 drop-shadow-[0_0_25px_rgba(251,146,60,0.8)]">🛸</div>
-          <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">우주 정거장 스테이지</h2>
-          <p className="text-orange-300 text-lg">
-            다른 우주 여행자들과 의견을 나누고 특별한 보상을 획득하세요!
-        </p>
-      </div>
-
-      {/* QuizQuestion 컴포넌트 사용 */}
-      <QuizQuestion
-        question={question}
-        selectedAnswer={selectedAnswer}
-        selectedAnswerIndex={null}
-        onSelectAnswer={handleSelectAnswer}
-        showResult={showResult}
-        disabled={isSubmitting}
-        serverValidationResult={serverValidationResult}
-      />
-
-      {/* 버튼 영역 */}
-        <div className="mt-8 text-center">
-        <button
-          onClick={handleSkip}
-          disabled={isSubmitting || showResult}
+        {/* 버튼 영역 */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleSkip}
+            disabled={isSubmitting || showResult}
             className="px-8 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-2xl font-bold text-lg
                      hover:from-gray-500 hover:to-gray-600 transition-all transform hover:scale-105 
                      disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                      border border-gray-400/30 backdrop-blur-sm
                      drop-shadow-[0_0_15px_rgba(75,85,99,0.5)] hover:drop-shadow-[0_0_20px_rgba(75,85,99,0.8)]"
-        >
+          >
             🚀 정거장 건너뛰기
-        </button>
-      </div>
+          </button>
+        </div>
 
-      {/* 안내 메시지 */}
-      <div className="mt-6 text-center">
+        {/* 안내 메시지 */}
+        <div className="mt-4 text-center space-y-2">
           <p className="text-sm text-orange-300">
             🌟 의견을 작성하면 우주 보상 상자에서 점수 증감 효과를 선택할 수 있습니다!
-        </p>
-      </div>
+          </p>
+        </div>
 
-      {/* 의견 제출 완료 메시지 */}
-      {showResult && (
+        {/* 의견 제출 완료 메시지 */}
+        {showResult && (
           <div className="mt-6 text-center">
             <div className="text-green-400 font-medium mb-2 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">
               ✅ 우주 통신이 전송되었습니다!
             </div>
             <div className="text-sm text-cyan-400 animate-pulse drop-shadow-[0_0_10px_rgba(34,211,238,0.7)]">
               우주 보상 상자를 선택하러 이동 중...
-          </div>
+            </div>
           </div>
         )}
-        </div>
+      </div>
     </div>
   );
 };

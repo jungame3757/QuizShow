@@ -9,6 +9,9 @@ import Profile from './pages/Profile';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Help from './pages/Help';
+import Sitemap from './pages/Sitemap';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 import CreateQuiz from './pages/host/CreateQuiz';
 import MyQuizzes from './pages/host/MyQuizzes';
 import SessionQuiz from './pages/host/SessionQuiz';
@@ -33,6 +36,9 @@ function App() {
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/sitemap" element={<Sitemap />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:postId" element={<BlogPost />} />
               
               {/* 호스트 라우트 */}
               <Route path="/host/create" element={<ProtectedRoute><CreateQuiz /></ProtectedRoute>} />

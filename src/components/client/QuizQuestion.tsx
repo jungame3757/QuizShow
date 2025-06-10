@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Question } from '../../types';
-import { Check, X, MessageSquare, Users } from 'lucide-react';
+import { Check, X, MessageSquare } from 'lucide-react';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 

@@ -338,6 +338,28 @@ const RoguelikeQuiz: React.FC = () => {
     }
   }, [quiz, sessionId, userId, gameStarted, gameCompleted, hasExistingData, initializeGame]);
 
+  // 페이지 나가기/새로고침 경고 메시지
+  useEffect(() => {
+    // 게임이 진행 중일 때만 경고 표시
+    const shouldShowWarning = gameStarted && !gameCompleted && !loading && !error;
+    
+    if (shouldShowWarning) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '우주 탐험이 진행 중입니다. 페이지를 나가면 진행 상황이 저장되지 않을 수 있습니다. 정말 나가시겠습니까?';
+        return e.returnValue;
+      };
+
+      // beforeunload 이벤트 리스너 등록
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        // 컴포넌트 언마운트 시 이벤트 리스너 제거
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [gameStarted, gameCompleted, loading, error]);
+
 
 
   // 로딩 상태

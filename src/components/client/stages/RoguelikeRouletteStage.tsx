@@ -348,46 +348,35 @@ const RoguelikeRouletteStage: React.FC<RoguelikeRouletteStageProps> = ({
       </div>
 
       {/* 상자 선택 영역 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="flex justify-center items-center gap-8 mb-8">
         {currentRoundBoxes.map((box, index) => {
           const boxId = index + 1;
           const isCurrentlyAnimating = currentBoxIndex === boxId;
           
           return (
             <button
-                key={`round-${usedTickets + 1}-box-${index}`}
+              key={`round-${usedTickets + 1}-box-${index}`}
               onClick={() => handleBoxSelect(boxId)}
               disabled={usedTickets >= availableTickets || isAnimating}
-                className={`relative p-8 rounded-2xl border-2 transition-all transform hover:scale-105 ${
+              className={`relative transition-all transform hover:scale-125 ${
                 isCurrentlyAnimating
-                    ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-purple-400 scale-105 ring-4 ring-purple-300/50'
+                  ? 'scale-125 animate-bounce'
                   : usedTickets >= availableTickets
-                    ? 'opacity-50 scale-95 cursor-not-allowed bg-gradient-to-br from-gray-600/20 to-gray-700/20 border-gray-500/30'
-                    : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 border-cyan-400/50 hover:scale-110 hover:border-purple-400/70 hover:bg-gradient-to-br hover:from-purple-500/20 hover:to-pink-500/20'
-                } backdrop-blur-sm`}
+                  ? 'opacity-30 scale-75'
+                  : 'hover:scale-125'
+              }`}
             >
-              {/* 상자 아이콘 */}
-                <div className="text-5xl mb-4">
-                  {isCurrentlyAnimating ? <span className="animate-spin">✨</span> : '📦'}
+              <div className={`text-8xl transition-all ${
+                isCurrentlyAnimating ? 'animate-spin' : ''
+              }`}>
+                {isCurrentlyAnimating ? '✨' : '🔮'}
               </div>
               
-              {/* 상자 정보 */}
-                <div className="text-xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
-                상자 {boxId}
-              </div>
-              
-              {/* 보상 내용은 가림 - 선택 전에는 보여주지 않음 */}
-              {!isCurrentlyAnimating && (
-                  <div className="text-sm text-cyan-300">
-                    🌌 신비한 우주 보상
-                </div>
-              )}
-              
-              {/* 애니메이션 중 표시 */}
+              {/* 선택된 상자의 결과 표시 (선택된 아이콘 아래에만) */}
               {isCurrentlyAnimating && (
-                  <div className="mt-3 p-3 bg-purple-500/20 rounded-lg border border-purple-400/30 backdrop-blur-sm">
-                    <div className="text-xs text-purple-300 animate-pulse">
-                      우주 보상 확인 중...
+                <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 p-2 bg-purple-500/20 rounded-lg border border-purple-400/30 backdrop-blur-sm whitespace-nowrap">
+                  <div className="text-sm text-purple-300 animate-pulse">
+                    우주 보상 확인 중...
                   </div>
                 </div>
               )}

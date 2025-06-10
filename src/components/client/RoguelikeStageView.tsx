@@ -7,6 +7,7 @@ import RoguelikeEliteStage from '../../components/client/stages/RoguelikeEliteSt
 import RoguelikeCampfireStage from '../../components/client/stages/RoguelikeCampfireStage';
 import RoguelikeRouletteStage from '../../components/client/stages/RoguelikeRouletteStage';
 import RoguelikeRewardBox from '../../components/client/stages/RoguelikeRewardBox';
+import QuizTimer from './QuizTimer';
 
 interface RoguelikeStageViewProps {
   quiz: Quiz;
@@ -40,38 +41,51 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
   onGameComplete,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timerPercentage, setTimerPercentage] = useState(100);
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [isTimerPaused, setIsTimerPaused] = useState(false); // 타이머 일시정지 상태 추가
 
   // 타이머 설정
   useEffect(() => {
     if (currentStage?.type === 'normal') {
       setTimeLeft(60); // 일반 문제는 60초
+      setTimerPercentage(100);
     } else if (currentStage?.type === 'elite') {
-      setTimeLeft(120); // 엘리트 문제는 120초
+      setTimeLeft(60); // 엘리트 문제는 60초
+      setTimerPercentage(100);
     } else {
       setTimeLeft(null); // 모닥불, 룰렛 스테이지는 제한시간 없음
+      setTimerPercentage(100);
     }
     setStartTime(Date.now());
   }, [currentStage, currentQuestionIndex]);
 
-  // 타이머 동작
+  // 타이머 동작 - 일시정지 기능 추가
   useEffect(() => {
-    if (!timeLeft || timeLeft <= 0) return;
+    if (!timeLeft || timeLeft <= 0 || isTimerPaused) return; // 일시정지 상태에서는 타이머 동작 안함
+
+    const initialTimeLimit = currentStage?.type === 'normal' ? 60 : 60;
+    const updateInterval = 100; // 100ms마다 업데이트
+    const decrementPerUpdate = 100 / (initialTimeLimit * 1000 / updateInterval);
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev && prev > 1) {
-          return prev - 1;
-        } else {
+        if (prev === null || prev <= 0.1) {
           // 시간 종료
           handleTimeUp();
           return 0;
         }
+        return prev - (updateInterval / 1000);
       });
-    }, 1000);
+      
+      setTimerPercentage(prev => {
+        const newValue = prev - decrementPerUpdate;
+        return newValue < 0 ? 0 : newValue;
+      });
+    }, updateInterval);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, currentStage, isTimerPaused]); // isTimerPaused 의존성 추가
 
   const handleTimeUp = async () => {
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
@@ -81,6 +95,17 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
   const handleAnswer = async (answerIndex?: number, answerText?: string) => {
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
     await onSubmitAnswer(answerIndex, answerText, timeSpent);
+  };
+
+  // 타이머 제어 함수들
+  const pauseTimer = () => {
+    console.log('타이머 일시정지');
+    setIsTimerPaused(true);
+  };
+
+  const resumeTimer = () => {
+    console.log('타이머 재개');
+    setIsTimerPaused(false);
   };
 
   const getCurrentQuestion = (): Question | null => {
@@ -209,7 +234,7 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-start justify-center p-4 pt-8 relative overflow-hidden">
       {/* 고급 우주 배경 효과 */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
       
@@ -268,8 +293,11 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
                 questionNumber={progressInfo.currentQuestionInStage}
                 totalQuestions={progressInfo.totalQuestionsInStage}
                 timeLeft={timeLeft}
+                timerPercentage={timerPercentage}
                 onAnswer={handleAnswer}
                 gameSession={gameSession}
+                onPauseTimer={pauseTimer}
+                onResumeTimer={resumeTimer}
               />
             )}
 
@@ -278,9 +306,12 @@ const RoguelikeStageView: React.FC<RoguelikeStageViewProps> = ({
                 questions={eliteQuestions}
                 questionIndices={currentStage.questions.slice(0, 3)}
                 timeLeft={timeLeft}
+                timerPercentage={timerPercentage}
                 onAnswer={onSubmitAnswer}
                 onStageComplete={handleEliteStageComplete}
                 gameSession={gameSession}
+                onPauseTimer={pauseTimer}
+                onResumeTimer={resumeTimer}
               />
             )}
 

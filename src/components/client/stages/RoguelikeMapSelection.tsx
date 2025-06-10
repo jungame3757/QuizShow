@@ -119,15 +119,18 @@ const StageNode = ({ data }: { data: any }) => {
   let statusEffect = '';
   let statusIcon = '';
   let glowEffect = '';
+  let backgroundOverride = '';
   
   if (isCompleted && !isFailed) {
     statusEffect = 'shadow-[0_0_25px_rgba(34,197,94,0.8)]';
     statusIcon = '✓';
     glowEffect = '0 0 25px rgba(34, 197, 94, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.2)';
+    backgroundOverride = 'from-green-500 to-emerald-600'; // 성공 시 녹색 배경
   } else if (isFailed) {
     statusEffect = 'shadow-[0_0_25px_rgba(239,68,68,0.8)]';
     statusIcon = '✗';
     glowEffect = '0 0 25px rgba(239, 68, 68, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.2)';
+    backgroundOverride = 'from-red-500 to-red-600'; // 실패 시 빨간색 배경
   } else if (isActive && !isCompleted) {
     statusEffect = 'shadow-[0_0_30px_rgba(250,204,21,0.9)] animate-pulse';
     glowEffect = `0 0 30px rgba(250, 204, 21, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.3)`;
@@ -137,6 +140,9 @@ const StageNode = ({ data }: { data: any }) => {
   } else {
     glowEffect = `0 0 10px ${stageInfo.glowColor.replace('0.8', '0.3')}, inset 0 0 10px rgba(255, 255, 255, 0.1)`;
   }
+  
+  // 배경색 결정 (상태에 따라 오버라이드)
+  const finalBgClass = backgroundOverride || stageInfo.bgClass;
 
   return (
     <div className="relative">
@@ -151,7 +157,7 @@ const StageNode = ({ data }: { data: any }) => {
       )}
       
       <div
-        className={`relative w-14 h-14 bg-gradient-to-r ${stageInfo.bgClass} text-white rounded-full border-2 ${stageInfo.borderClass} transition-all duration-300 overflow-hidden ${isClickable ? 'cursor-pointer hover:scale-125 transform shimmer-stage-node' : 'cursor-default'} ${statusEffect} ${!isActive && !isCompleted && !isFailed ? 'opacity-50' : ''} flex items-center justify-center`}
+        className={`relative w-14 h-14 bg-gradient-to-r ${finalBgClass} text-white rounded-full border-2 ${stageInfo.borderClass} transition-all duration-300 overflow-hidden ${isClickable ? 'cursor-pointer hover:scale-125 transform shimmer-stage-node' : 'cursor-default'} ${statusEffect} ${!isActive && !isCompleted && !isFailed ? 'opacity-50' : ''} flex items-center justify-center`}
         style={{
           boxShadow: glowEffect
         }}
@@ -190,15 +196,7 @@ const StageNode = ({ data }: { data: any }) => {
           </div>
         )}
         
-        {/* 상태 아이콘 */}
-        {(isCompleted || isFailed) && (
-          <div className={`absolute -top-2 -right-2 ${isCompleted && !isFailed ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)]'} text-white text-xs w-6 h-6 rounded-full flex items-center justify-center border border-white/30 z-20`}>
-            {statusIcon}
-          </div>
-        )}
-        {!isActive && !isCompleted && !isFailed && (
-          <div className="absolute -top-2 -right-2 bg-gray-600 shadow-[0_0_10px_rgba(75,85,99,0.6)] text-white text-xs w-6 h-6 rounded-full flex items-center justify-center border border-gray-400/30 z-20">🔒</div>
-        )}
+
       </div>
       <Handle type="source" position={Position.Top} className="w-3 h-3 bg-blue-500 border-2 border-white invisible" />
     </div>
@@ -804,7 +802,7 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
   }, [pathType, currentPlayerPosition, stageConnections, getActivatableNodes]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-start justify-center p-4 pt-8 relative overflow-hidden">
       {/* 고급 우주 배경 효과 */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 animate-pulse"></div>
       
@@ -896,25 +894,6 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
         </div>
         
         <div className="relative z-10">
-        {/* 게임 상태 표시 바 */}
-        {gameStats && (
-            <div className="mb-6 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-3 border border-purple-400/30 backdrop-blur-sm">
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              {/* 현재 점수 */}
-              <div className="text-center">
-                  <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
-                  <div className="text-xs text-gray-300">⭐ 점수</div>
-              </div>
-              
-              {/* 현재 연속 */}
-              <div className="text-center">
-                  <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
-                  <div className="text-xs text-gray-300">🔥 연속</div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* 스테이지 헤더 */}
         <div className="text-center mb-8">
             <div className="text-6xl mb-4 drop-shadow-[0_0_25px_rgba(168,85,247,0.8)]">🗺️</div>
@@ -1044,6 +1023,16 @@ const RoguelikeMapSelectionInternal: React.FC<RoguelikeMapSelectionProps> = ({
             />
           </ReactFlow>
           </div>
+
+          {/* 하단 점수 표시 */}
+          {gameStats && (
+            <div className="mt-6 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-4 border border-purple-400/30 backdrop-blur-sm">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
+                <div className="text-sm text-gray-300 mt-1">⭐ 현재 점수</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

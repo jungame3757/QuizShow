@@ -17,7 +17,7 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
   onClose
 }) => {
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
-  const [selectedMultiplier, setSelectedMultiplier] = useState<any | null>(null);
+  const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [finalRewardPoints, setFinalRewardPoints] = useState<number>(0);
 
@@ -43,19 +43,22 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
               minPoints: 80, 
               maxPoints: 350, 
               color: 'bg-blue-100 border-blue-300',
-              label: '상자 1' 
+              label: '상자 1',
+              icon: '📦'
             },
             { 
               minPoints: 80, 
               maxPoints: 350, 
               color: 'bg-green-100 border-green-300',
-              label: '상자 2' 
+              label: '상자 2',
+              icon: '📦'
             },
             { 
               minPoints: 80, 
               maxPoints: 350, 
               color: 'bg-purple-100 border-purple-300',
-              label: '상자 3' 
+              label: '상자 3',
+              icon: '📦'
             }
           ]
         };
@@ -68,19 +71,22 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
               minPoints: 250, 
               maxPoints: 1000, 
               color: 'bg-orange-100 border-orange-300',
-              label: '상자 1' 
+              label: '상자 1',
+              icon: '💎'
             },
             { 
               minPoints: 250, 
               maxPoints: 1000, 
               color: 'bg-red-100 border-red-300',
-              label: '상자 2' 
+              label: '상자 2',
+              icon: '💎'
             },
             { 
               minPoints: 250, 
               maxPoints: 1000, 
               color: 'bg-purple-100 border-purple-300',
-              label: '상자 3' 
+              label: '상자 3',
+              icon: '💎'
             }
           ]
         };
@@ -88,7 +94,7 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
         return {
           title: '모닥불 스테이지 완료!',
           emoji: '🔥',
-          isMultiplier: true, // 곱셈 방식 표시
+          isMultiplier: true,
           multiplierBoxes: getCampfireMultiplierBoxes()
         };
       default:
@@ -100,19 +106,22 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
               minPoints: 30, 
               maxPoints: 180, 
               color: 'bg-gray-100 border-gray-300',
-              label: '상자 1' 
+              label: '상자 1',
+              icon: '🔮'
             },
             { 
               minPoints: 30, 
               maxPoints: 180, 
               color: 'bg-blue-100 border-blue-300',
-              label: '상자 2' 
+              label: '상자 2',
+              icon: '🔮'
             },
             { 
               minPoints: 30, 
               maxPoints: 180, 
               color: 'bg-purple-100 border-purple-300',
-              label: '상자 3' 
+              label: '상자 3',
+              icon: '🔮'
             }
           ]
         };
@@ -121,21 +130,19 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
 
   // 모닥불 곱셈 보상 박스 생성
   const getCampfireMultiplierBoxes = () => {
-    // 기본 보상 박스들 (모두 곱셈 방식, 0.8~2배 범위)
     const baseBoxes = [
-      { id: 1, multiplier: 0.8, description: '현재 점수 × 0.8배' },
-      { id: 2, multiplier: 0.9, description: '현재 점수 × 0.9배' },
-      { id: 3, multiplier: 1.1, description: '현재 점수 × 1.1배' },
-      { id: 4, multiplier: 1.2, description: '현재 점수 × 1.2배' },
-      { id: 5, multiplier: 1.3, description: '현재 점수 × 1.3배' },
-      { id: 6, multiplier: 1.4, description: '현재 점수 × 1.4배' },
-      { id: 7, multiplier: 1.5, description: '현재 점수 × 1.5배' },
-      { id: 8, multiplier: 1.6, description: '현재 점수 × 1.6배' },
-      { id: 9, multiplier: 1.8, description: '현재 점수 × 1.8배' },
-      { id: 10, multiplier: 2.0, description: '현재 점수 × 2.0배' }
+      { id: 1, multiplier: 0.8, description: '현재 점수 × 0.8배', icon: '🔮' },
+      { id: 2, multiplier: 0.9, description: '현재 점수 × 0.9배', icon: '🔮' },
+      { id: 3, multiplier: 1.1, description: '현재 점수 × 1.1배', icon: '🔮' },
+      { id: 4, multiplier: 1.2, description: '현재 점수 × 1.2배', icon: '🔮' },
+      { id: 5, multiplier: 1.3, description: '현재 점수 × 1.3배', icon: '🔮' },
+      { id: 6, multiplier: 1.4, description: '현재 점수 × 1.4배', icon: '🔮' },
+      { id: 7, multiplier: 1.5, description: '현재 점수 × 1.5배', icon: '🔮' },
+      { id: 8, multiplier: 1.6, description: '현재 점수 × 1.6배', icon: '🔮' },
+      { id: 9, multiplier: 1.8, description: '현재 점수 × 1.8배', icon: '🔮' },
+      { id: 10, multiplier: 2.0, description: '현재 점수 × 2.0배', icon: '🔮' }
     ];
 
-    // 3개의 랜덤 박스 선택
     const shuffled = [...baseBoxes].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3).map((box, index) => ({
       ...box,
@@ -153,12 +160,10 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
     setSelectedBox(boxIndex);
     setIsAnimating(true);
     
-    // 랜덤 점수 계산 (한 번만 계산하여 고정)
     const box = config.boxes![boxIndex];
     const randomPoints = Math.floor(Math.random() * (box.maxPoints - box.minPoints + 1)) + box.minPoints;
     setFinalRewardPoints(randomPoints);
     
-    // 애니메이션 후 콜백 실행
     setTimeout(() => {
       onBoxSelect(randomPoints);
     }, 2000);
@@ -167,16 +172,14 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
   const handleMultiplierSelect = (multiplierIndex: number) => {
     if (selectedMultiplier !== null || !config.isMultiplier) return;
     
-    setSelectedMultiplier(config.multiplierBoxes![multiplierIndex]);
+    setSelectedMultiplier(multiplierIndex);
     setIsAnimating(true);
     
-    // 현재 점수에 배수 적용
     const currentScore = gameStats?.currentScore || 0;
     const multiplier = config.multiplierBoxes![multiplierIndex].multiplier;
     const newScore = Math.floor(currentScore * multiplier);
     setFinalRewardPoints(newScore);
     
-    // 애니메이션 후 콜백 실행 (곱셈 결과 전달)
     setTimeout(() => {
       onBoxSelect(newScore);
     }, 2000);
@@ -194,7 +197,7 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
       >
         {/* 모달 컨테이너 */}
         <div 
-          className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-purple-500/30 backdrop-blur-sm relative overflow-hidden"
+          className="bg-gradient-to-br from-gray-800 via-purple-800 to-gray-900 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-purple-500/30 backdrop-blur-sm relative overflow-hidden"
           onClick={(e) => e.stopPropagation()}
           style={{
             animation: 'modalSlideIn 0.3s ease-out'
@@ -206,26 +209,7 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
           <div className="absolute bottom-4 left-4 w-2 h-2 bg-pink-400 rounded-full animate-ping"></div>
           
           {/* 모달 헤더 */}
-          <div className="sticky top-0 bg-gradient-to-r from-gray-800/95 via-purple-800/95 to-gray-900/95 border-b border-purple-400/30 p-4 rounded-t-3xl backdrop-blur-sm relative z-10">
-            {/* 게임 상태 바 (간소화) */}
-            {gameStats && (
-              <div className="mb-4 bg-gradient-to-r from-gray-900/80 via-purple-900/80 to-gray-900/80 rounded-xl p-3 border border-purple-400/30 backdrop-blur-sm">
-                <div className="grid grid-cols-2 gap-4">
-                  {/* 현재 점수 */}
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.7)]">{gameStats.currentScore.toLocaleString()}</div>
-                    <div className="text-xs text-gray-300">⭐ 점수</div>
-                  </div>
-                  
-                  {/* 현재 연속 */}
-                  <div className="text-center">
-                    <div className="text-xl font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{gameStats.currentStreak}</div>
-                    <div className="text-xs text-gray-300">🔥 연속</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
+          <div className="sticky top-0 bg-gradient-to-r from-gray-800/95 via-purple-800/95 to-gray-900/95 border-b border-purple-400/30 p-6 rounded-t-3xl backdrop-blur-sm relative z-10">
             {/* 타이틀 */}
             <div className="text-center">
               <div className="text-6xl mb-2 drop-shadow-[0_0_25px_rgba(168,85,247,0.8)]">{config.emoji}</div>
@@ -237,58 +221,34 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
           </div>
 
           {/* 모달 본문 */}
-          <div className="p-6 relative z-10">
+          <div className="p-8 relative z-10">
             {/* 곱셈 보상 선택 (모닥불 스테이지) */}
             {config.isMultiplier && config.multiplierBoxes && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="flex justify-center items-center gap-8 mb-6">
                 {config.multiplierBoxes.map((multiplier, index) => (
                   <button
                     key={multiplier.id}
                     onClick={() => handleMultiplierSelect(index)}
                     disabled={selectedMultiplier !== null}
-                    className={`relative p-8 rounded-2xl border-2 transition-all transform hover:scale-105 ${
-                      selectedMultiplier === multiplier
-                        ? 'bg-gradient-to-br from-orange-500/30 to-yellow-500/30 border-orange-400 scale-105 ring-4 ring-orange-300/50'
+                    className={`relative transition-all transform hover:scale-125 ${
+                      selectedMultiplier === index
+                        ? 'scale-125 animate-bounce'
                         : selectedMultiplier !== null
-                        ? 'opacity-50 scale-95 bg-gradient-to-br from-gray-600/20 to-gray-700/20 border-gray-500/30'
-                        : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 border-orange-400/50 hover:scale-110 hover:border-orange-300/70 hover:bg-gradient-to-br hover:from-orange-500/20 hover:to-yellow-500/20'
-                    } backdrop-blur-sm`}
+                        ? 'opacity-30 scale-75'
+                        : 'hover:scale-125'
+                    }`}
                   >
-                    {/* 보상 아이콘 */}
-                    <div className="text-4xl mb-2">
-                      {selectedMultiplier === multiplier && isAnimating ? <span className="animate-spin">✨</span> : '🎁'}
+                    <div className={`text-8xl transition-all ${
+                      selectedMultiplier === index && isAnimating ? 'animate-spin' : ''
+                    }`}>
+                      {selectedMultiplier === index && isAnimating ? '✨' : multiplier.icon}
                     </div>
                     
-                    {/* 보상 정보 */}
-                    <div className="text-xl font-bold text-white mb-2 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
-                      {multiplier.label}
-                    </div>
-                    
-                    {/* 선택 전에는 신비한 보상으로 표시, 선택 후에만 실제 배수 공개 */}
-                    {selectedMultiplier !== multiplier && (
-                      <div className="text-sm text-orange-300 mb-3">
-                        🌌 신비한 에너지 증폭
-                      </div>
-                    )}
-
-                    {/* 선택된 상자가 아니고 아직 선택하지 않은 경우 예상 결과 점수 숨김 */}
-                    {selectedMultiplier === null && (
-                      <div className="text-xs text-gray-400">
-                        현재 점수: {(gameStats?.currentScore || 0).toLocaleString()}점
-                      </div>
-                    )}
-                    
-                    {/* 선택 결과 표시 (선택된 상자만) */}
-                    {selectedMultiplier === multiplier && (
-                      <div className="mt-3 p-2 bg-orange-500/20 rounded-lg border border-orange-400/30 backdrop-blur-sm">
-                        <div className="text-lg font-bold text-orange-400 mb-1 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">
-                          🎉 {multiplier.description}
-                        </div>
+                    {/* 선택 결과 표시 (선택된 아이콘 아래에만) */}
+                    {selectedMultiplier === index && (
+                      <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 p-2 bg-orange-500/20 rounded-lg border border-orange-400/30 backdrop-blur-sm whitespace-nowrap">
                         <div className="text-sm font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">
-                          {gameStats?.currentScore.toLocaleString()}점 → {finalRewardPoints.toLocaleString()}점
-                        </div>
-                        <div className="text-xs text-orange-300">
-                          {isAnimating ? '에너지 적용 중...' : '에너지 적용됨!'}
+                          점수 {multiplier.multiplier}배!
                         </div>
                       </div>
                     )}
@@ -299,41 +259,31 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
 
             {/* 보상 상자들 (일반/엘리트 스테이지) */}
             {!config.isMultiplier && config.boxes && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="flex justify-center items-center gap-8 mb-6">
                 {config.boxes.map((box, index) => (
                   <button
                     key={index}
                     onClick={() => handleBoxSelect(index)}
                     disabled={selectedBox !== null}
-                    className={`relative p-8 rounded-2xl border-2 transition-all transform hover:scale-105 ${
+                    className={`relative transition-all transform hover:scale-125 ${
                       selectedBox === index
-                        ? 'bg-gradient-to-br from-cyan-500/30 to-blue-500/30 border-cyan-400 scale-105 ring-4 ring-cyan-300/50'
+                        ? 'scale-125 animate-bounce'
                         : selectedBox !== null
-                        ? 'opacity-50 scale-95 bg-gradient-to-br from-gray-600/20 to-gray-700/20 border-gray-500/30'
-                        : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 border-cyan-400/50 hover:scale-110 hover:border-cyan-300/70 hover:bg-gradient-to-br hover:from-cyan-500/20 hover:to-blue-500/20'
-                    } backdrop-blur-sm`}
+                        ? 'opacity-30 scale-75'
+                        : 'hover:scale-125'
+                    }`}
                   >
-                    {/* 상자 아이콘 */}
-                    <div className="text-4xl mb-2">
-                      {selectedBox === index && isAnimating ? <span className="animate-spin">✨</span> : '📦'}
+                    <div className={`text-8xl transition-all ${
+                      selectedBox === index && isAnimating ? 'animate-spin' : ''
+                    }`}>
+                      {selectedBox === index && isAnimating ? '✨' : box.icon}
                     </div>
                     
-                    {/* 상자 정보 */}
-                    <div className="text-xl font-bold text-white mb-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
-                      {box.label}
-                    </div>
-                    <div className="text-sm text-cyan-300">
-                      {box.minPoints} ~ {box.maxPoints}점
-                    </div>
-                    
-                    {/* 선택된 상자의 결과 표시 */}
+                    {/* 선택된 상자의 결과 표시 (선택된 아이콘 아래에만) */}
                     {selectedBox === index && (
-                      <div className="mt-3 p-2 bg-cyan-500/20 rounded-lg border border-cyan-400/30 backdrop-blur-sm">
-                        <div className="text-xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">
+                      <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 p-2 bg-cyan-500/20 rounded-lg border border-cyan-400/30 backdrop-blur-sm whitespace-nowrap">
+                        <div className="text-lg font-bold text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]">
                           +{finalRewardPoints}점!
-                        </div>
-                        <div className="text-xs text-cyan-300">
-                          {isAnimating ? '우주 보상 적용 중...' : '우주 보상 적용됨!'}
                         </div>
                       </div>
                     )}
@@ -344,7 +294,7 @@ const RoguelikeRewardBox: React.FC<RoguelikeRewardBoxProps> = ({
 
             {/* 선택 안내 */}
             {selectedBox === null && selectedMultiplier === null && (
-              <div className="mt-4 text-center">
+              <div className="mt-8 text-center">
                 <p className="text-sm text-purple-300">
                   🌌 {config.isMultiplier ? '에너지 증폭을 선택하여 점수를 늘려보세요!' : '우주 보물상자를 선택하여 보상을 받아보세요!'}
                 </p>

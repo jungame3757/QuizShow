@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# 주요 페이지들
+Allow: /
+Allow: /blog
+Allow: /help
+Allow: /terms
+Allow: /privacy
+Allow: /sitemap
+Allow: /join
+Allow: /login
+
+# 제한된 접근
+Disallow: /host/
+Disallow: /play/
+Disallow: /roguelike/
+Disallow: /profile
+
+# 사이트맵 위치
+Sitemap: https://quizshow-36bab.web.app/sitemap
+
+# 크롤링 지연 (선택사항)
+Crawl-delay: 1 
